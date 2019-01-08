@@ -16,3 +16,8 @@ type Bundle interface {
 type Plugin interface {
 	Bundle
 }
+
+////
+
+// 组件创建工厂函数
+type BundleFactory func() interface{}

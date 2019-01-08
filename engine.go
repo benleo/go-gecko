@@ -91,6 +91,17 @@ func (ge *GeckoEngine) Init(args map[string]interface{}) {
 	ge.driChan = make(chan GeckoContext, driCapacity)
 	ge.outChan = make(chan GeckoContext, outCapacity)
 	ge.shutdownCompleted = make(chan struct{}, 1)
+
+	// 初始化组件：根据配置文件指定项目
+	initWithScoped := func(it Initialize, args map[string]interface{}) {
+		it.OnInit(args, ge.scoped)
+	}
+	ge.registerBundles(config.MustMap("PLUGINS"), initWithScoped)
+	ge.registerBundles(config.MustMap("PIPELINES"), initWithScoped)
+	ge.registerBundles(config.MustMap("INTERCEPTORS"), initWithScoped)
+	ge.registerBundles(config.MustMap("DRIVERS"), initWithScoped)
+	ge.registerBundles(config.MustMap("DEVICES"), initWithScoped)
+	ge.registerBundles(config.MustMap("TRIGGERS"), initWithScoped)
 }
 
 // 启动Engine
