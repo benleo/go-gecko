@@ -2,3 +2,10 @@
  domain = "net.nextabc"
  nodeId = "0755"
  workerId = 755
+
+# 全局配置
+[GLOBALS]
+ # 显示详细日志
+ loggingVerbose = true
+ # 开启FailFast机制：当执行系统主流程发生错误时，直接panic快速失败
+ failFastEnable = true

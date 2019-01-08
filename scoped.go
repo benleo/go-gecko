@@ -33,11 +33,16 @@ type GeckoScoped interface {
 	// 如果Globals设置了Verbose标记，则显示详细日志。
 	LogIfV(fun func())
 
+	////
+
 	// 返回Gecko的配置
 	gecko() map[string]interface{}
 
 	// 返回分布式ID生成器的WorkerId
 	workerId() int64
+
+	// 返回是否在Globals中配置了快速失败标记位
+	failFastEnabled() bool
 }
 
 ///
@@ -61,6 +66,10 @@ func (gs *abcGeckoScoped) gecko() map[string]interface{} {
 
 func (gs *abcGeckoScoped) workerId() int64 {
 	return conf.MapToMap(gs.geckoConf).GetInt64OrDefault("workerId", 0)
+}
+
+func (gs *abcGeckoScoped) failFastEnabled() bool {
+	return conf.MapToMap(gs.globalsConf).GetBoolOrDefault("failFastEnabled", false)
 }
 
 func (gs *abcGeckoScoped) Version() string {

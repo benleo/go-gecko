@@ -8,8 +8,8 @@ import (
 
 ////
 
-// 默诵
-const DefaultLifeCycleTimeout = time.Duration(3)
+// 默认组件生命周期超时时间：3秒
+const DefaultLifeCycleTimeout = time.Second * 3
 
 // Engine管理内部组件，处理事件。
 type GeckoEngine struct {
@@ -150,6 +150,7 @@ func (ge *GeckoEngine) handleInterceptor(ctx GeckoContext) {
 	ctx.AddAttribute("Interceptor.Start", time.Now())
 	defer func() {
 		ctx.AddAttribute("Interceptor.End", time.Now())
+		ge.checkRecover(recover(), "Interceptor-Goroutine内部错误")
 	}()
 	ge.scoped.LogIfV(func() {
 		ge.withTag(log.Debug).Msgf("Interceptor调度处理，Topic: %s", ctx.Topic())
@@ -163,13 +164,17 @@ func (ge *GeckoEngine) handleInterceptor(ctx GeckoContext) {
 			if err == nil {
 				continue
 			}
-			if err == ErrDrop {
-				ge.withTag(log.Error).Err(err).Msgf("拦截器中断事件： %s", err.Error())
+			if err == ErrInterceptorDropped {
+				ge.withTag(log.Debug).Err(err).Msgf("拦截器中断事件： %s", err.Error())
 				ctx.Outbound().AddDataField("error", "InterceptorDropped")
 				ge.outChan <- ctx
 				return
 			} else {
-				ge.withTag(log.Error).Err(err).Msgf("拦截器发生错误： %s", err.Error())
+				logger := ge.withTag(log.Error)
+				if ge.scoped.failFastEnabled() {
+					logger = ge.withTag(log.Panic)
+				}
+				logger.Err(err).Msgf("拦截器发生错误： %s", err.Error())
 			}
 		}
 	}
@@ -182,6 +187,7 @@ func (ge *GeckoEngine) handleDrivers(ctx GeckoContext) {
 	ctx.AddAttribute("Driver.Start", time.Now())
 	defer func() {
 		ctx.AddAttribute("Driver.End", time.Now())
+		ge.checkRecover(recover(), "Driver-Goroutine内部错误")
 	}()
 	ge.scoped.LogIfV(func() {
 		ge.withTag(log.Debug).Msgf("Driver调度处理，Topic: %s", ctx.Topic())
@@ -192,7 +198,11 @@ func (ge *GeckoEngine) handleDrivers(ctx GeckoContext) {
 		if anyTopicMatches(driver.GetTopicExpr(), ctx.Topic()) {
 			err := driver.Handle(ctx, ge.selector, ge.scoped)
 			if nil != err {
-				ge.withTag(log.Error).Err(err).Msgf("用户驱动发生错误： %s", err.Error())
+				logger := ge.withTag(log.Error)
+				if ge.scoped.failFastEnabled() {
+					logger = ge.withTag(log.Panic)
+				}
+				logger.Err(err).Msgf("用户驱动发生错误： %s", err.Error())
 			}
 		} else {
 			continue
@@ -204,6 +214,11 @@ func (ge *GeckoEngine) handleDrivers(ctx GeckoContext) {
 
 // 返回Trigger输出
 func (ge *GeckoEngine) handleOutput(ctx GeckoContext) {
+	ctx.AddAttribute("Output.Start", time.Now())
+	defer func() {
+		ctx.AddAttribute("Output.End", time.Now())
+		ge.checkRecover(recover(), "Output-Goroutine内部错误")
+	}()
 	ctx.(*abcGeckoContext).callback(ctx.Topic(), ctx.Outbound().Data)
 }
 
@@ -213,6 +228,16 @@ func (ge *GeckoEngine) checkDefTimeout(act func(GeckoScoped)) {
 	})
 }
 
+func (ge *GeckoEngine) checkRecover(r interface{}, msg string) {
+	if nil != r {
+		if err, ok := r.(error); ok {
+			ge.withTag(log.Error).Err(err).Msg(msg)
+		}
+		if ge.scoped.failFastEnabled() {
+			panic(r)
+		}
+	}
+}
 func anyTopicMatches(expected []*TopicExpr, topic string) bool {
 	for _, t := range expected {
 		if t.matches(topic) {

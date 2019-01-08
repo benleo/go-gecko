@@ -6,7 +6,7 @@ import "errors"
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-var ErrDrop = errors.New("DROP")
+var ErrInterceptorDropped = errors.New("INTERCEPTOR_DROPPED")
 
 // 事件拦截器。在Gecko系统中，通过Trigger触发事件后，由 Interceptor 处理拦截。
 // 负责对触发器发起的事件进行拦截处理，不符合规则的事件将被中断，丢弃。
@@ -23,5 +23,5 @@ type Interceptor interface {
 
 // 拦截器抛弃事件操作
 func InterceptedDrop() error {
-	return ErrDrop
+	return ErrInterceptorDropped
 }
