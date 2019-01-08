@@ -5,3 +5,7 @@
 [prune]
   go-tests = true
   unused-packages = true
+
+[[constraint]]
+  name = "github.com/parkingwang/go-conf"
+  version = "2.0.2"
