@@ -14,7 +14,9 @@ const DefaultLifeCycleTimeout = time.Duration(3)
 // Engine管理内部组件，处理事件。
 type GeckoEngine struct {
 	*RegisterEngine
-
+	// ID生成器
+	snowflake *Snowflake
+	//
 	scoped   GeckoScoped
 	invoker  TriggerInvoker
 	selector ProtoPipelineSelector
@@ -74,6 +76,11 @@ func (ge *GeckoEngine) PrepareEnv() {
 // 初始化Engine
 func (ge *GeckoEngine) Init(config map[string]interface{}) {
 	ge.scoped = newAbcGeckoScoped(config)
+	if sf, err := NewSnowflake(ge.scoped.workerId()); nil != err {
+		ge.withTag(log.Panic).Err(err).Msg("初始化发生错误")
+	} else {
+		ge.snowflake = sf
+	}
 	gecko := conf.MapToMap(ge.scoped.gecko())
 	intCapacity := gecko.GetInt64OrDefault("interceptorChannelCapacity", 8)
 	driCapacity := gecko.GetInt64OrDefault("driverChannelCapacity", 8)

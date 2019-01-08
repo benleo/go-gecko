@@ -35,6 +35,9 @@ type GeckoScoped interface {
 
 	// 返回Gecko的配置
 	gecko() map[string]interface{}
+
+	// 返回分布式ID生成器的WorkerId
+	workerId() int64
 }
 
 ///
@@ -54,6 +57,10 @@ type abcGeckoScoped struct {
 
 func (gs *abcGeckoScoped) gecko() map[string]interface{} {
 	return gs.geckoConf
+}
+
+func (gs *abcGeckoScoped) workerId() int64 {
+	return conf.MapToMap(gs.geckoConf).GetInt64OrDefault("workerId", 0)
 }
 
 func (gs *abcGeckoScoped) Version() string {
