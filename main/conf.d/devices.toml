@@ -1,3 +1,10 @@
 [DEVICES.UdpVirtualDevice]
   disable = false
+  type = "UdpVirtualDevice"
+  groupAddress = "192.168.1.11"
+  physicalAddress = 60000
 [DEVICES.UdpVirtualDevice.InitArgs]
+  sendBuffSizeKB = 1
+  recvBuffSizeKB = 1
+  sendTimeout = "3s"
+  recvTimeout = "3s"
