@@ -5,7 +5,7 @@ import (
 	"github.com/parkingwang/go-conf"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/yoojia/go-gecko/util"
+	"github.com/yoojia/go-gecko/x"
 )
 
 //
@@ -81,22 +81,38 @@ func (re *RegisterEngine) AddProtoPipeline(pipeline ProtoPipeline) {
 
 func (re *RegisterEngine) showBundles() {
 	re.withTag(log.Info).Msgf("已加载 Interceptors: %d", re.interceptors.Len())
+	x.ForEach(re.interceptors, func(it interface{}) {
+		re.withTag(log.Info).Msgf("  -Interceptor: " + x.SimpleClassName(it))
+	})
 
 	devices := make([]VirtualDevice, 0)
 	for _, pi := range re.pipelines {
 		devices = append(devices, pi.GetDevices()...)
 	}
 	re.withTag(log.Info).Msgf("已加载 Devices: %d", len(devices))
+	for _, it := range devices {
+		re.withTag(log.Info).Msgf("  -Device: " + x.SimpleClassName(it))
+	}
 
-	re.withTag(log.Info).Msgf("已加载 Drivers: %d", re.interceptors.Len())
 	re.withTag(log.Info).Msgf("已加载 Drivers: %d", re.drivers.Len())
+	x.ForEach(re.drivers, func(it interface{}) {
+		re.withTag(log.Info).Msgf("  -Driver: " + x.SimpleClassName(it))
+	})
+
 	re.withTag(log.Info).Msgf("已加载 Triggers: %d", re.triggers.Len())
+	x.ForEach(re.triggers, func(it interface{}) {
+		re.withTag(log.Info).Msgf("  -Trigger: " + x.SimpleClassName(it))
+	})
+
 	re.withTag(log.Info).Msgf("已加载 Plugins: %d", re.plugins.Len())
+	x.ForEach(re.plugins, func(it interface{}) {
+		re.withTag(log.Info).Msgf("  -Plugin: " + x.SimpleClassName(it))
+	})
 }
 
 func (re *RegisterEngine) RegisterBundleFactory(typeName string, factory BundleFactory) {
 	if _, ok := re.bundleFactories[typeName]; ok {
-		re.withTag(log.Warn).Msgf("组件类型[%s]工厂函数被覆盖注册： %s", typeName, util.SimpleClassName(factory))
+		re.withTag(log.Warn).Msgf("组件类型[%s]工厂函数被覆盖注册： %s", typeName, x.SimpleClassName(factory))
 	}
 	re.bundleFactories[typeName] = factory
 }

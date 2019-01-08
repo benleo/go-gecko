@@ -3,6 +3,7 @@ package gecko
 import (
 	"github.com/parkingwang/go-conf"
 	"github.com/rs/zerolog/log"
+	"github.com/yoojia/go-gecko/x"
 	"time"
 )
 
@@ -109,23 +110,23 @@ func (ge *GeckoEngine) Start() {
 	ge.withTag(log.Info).Msgf("Engine启动...")
 	defer ge.withTag(log.Info).Msgf("Engine启动...OK")
 	// Plugin
-	for el := ge.plugins.Front(); el != nil; el = el.Next() {
-		ge.checkDefTimeout(el.Value.(Plugin).OnStart)
-	}
+	x.ForEach(ge.plugins, func(it interface{}) {
+		ge.checkDefTimeout(it.(Plugin).OnStart)
+	})
 	// Pipeline
 	for _, pipeline := range ge.pipelines {
 		ge.checkDefTimeout(pipeline.OnStart)
 	}
 	// Drivers
-	for el := ge.drivers.Front(); el != nil; el = el.Next() {
-		ge.checkDefTimeout(el.Value.(Driver).OnStart)
-	}
+	x.ForEach(ge.drivers, func(it interface{}) {
+		ge.checkDefTimeout(it.(Driver).OnStart)
+	})
 	// Trigger
-	for el := ge.triggers.Front(); el != nil; el = el.Next() {
+	x.ForEach(ge.triggers, func(it interface{}) {
 		ge.scoped.CheckTimeout(DefaultLifeCycleTimeout, func() {
-			el.Value.(Trigger).OnStart(ge.scoped, ge.invoker)
+			it.(Trigger).OnStart(ge.scoped, ge.invoker)
 		})
-	}
+	})
 }
 
 // 停止Engine
@@ -137,23 +138,23 @@ func (ge *GeckoEngine) Stop() {
 		ge.withTag(log.Info).Msgf("Engine停止...OK")
 	}()
 	// Triggers
-	for el := ge.triggers.Front(); el != nil; el = el.Next() {
+	x.ForEach(ge.triggers, func(it interface{}) {
 		ge.scoped.CheckTimeout(DefaultLifeCycleTimeout, func() {
-			el.Value.(Trigger).OnStop(ge.scoped, ge.invoker)
+			it.(Trigger).OnStop(ge.scoped, ge.invoker)
 		})
-	}
+	})
 	// Drivers
-	for el := ge.drivers.Front(); el != nil; el = el.Next() {
-		ge.checkDefTimeout(el.Value.(Driver).OnStop)
-	}
+	x.ForEach(ge.drivers, func(it interface{}) {
+		ge.checkDefTimeout(it.(Driver).OnStop)
+	})
 	// Pipeline
 	for _, pipeline := range ge.pipelines {
 		ge.checkDefTimeout(pipeline.OnStop)
 	}
 	// Plugin
-	for el := ge.plugins.Front(); el != nil; el = el.Next() {
-		ge.checkDefTimeout(el.Value.(Plugin).OnStop)
-	}
+	x.ForEach(ge.plugins, func(it interface{}) {
+		ge.checkDefTimeout(it.(Plugin).OnStop)
+	})
 }
 
 // 处理拦截器过程
