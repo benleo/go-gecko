@@ -19,7 +19,7 @@ type TriggerInvoker func(income *Income, callback TriggerCallback)
 // Trigger是一个负责接收前端事件，并调用 {@link ContextInvoker} 方法函数来向系统内部发起触发事件通知；
 // 内部系统处理完成后，将回调完成函数，返回输出
 type Trigger interface {
-	InitialAware
+	NeedInitialize
 
 	// 启动
 	OnStart(scoped GeckoScoped, invoker TriggerInvoker)

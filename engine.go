@@ -160,7 +160,7 @@ func (ge *GeckoEngine) handleInterceptor(ctx GeckoContext) {
 			if err == nil {
 				continue
 			}
-			if err == ERR_DROP {
+			if err == ErrDrop {
 				ge.withTag(log.Error).Err(err).Msgf("拦截器中断事件： %s", err.Error())
 				ctx.Outbound().AddDataField("error", "InterceptorDropped")
 				ge.outChan <- ctx

@@ -6,11 +6,9 @@ package gecko
 // Device是一个硬件设备的表示符号。
 // 它可以接收由其它组件派发到此设备的事件，做出操作后，返回一个响应事件。
 type VirtualDevice interface {
+	NeedInitialize
 	Bundle
 
-	// 设备名称
-	setDisplayName(name string)
-	GetDisplayName() string
 	// 属组地址
 	setGroupAddress(addr string)
 	GetGroupAddress() string
@@ -20,6 +18,10 @@ type VirtualDevice interface {
 
 	// 获取设备地址，由 /{GroupAddress}/{PhysicalAddress} 组成。
 	GetUnionAddress() string
+
+	// 设备名称
+	setDisplayName(name string)
+	GetDisplayName() string
 
 	// 返回当前设备支持的通讯协议名称
 	GetProtoName() string
@@ -32,6 +34,7 @@ type VirtualDevice interface {
 
 // 虚拟设备对象抽象实现
 type AbcVirtualDevice struct {
+	VirtualDevice
 	displayName  string
 	groupAddress string
 	phyAddress   string

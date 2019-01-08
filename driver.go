@@ -5,6 +5,7 @@ package gecko
 //
 
 type Driver interface {
+	NeedInitialize
 	Bundle
 	NeedTopicFilter
 	// 处理外部请求，返回响应结果。
