@@ -124,46 +124,62 @@ func (re *RegisterEngine) registerBundles(configs conf.Map,
 			continue
 		}
 
-		if factory, ok := re.findFactory(typeName); !ok {
+		// 配置选项中，指定 type 字段为类型名称
+		if defineTypeName := config.MustString("type"); "" != defineTypeName {
+			typeName = defineTypeName
+		}
+
+		factory, ok := re.findFactory(typeName)
+		if !ok {
 			re.withTag(log.Panic).Msgf("组件类型[%s]没有注册对应的工厂函数")
-		} else {
-			bundle := factory()
-			switch bundle.(type) {
-			case Plugin:
-				re.AddPlugin(bundle.(Plugin))
-			case ProtoPipeline:
-				re.AddProtoPipeline(bundle.(ProtoPipeline))
-			case Interceptor:
-				re.AddInterceptor(bundle.(Interceptor))
-			case Driver:
-				re.AddDriver(bundle.(Driver))
-			case VirtualDevice:
-				dev := bundle.(VirtualDevice)
-				if name := config.MustString("name"); "" == name {
-					dev.setDisplayName(typeName)
-				} else {
-					dev.setDisplayName(name)
-				}
-				dev.setGroupAddress(config.MustString("groupAddress"))
-				dev.setPhyAddress(config.MustString("physicalAddress"))
-				re.AddVirtualDevice(dev)
-			case Trigger:
-				re.AddTrigger(bundle.(Trigger))
-			default:
-				re.withTag(log.Panic).Msgf("未支持的组件类型：%s", typeName)
+			return
+		}
+		// 根据类型注册
+		bundle := factory()
+		switch bundle.(type) {
+		case Plugin:
+			re.AddPlugin(bundle.(Plugin))
+
+		case ProtoPipeline:
+			re.AddProtoPipeline(bundle.(ProtoPipeline))
+
+		case Interceptor:
+			re.AddInterceptor(bundle.(Interceptor))
+
+		case Driver:
+			re.AddDriver(bundle.(Driver))
+
+		case VirtualDevice:
+			dev := bundle.(VirtualDevice)
+			if name := config.MustString("name"); "" == name {
+				dev.setDisplayName(typeName)
+			} else {
+				dev.setDisplayName(name)
 			}
-			// 需要Topic过滤
-			if tf, ok := bundle.(NeedTopicFilter); ok {
-				if topics, err := config.MustStringArray("topics"); nil != err {
-					re.withTag(log.Panic).Msgf("配置项中[topics]必须是字符串数组： %s", typeName)
-				} else {
-					tf.SetTopics(topics)
-				}
+			dev.setGroupAddress(config.MustString("groupAddress"))
+			dev.setPhyAddress(config.MustString("physicalAddress"))
+			re.AddVirtualDevice(dev)
+
+		case Trigger:
+			re.AddTrigger(bundle.(Trigger))
+
+		default:
+			re.withTag(log.Panic).Msgf("未支持的组件类型：%s", typeName)
+			return
+		}
+
+		// 需要Topic过滤
+		if tf, ok := bundle.(NeedTopicFilter); ok {
+			if topics, err := config.MustStringArray("topics"); nil != err {
+				re.withTag(log.Panic).Msgf("配置项中[topics]必须是字符串数组： %s", typeName)
+			} else {
+				tf.SetTopics(topics)
 			}
-			// 组件初始化
-			if init, ok := bundle.(Initialize); ok {
-				initAct(init, map[string]interface{}(config.MustMap("InitArgs")))
-			}
+		}
+
+		// 组件初始化。由外部函数处理，减少不必要的依赖
+		if init, ok := bundle.(Initialize); ok {
+			initAct(init, map[string]interface{}(config.MustMap("InitArgs")))
 		}
 	}
 }
