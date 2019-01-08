@@ -13,7 +13,7 @@ import (
 // 负责对Engine组件的注册管理
 type RegisterEngine struct {
 	plugins      list.List
-	pipelines    map[string]DevicePipeline
+	pipelines    map[string]ProtoPipeline
 	interceptors list.List
 	drivers      list.List
 	triggers     list.List
@@ -24,7 +24,7 @@ type RegisterEngine struct {
 func (re *RegisterEngine) AddVirtualDevice(device VirtualDevice) {
 	proto := device.GetProtoName()
 	if pipeline, ok := re.pipelines[proto]; ok {
-		if err := pipeline.AddDevice(device); nil != err {
+		if !pipeline.AddDevice(device) {
 			re.withTag(log.Panic).Msgf("设备地址重复: %s", device.GetUnionAddress())
 		}
 	} else {
@@ -49,7 +49,7 @@ func (re *RegisterEngine) AddDriver(driver Driver) {
 
 // 添加Pipeline。
 // 如果已存在相同协议的Pipeline，会抛出异常
-func (re *RegisterEngine) AddPipeline(pipeline DevicePipeline) {
+func (re *RegisterEngine) AddPipeline(pipeline ProtoPipeline) {
 	proto := pipeline.GetProtoName()
 	if _, ok := re.pipelines[proto]; !ok {
 		re.pipelines[proto] = pipeline

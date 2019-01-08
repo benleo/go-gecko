@@ -31,7 +31,7 @@ type GeckoEngine struct {
 // 准备运行环境，初始化相关组件
 func (ge *GeckoEngine) PrepareEnv() {
 	// 查找Pipeline
-	ge.selector = func(proto string) DevicePipeline {
+	ge.selector = func(proto string) ProtoPipeline {
 		return ge.pipelines[proto]
 	}
 	// 接收Trigger的输入事件
