@@ -57,6 +57,12 @@ func (gc *abcGeckoContext) AddAttribute(name string, value interface{}) {
 	gc.attributes[name] = value
 }
 
+func (gc *abcGeckoContext) AddAttributes(attributes map[string]interface{}) {
+	for k, v := range attributes {
+		gc.AddAttribute(k, v)
+	}
+}
+
 func (gc *abcGeckoContext) Timestamp() time.Time {
 	return gc.timestamp
 }

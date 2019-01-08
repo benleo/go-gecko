@@ -12,11 +12,21 @@ import (
 
 // 负责对Engine组件的注册管理
 type RegisterEngine struct {
-	plugins      list.List
+	plugins      *list.List
 	pipelines    map[string]ProtoPipeline
-	interceptors list.List
-	drivers      list.List
-	triggers     list.List
+	interceptors *list.List
+	drivers      *list.List
+	triggers     *list.List
+}
+
+func prepare() *RegisterEngine {
+	re := new(RegisterEngine)
+	re.plugins = list.New()
+	re.pipelines = make(map[string]ProtoPipeline)
+	re.interceptors = list.New()
+	re.drivers = list.New()
+	re.triggers = list.New()
+	return re
 }
 
 // 添加一个设备对象。

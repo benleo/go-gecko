@@ -30,6 +30,7 @@ type GeckoEngine struct {
 
 // 准备运行环境，初始化相关组件
 func (ge *GeckoEngine) PrepareEnv() {
+	ge.RegisterEngine = prepare()
 	// 查找Pipeline
 	ge.selector = func(proto string) ProtoPipeline {
 		return ge.pipelines[proto]
@@ -88,6 +89,8 @@ func (ge *GeckoEngine) Init(config map[string]interface{}) {
 	ge.intChan = make(chan GeckoContext, intCapacity)
 	ge.driChan = make(chan GeckoContext, driCapacity)
 	ge.outChan = make(chan GeckoContext, outCapacity)
+	ge.shutdownCompleted = make(chan struct{}, 1)
+	// 初始化组件
 }
 
 // 启动Engine
@@ -201,7 +204,7 @@ func (ge *GeckoEngine) handleDrivers(ctx GeckoContext) {
 
 // 返回Trigger输出
 func (ge *GeckoEngine) handleOutput(ctx GeckoContext) {
-	ctx.(abcGeckoContext).callback(ctx.Topic(), ctx.Outbound().Data)
+	ctx.(*abcGeckoContext).callback(ctx.Topic(), ctx.Outbound().Data)
 }
 
 func (ge *GeckoEngine) checkDefTimeout(act func(GeckoScoped)) {

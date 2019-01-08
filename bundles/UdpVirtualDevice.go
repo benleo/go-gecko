@@ -41,6 +41,7 @@ func (udv *UdpVirtualDevice) GetProtoName() string {
 func (udv *UdpVirtualDevice) OnInit(args map[string]interface{}, scoped gecko.GeckoScoped) {
 	udv.sendChan = make(chan *gecko.EventFrame, 1)
 	udv.recvChan = make(chan *gecko.EventFrame, 1)
+	udv.shutdownCompleted = make(chan struct{}, 1)
 	conf := conf2.MapToMap(args)
 	udv.sendBuffSize = conf.GetInt64OrDefault("sendBuffSizeKB", 1) * 1024
 	udv.recvBuffSize = conf.GetInt64OrDefault("recvBuffSizeKB", 1) * 1024
