@@ -21,58 +21,58 @@ type RegisterEngine struct {
 
 // 添加一个设备对象。
 // 设备对象的地址必须唯一。如果设备地址重复，会抛出异常。
-func (slf *RegisterEngine) AddVirtualDevice(device VirtualDevice) {
+func (re *RegisterEngine) AddVirtualDevice(device VirtualDevice) {
 	proto := device.GetProtoName()
-	if pipeline, ok := slf.pipelines[proto]; ok {
+	if pipeline, ok := re.pipelines[proto]; ok {
 		if err := pipeline.AddDevice(device); nil != err {
-			slf.withTag(log.Panic).Msgf("设备地址重复: %s", device.GetUnionAddress())
+			re.withTag(log.Panic).Msgf("设备地址重复: %s", device.GetUnionAddress())
 		}
 	} else {
-		slf.withTag(log.Panic).Msgf("未找到对应协议的Pipeline: %s", proto)
+		re.withTag(log.Panic).Msgf("未找到对应协议的Pipeline: %s", proto)
 	}
 }
 
 // 添加Plugin
-func (slf *RegisterEngine) AddPlugin(plugin Plugin) {
-	slf.plugins.PushBack(plugin)
+func (re *RegisterEngine) AddPlugin(plugin Plugin) {
+	re.plugins.PushBack(plugin)
 }
 
 // 添加Interceptor
-func (slf *RegisterEngine) AddInterceptor(interceptor Interceptor) {
-	slf.interceptors.PushBack(interceptor)
+func (re *RegisterEngine) AddInterceptor(interceptor Interceptor) {
+	re.interceptors.PushBack(interceptor)
 }
 
 // 添加Driver
-func (slf *RegisterEngine) AddDriver(driver Driver) {
-	slf.drivers.PushBack(driver)
+func (re *RegisterEngine) AddDriver(driver Driver) {
+	re.drivers.PushBack(driver)
 }
 
 // 添加Pipeline。
 // 如果已存在相同协议的Pipeline，会抛出异常
-func (slf *RegisterEngine) AddPipeline(pipeline DevicePipeline) {
+func (re *RegisterEngine) AddPipeline(pipeline DevicePipeline) {
 	proto := pipeline.GetProtoName()
-	if _, ok := slf.pipelines[proto]; !ok {
-		slf.pipelines[proto] = pipeline
+	if _, ok := re.pipelines[proto]; !ok {
+		re.pipelines[proto] = pipeline
 	} else {
-		slf.withTag(log.Panic).Msgf("已存在相同协议的Pipeline: %s", proto)
+		re.withTag(log.Panic).Msgf("已存在相同协议的Pipeline: %s", proto)
 	}
 }
 
-func (slf *RegisterEngine) showBundles() {
-	slf.withTag(log.Info).Msgf("已加载 Interceptors: %d", slf.interceptors.Len())
+func (re *RegisterEngine) showBundles() {
+	re.withTag(log.Info).Msgf("已加载 Interceptors: %d", re.interceptors.Len())
 
 	devices := make([]VirtualDevice, 0)
-	for _, pi := range slf.pipelines {
+	for _, pi := range re.pipelines {
 		devices = append(devices, pi.GetDevices()...)
 	}
-	slf.withTag(log.Info).Msgf("已加载 Devices: %d", len(devices))
+	re.withTag(log.Info).Msgf("已加载 Devices: %d", len(devices))
 
-	slf.withTag(log.Info).Msgf("已加载 Drivers: %d", slf.interceptors.Len())
-	slf.withTag(log.Info).Msgf("已加载 Drivers: %d", slf.drivers.Len())
-	slf.withTag(log.Info).Msgf("已加载 Triggers: %d", slf.triggers.Len())
-	slf.withTag(log.Info).Msgf("已加载 Plugins: %d", slf.plugins.Len())
+	re.withTag(log.Info).Msgf("已加载 Drivers: %d", re.interceptors.Len())
+	re.withTag(log.Info).Msgf("已加载 Drivers: %d", re.drivers.Len())
+	re.withTag(log.Info).Msgf("已加载 Triggers: %d", re.triggers.Len())
+	re.withTag(log.Info).Msgf("已加载 Plugins: %d", re.plugins.Len())
 }
 
-func (slf *RegisterEngine) withTag(f func() *zerolog.Event) *zerolog.Event {
+func (re *RegisterEngine) withTag(f func() *zerolog.Event) *zerolog.Event {
 	return f().Str("tag", "Engine")
 }

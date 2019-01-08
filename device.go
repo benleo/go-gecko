@@ -2,10 +2,9 @@ package gecko
 
 //
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
-//
-// Device是一个硬件设备的表示符号。
-// 它可以接收由其它组件派发到此设备的事件，做出操作后，返回一个响应事件。
 
+// Device是一个硬件设备的表示符号。
+// 它可以接收由其它组件派发到此设备的事件，做出操作后，返回一个响应事件。=
 type VirtualDevice interface {
 	Bundle
 
