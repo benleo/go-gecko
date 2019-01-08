@@ -16,7 +16,7 @@ type GeckoEngine struct {
 	*RegisterEngine
 	// ID生成器
 	snowflake *Snowflake
-	//
+
 	scoped   GeckoScoped
 	invoker  TriggerInvoker
 	selector ProtoPipelineSelector
@@ -75,8 +75,9 @@ func (ge *GeckoEngine) PrepareEnv() {
 }
 
 // 初始化Engine
-func (ge *GeckoEngine) Init(config map[string]interface{}) {
-	ge.scoped = newAbcGeckoScoped(config)
+func (ge *GeckoEngine) Init(args map[string]interface{}) {
+	config := conf.MapToMap(args)
+	ge.scoped = newAbcGeckoScoped(args)
 	if sf, err := NewSnowflake(ge.scoped.workerId()); nil != err {
 		ge.withTag(log.Panic).Err(err).Msg("初始化发生错误")
 	} else {
@@ -90,7 +91,6 @@ func (ge *GeckoEngine) Init(config map[string]interface{}) {
 	ge.driChan = make(chan GeckoContext, driCapacity)
 	ge.outChan = make(chan GeckoContext, outCapacity)
 	ge.shutdownCompleted = make(chan struct{}, 1)
-	// 初始化组件
 }
 
 // 启动Engine
