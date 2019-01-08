@@ -19,7 +19,7 @@ type GeckoEngine struct {
 	snowflake *Snowflake
 
 	scoped   GeckoScoped
-	invoker  TriggerInvoker
+	invoker  Invoker
 	selector ProtoPipelineSelector
 	// 事件通道
 	intChan chan GeckoContext
@@ -37,8 +37,8 @@ func (ge *GeckoEngine) PrepareEnv() {
 		return ge.pipelines[proto]
 	}
 	// 接收Trigger的输入事件
-	ge.invoker = func(income *TriggerEvent, callback TriggerCallback) {
-		context := &abcGeckoContext{
+	ge.invoker = func(income *TriggerEvent, cbFunc OnTriggerCompleted) {
+		ctx := &abcGeckoContext{
 			timestamp:  time.Now(),
 			attributes: make(map[string]interface{}),
 			topic:      income.topic,
@@ -51,9 +51,9 @@ func (ge *GeckoEngine) PrepareEnv() {
 				Topic: income.topic,
 				Data:  make(map[string]interface{}),
 			},
-			callback: callback,
+			onCompletedFunc: cbFunc,
 		}
-		ge.intChan <- context
+		ge.intChan <- ctx
 	}
 	// 事件循环
 	go func(shouldBreak <-chan struct{}) {
@@ -231,7 +231,7 @@ func (ge *GeckoEngine) handleOutput(ctx GeckoContext) {
 		ctx.AddAttribute("Output.End", time.Now())
 		ge.checkRecover(recover(), "Output-Goroutine内部错误")
 	}()
-	ctx.(*abcGeckoContext).callback(ctx.Outbound().Data)
+	ctx.(*abcGeckoContext).onCompletedFunc(ctx.Outbound().Data)
 }
 
 func (ge *GeckoEngine) checkDefTimeout(act func(GeckoScoped)) {

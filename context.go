@@ -40,13 +40,13 @@ type GeckoContext interface {
 
 type abcGeckoContext struct {
 	GeckoContext
-	timestamp  time.Time
-	attributes map[string]interface{}
-	topic      string
-	contextId  int64
-	inbound    *Inbound
-	outbound   *Outbound
-	callback   TriggerCallback
+	timestamp       time.Time
+	attributes      map[string]interface{}
+	topic           string
+	contextId       int64
+	inbound         *Inbound
+	outbound        *Outbound
+	onCompletedFunc OnTriggerCompleted
 }
 
 func (gc *abcGeckoContext) Attributes() map[string]interface{} {

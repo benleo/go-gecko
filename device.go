@@ -26,7 +26,7 @@ type VirtualDevice interface {
 	GetProtoName() string
 
 	// 设备对象接收控制事件；经设备驱动处理后，返回处理结果事件；
-	Process(frame *EventFrame, scoped GeckoScoped) (*EventFrame, error)
+	Process(frame *PacketFrame, scoped GeckoScoped) (*PacketFrame, error)
 }
 
 //

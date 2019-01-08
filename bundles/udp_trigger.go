@@ -51,6 +51,7 @@ func (ust *UdpServerTrigger) OnInit(args map[string]interface{}, scoped gecko.Ge
 		}
 	}
 	config := conf.MapToMap(args)
+
 	address := config.MustString("listenAddress")
 	if addr, err := net.ResolveUDPAddr("udp", address); nil != err {
 		ust.withTag(log.Panic).Err(err).Msgf("UDP服务端绑定地址错误: %s", address)
@@ -63,7 +64,7 @@ func (ust *UdpServerTrigger) OnInit(args map[string]interface{}, scoped gecko.Ge
 	ust.withTag(log.Info).Msg("UDP服务器Trigger初始化")
 }
 
-func (ust *UdpServerTrigger) OnStart(scoped gecko.GeckoScoped, invoker gecko.TriggerInvoker) {
+func (ust *UdpServerTrigger) OnStart(scoped gecko.GeckoScoped, invoker gecko.Invoker) {
 	ust.withTag(log.Info).Msgf("UDP服务器启动，绑定地址： %s", ust.udpAddr.String())
 	if conn, err := net.ListenUDP("udp", ust.udpAddr); nil != err {
 		ust.withTag(log.Panic).Err(err).Msg("UDP服务器启动绑定失败")
@@ -80,7 +81,7 @@ func (ust *UdpServerTrigger) OnStart(scoped gecko.GeckoScoped, invoker gecko.Tri
 			} else {
 				// 使用Invoker调度内部系统处理，完成后返回给客户端
 				if json := ust.decoder(buffer[:n]); nil != json {
-					income := gecko.NewIncome(ust.topic, json)
+					income := gecko.NewTriggerEvent(ust.topic, json)
 					invoker(income, func(data map[string]interface{}) {
 						ust.udpConn.SetWriteDeadline(time.Now().Add(ust.sendTimeout))
 						if bytes := ust.encoder(data); nil != bytes {
@@ -109,7 +110,7 @@ func (ust *UdpServerTrigger) OnStart(scoped gecko.GeckoScoped, invoker gecko.Tri
 	}(ust.shutdownCompleted)
 }
 
-func (ust *UdpServerTrigger) OnStop(scoped gecko.GeckoScoped, invoker gecko.TriggerInvoker) {
+func (ust *UdpServerTrigger) OnStop(scoped gecko.GeckoScoped, invoker gecko.Invoker) {
 	ust.withTag(log.Info).Msgf("UDP服务器关闭，绑定地址： %s", ust.udpAddr.String())
 	if nil != ust.udpConn {
 		ust.udpConn.Close()

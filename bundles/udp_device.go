@@ -27,8 +27,8 @@ type UdpVirtualDevice struct {
 	recvBuffSize int64
 	sendTimeout  time.Duration
 	recvTimeout  time.Duration
-	sendChan     chan *gecko.EventFrame
-	recvChan     chan *gecko.EventFrame
+	sendChan     chan *gecko.PacketFrame
+	recvChan     chan *gecko.PacketFrame
 	//
 	shutdownCompleted chan struct{}
 }
@@ -39,8 +39,8 @@ func (udv *UdpVirtualDevice) GetProtoName() string {
 
 // 初始化
 func (udv *UdpVirtualDevice) OnInit(args map[string]interface{}, scoped gecko.GeckoScoped) {
-	udv.sendChan = make(chan *gecko.EventFrame, 1)
-	udv.recvChan = make(chan *gecko.EventFrame, 1)
+	udv.sendChan = make(chan *gecko.PacketFrame, 1)
+	udv.recvChan = make(chan *gecko.PacketFrame, 1)
 	udv.shutdownCompleted = make(chan struct{}, 1)
 	conf := conf2.MapToMap(args)
 	udv.sendBuffSize = conf.GetInt64OrDefault("sendBuffSizeKB", 1) * 1024
@@ -98,7 +98,7 @@ func (udv *UdpVirtualDevice) OnStop(scoped gecko.GeckoScoped) {
 }
 
 // 处理远程控制事件
-func (udv *UdpVirtualDevice) Process(frame *gecko.EventFrame, scoped gecko.GeckoScoped) (*gecko.EventFrame, error) {
+func (udv *UdpVirtualDevice) Process(frame *gecko.PacketFrame, scoped gecko.GeckoScoped) (*gecko.PacketFrame, error) {
 	// 将请求发送到SendBuf，等待接收RecvBuf
 	udv.sendChan <- frame
 
