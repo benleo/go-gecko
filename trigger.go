@@ -10,8 +10,15 @@ type Income struct {
 	data  map[string]interface{}
 }
 
+func NewIncome(topic string, data map[string]interface{}) *Income {
+	return &Income{
+		topic: topic,
+		data:  data,
+	}
+}
+
 // 处理结果回调接口
-type TriggerCallback func(topic string, data map[string]interface{})
+type TriggerCallback func(data map[string]interface{})
 
 // 用来发起请求，并输出结果
 type TriggerInvoker func(income *Income, callback TriggerCallback)
