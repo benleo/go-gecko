@@ -41,7 +41,7 @@ func (ns *NetworkServerTrigger) OnInit(args map[string]interface{}, scoped gecko
 	ns.decoder = gecko.JSONDefaultDecoder
 	ns.encoder = gecko.JSONDefaultEncoder
 	config := conf.MapToMap(args)
-	if group, err := config.MustStringArray("bindAddrGroup"); nil != err {
+	if group, err := config.MustStringArray("bindAddrGroup"); nil != err || len(group) == 0 {
 		ns.withTag(log.Panic).Err(err).Msg("配置字段[bindAddrGroup]必须是个字符串数组")
 	} else {
 		ns.bindAddrGroup = group
