@@ -20,8 +20,9 @@ type NetworkServerTrigger struct {
 	encoder gecko.Encoder
 	topic   string
 	//
-	events    evio.Events
-	addresses []string
+	events            evio.Events
+	addresses         []string
+	shutdownCompleted chan struct{}
 }
 
 func (nst *NetworkServerTrigger) OnInit(args map[string]interface{}, scoped gecko.GeckoScoped) {
@@ -60,12 +61,12 @@ func (nst *NetworkServerTrigger) ONStart(scoped gecko.GeckoScoped, invoker gecko
 		}
 		return
 	}
+	// Serv
 	go func() {
 		// 绑定服务
 		if err := evio.Serve(nst.events, nst.addresses...); nil != err {
 			nst.withTag(log.Error).Err(err).Msg("Network服务器停止")
 		}
-		// FIXME 如何停止evio服务？
 	}()
 }
 
