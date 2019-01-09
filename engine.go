@@ -1,6 +1,7 @@
 package gecko
 
 import (
+	"context"
 	"github.com/parkingwang/go-conf"
 	"github.com/rs/zerolog/log"
 	"github.com/yoojia/go-gecko/x"
@@ -32,13 +33,15 @@ type GeckoEngine struct {
 	intChan chan GeckoContext
 	driChan chan GeckoContext
 	outChan chan GeckoContext
-	// Engine已关闭的信号
-	shutdownCompleted chan struct{}
+	// Engine关闭的信号控制
+	shutdownSignal context.Context
+	shutdownFunc   context.CancelFunc
 }
 
 // 准备运行环境，初始化相关组件
 func (ge *GeckoEngine) PrepareEnv() {
 	ge.Registration = prepare()
+	ge.shutdownSignal, ge.shutdownFunc = context.WithCancel(context.Background())
 	// 查找Pipeline
 	ge.selector = func(proto string) ProtoPipeline {
 		return ge.pipelines[proto]
@@ -63,10 +66,10 @@ func (ge *GeckoEngine) PrepareEnv() {
 		ge.intChan <- ctx
 	}
 	// 消息循环
-	go func(completed <-chan struct{}) {
+	go func(breakSig <-chan struct{}) {
 		for {
 			select {
-			case <-completed:
+			case <-breakSig:
 				return
 
 			case ctx := <-ge.intChan:
@@ -79,7 +82,7 @@ func (ge *GeckoEngine) PrepareEnv() {
 				go ge.handleOutput(ctx)
 			}
 		}
-	}(ge.shutdownCompleted)
+	}(ge.shutdownSignal.Done())
 }
 
 // 初始化Engine
@@ -98,7 +101,6 @@ func (ge *GeckoEngine) Init(args map[string]interface{}) {
 	ge.intChan = make(chan GeckoContext, intCapacity)
 	ge.driChan = make(chan GeckoContext, driCapacity)
 	ge.outChan = make(chan GeckoContext, outCapacity)
-	ge.shutdownCompleted = make(chan struct{}, 1)
 
 	// 初始化组件：根据配置文件指定项目
 	initWithScoped := func(it Initialize, args map[string]interface{}) {
@@ -158,7 +160,7 @@ func (ge *GeckoEngine) Stop() {
 			it.(HookFunc)(ge)
 		})
 		// 最终发起关闭信息
-		ge.shutdownCompleted <- struct{}{}
+		ge.shutdownFunc()
 		ge.withTag(log.Info).Msgf("Engine停止...OK")
 	}()
 	// Triggers
