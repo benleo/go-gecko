@@ -16,7 +16,6 @@ import (
 
 // Main
 func main() {
-
 	conf := loadConfig("conf.d")
 	if len(conf) <= 0 {
 		withTag(log.Panic).Msgf("Config is empty")
@@ -28,10 +27,9 @@ func main() {
 	engine.Start()
 	defer engine.Stop()
 	// 等待终止信号
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-	//
-	<-sig
+	sysSignal := make(chan os.Signal, 1)
+	signal.Notify(sysSignal, syscall.SIGINT, syscall.SIGTERM)
+	<-sysSignal
 	withTag(log.Warn).Msgf("接收到系统停止信号")
 }
 
