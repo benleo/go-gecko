@@ -17,7 +17,7 @@ type Encoder func(data map[string]interface{}) ([]byte, error)
 // 将Byte数据解析成JSON对象
 func JSONDefaultDecoder(bytes []byte) (map[string]interface{}, error) {
 	json := make(map[string]interface{})
-	err := x.UnmarshalJSON(bytes, json)
+	err := x.UnmarshalJSON(bytes, &json)
 	return json, err
 }
 
