@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yoojia/go-gecko"
+	"github.com/yoojia/go-gecko/bundles"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -22,7 +23,11 @@ func main() {
 	}
 
 	engine := gecko.SharedEngine()
-	engine.PrepareEnv()
+	// 注册组件工厂函数
+	engine.RegisterBundleFactory("UdpServerTrigger", func() interface{} {
+		return new(bundles.UdpServerTrigger)
+	})
+	// Run Engine
 	engine.Init(conf)
 	engine.Start()
 	defer engine.Stop()
