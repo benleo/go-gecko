@@ -172,7 +172,7 @@ func (re *Registration) registerBundles(configs conf.Map,
 
 		factory, ok := re.findFactory(typeName)
 		if !ok {
-			re.withTag(log.Panic).Msgf("组件类型[%s]没有注册对应的工厂函数")
+			re.withTag(log.Panic).Msgf("组件类型[%s]没有注册对应的工厂函数", typeName)
 			return
 		}
 		// 根据类型注册
