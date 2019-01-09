@@ -84,16 +84,20 @@ func (gs *abcGeckoScoped) CheckTimeout(timeout time.Duration, action func()) {
 	action()
 }
 
+func (gs *abcGeckoScoped) Globals() map[string]interface{} {
+	return gs.globalsConf
+}
+
 func (gs *abcGeckoScoped) Domain() string {
-	return conf.MapToMap(gs.geckoConf).MustString("domain")
+	return conf.MapToMap(gs.gecko()).MustString("domain")
 }
 
 func (gs *abcGeckoScoped) NodeId() string {
-	return conf.MapToMap(gs.geckoConf).MustString("nodeId")
+	return conf.MapToMap(gs.gecko()).MustString("nodeId")
 }
 
 func (gs *abcGeckoScoped) IsVerboseEnabled() bool {
-	return conf.MapToMap(gs.geckoConf).MustBool("loggingVerbose")
+	return conf.MapToMap(gs.Globals()).MustBool("loggingVerbose")
 }
 
 func (gs *abcGeckoScoped) LogIfV(fun func()) {

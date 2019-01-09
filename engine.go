@@ -53,6 +53,9 @@ func (ge *GeckoEngine) prepareEnv() {
 	}
 	// 接收Trigger的输入事件
 	ge.invoker = func(income *TriggerEvent, cbFunc OnTriggerCompleted) {
+		ge.scoped.LogIfV(func() {
+			ge.withTag(log.Debug).Msgf("Invoker接收请求，Topic: %s", income.topic)
+		})
 		ctx := &abcGeckoContext{
 			timestamp:  time.Now(),
 			attributes: make(map[string]interface{}),

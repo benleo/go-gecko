@@ -17,6 +17,9 @@ import (
 
 // Main
 func main() {
+	// 默认Log方式
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
 	conf := loadConfig("conf.d")
 	if len(conf) <= 0 {
 		withTag(log.Panic).Msgf("Config is empty")
@@ -24,9 +27,7 @@ func main() {
 
 	engine := gecko.SharedEngine()
 	// 注册组件工厂函数
-	engine.RegisterBundleFactory("UdpServerTrigger", func() interface{} {
-		return new(bundles.UdpServerTrigger)
-	})
+	engine.RegisterBundleFactory(bundles.NetworkServerTriggerFactory())
 	// Run Engine
 	engine.Init(conf)
 	engine.Start()

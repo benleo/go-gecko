@@ -30,9 +30,27 @@ type Invoker func(event *TriggerEvent, callback OnTriggerCompleted)
 type Trigger interface {
 	Initialize
 
+	setTopic(topic string)
+	GetTopic() string
+
 	// 启动
 	OnStart(scoped GeckoScoped, invoker Invoker)
 
 	// 停止
 	OnStop(scoped GeckoScoped, invoker Invoker)
+}
+
+//
+
+type AbcTrigger struct {
+	Trigger
+	topic string
+}
+
+func (at *AbcTrigger) setTopic(topic string) {
+	at.topic = topic
+}
+
+func (at *AbcTrigger) GetTopic() string {
+	return at.topic
 }

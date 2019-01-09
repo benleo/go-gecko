@@ -197,12 +197,26 @@ func (re *Registration) registerBundles(configs conf.Map,
 			} else {
 				dev.setDisplayName(name)
 			}
-			dev.setGroupAddress(config.MustString("groupAddress"))
-			dev.setPhyAddress(config.MustString("physicalAddress"))
+			group := config.MustString("groupAddress")
+			if "" == group {
+				re.withTag(log.Panic).Msgf("配置项[groupAddress]是必填参数")
+			}
+			phy := config.MustString("physicalAddress")
+			if "" == phy {
+				re.withTag(log.Panic).Msgf("配置项[physicalAddress]是必填参数")
+			}
+			dev.setGroupAddress(group)
+			dev.setPhyAddress(phy)
 			re.AddVirtualDevice(dev)
 
 		case Trigger:
-			re.AddTrigger(bundle.(Trigger))
+			tr := bundle.(Trigger)
+			tp := config.MustString("topic")
+			if "" == tp {
+				re.withTag(log.Panic).Msgf("配置项[topic]是必填参数")
+			}
+			tr.setTopic(tp)
+			re.AddTrigger(tr)
 
 		default:
 			re.withTag(log.Panic).Msgf("未支持的组件类型：%s", typeName)
@@ -211,8 +225,8 @@ func (re *Registration) registerBundles(configs conf.Map,
 
 		// 需要Topic过滤
 		if tf, ok := bundle.(NeedTopicFilter); ok {
-			if topics, err := config.MustStringArray("topics"); nil != err {
-				re.withTag(log.Panic).Msgf("配置项中[topics]必须是字符串数组： %s", typeName)
+			if topics, err := config.MustStringArray("topics"); nil != err || 0 == len(topics) {
+				re.withTag(log.Panic).Err(err).Msgf("配置项中[topics]必须是字符串数组： %s", typeName)
 			} else {
 				tf.SetTopics(topics)
 			}
