@@ -1,0 +1,10 @@
+# UDP服务器触发器，接收UDP指令
+[TRIGGERS.UdpServerTrigger]
+  disable = false
+  type = "UdpServerTrigger"
+[TRIGGERS.UdpServerTrigger.InitArgs]
+ listenAddress = ":5572"
+ bufferSizeKB = 1
+ sendTimeout = "3s"
+ recvTimeout = "3s"
+ topic = "/udp/triggers/"
