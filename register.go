@@ -13,31 +13,40 @@ import (
 //
 
 // 负责对Engine组件的注册管理
-type RegisterEngine struct {
+type Registration struct {
 	// 组件管理
-	plugins      *list.List
 	pipelines    map[string]ProtoPipeline
+	plugins      *list.List
 	interceptors *list.List
 	drivers      *list.List
 	triggers     *list.List
+	// Hooks
+	startBeforeHooks *list.List
+	startAfterHooks  *list.List
+	stopBeforeHooks  *list.List
+	stopAfterHooks   *list.List
 	// 组件创建工厂函数
 	bundleFactories map[string]BundleFactory
 }
 
-func prepare() *RegisterEngine {
-	re := new(RegisterEngine)
+func prepare() *Registration {
+	re := new(Registration)
 	re.plugins = list.New()
 	re.pipelines = make(map[string]ProtoPipeline)
 	re.interceptors = list.New()
 	re.drivers = list.New()
 	re.triggers = list.New()
+	re.startBeforeHooks = list.New()
+	re.startAfterHooks = list.New()
+	re.stopBeforeHooks = list.New()
+	re.stopAfterHooks = list.New()
 	re.bundleFactories = make(map[string]BundleFactory)
 	return re
 }
 
 // 添加一个设备对象。
 // 设备对象的地址必须唯一。如果设备地址重复，会抛出异常。
-func (re *RegisterEngine) AddVirtualDevice(device VirtualDevice) {
+func (re *Registration) AddVirtualDevice(device VirtualDevice) {
 	proto := device.GetProtoName()
 	if pipeline, ok := re.pipelines[proto]; ok {
 		if !pipeline.AddDevice(device) {
@@ -49,28 +58,44 @@ func (re *RegisterEngine) AddVirtualDevice(device VirtualDevice) {
 }
 
 // 添加Plugin
-func (re *RegisterEngine) AddPlugin(plugin Plugin) {
+func (re *Registration) AddPlugin(plugin Plugin) {
 	re.plugins.PushBack(plugin)
 }
 
 // 添加Interceptor
-func (re *RegisterEngine) AddInterceptor(interceptor Interceptor) {
+func (re *Registration) AddInterceptor(interceptor Interceptor) {
 	re.interceptors.PushBack(interceptor)
 }
 
 // 添加Driver
-func (re *RegisterEngine) AddDriver(driver Driver) {
+func (re *Registration) AddDriver(driver Driver) {
 	re.drivers.PushBack(driver)
 }
 
 // 添加Trigger
-func (re *RegisterEngine) AddTrigger(trigger Trigger) {
+func (re *Registration) AddTrigger(trigger Trigger) {
 	re.triggers.PushBack(trigger)
+}
+
+func (re *Registration) AddStartBeforeHook(hook HookFunc) {
+	re.startBeforeHooks.PushBack(hook)
+}
+
+func (re *Registration) AddStartAfterHook(hook HookFunc) {
+	re.startAfterHooks.PushBack(hook)
+}
+
+func (re *Registration) AddStopBeforeHook(hook HookFunc) {
+	re.stopBeforeHooks.PushBack(hook)
+}
+
+func (re *Registration) AddStopAfterHook(hook HookFunc) {
+	re.startAfterHooks.PushBack(hook)
 }
 
 // 添加Pipeline。
 // 如果已存在相同协议的Pipeline，会抛出异常
-func (re *RegisterEngine) AddProtoPipeline(pipeline ProtoPipeline) {
+func (re *Registration) AddProtoPipeline(pipeline ProtoPipeline) {
 	proto := pipeline.GetProtoName()
 	if _, ok := re.pipelines[proto]; !ok {
 		re.pipelines[proto] = pipeline
@@ -79,7 +104,7 @@ func (re *RegisterEngine) AddProtoPipeline(pipeline ProtoPipeline) {
 	}
 }
 
-func (re *RegisterEngine) showBundles() {
+func (re *Registration) showBundles() {
 	re.withTag(log.Info).Msgf("已加载 Interceptors: %d", re.interceptors.Len())
 	x.ForEach(re.interceptors, func(it interface{}) {
 		re.withTag(log.Info).Msgf("  -Interceptor: " + x.SimpleClassName(it))
@@ -110,7 +135,7 @@ func (re *RegisterEngine) showBundles() {
 	})
 }
 
-func (re *RegisterEngine) RegisterBundleFactory(typeName string, factory BundleFactory) {
+func (re *Registration) RegisterBundleFactory(typeName string, factory BundleFactory) {
 	if _, ok := re.bundleFactories[typeName]; ok {
 		re.withTag(log.Warn).Msgf("组件类型[%s]工厂函数被覆盖注册： %s", typeName, x.SimpleClassName(factory))
 	}
@@ -118,7 +143,7 @@ func (re *RegisterEngine) RegisterBundleFactory(typeName string, factory BundleF
 }
 
 // 查找指定类型的
-func (re *RegisterEngine) findFactory(typeName string) (BundleFactory, bool) {
+func (re *Registration) findFactory(typeName string) (BundleFactory, bool) {
 	if f, ok := re.bundleFactories[typeName]; ok {
 		return f, true
 	} else {
@@ -126,7 +151,7 @@ func (re *RegisterEngine) findFactory(typeName string) (BundleFactory, bool) {
 	}
 }
 
-func (re *RegisterEngine) registerBundles(configs conf.Map,
+func (re *Registration) registerBundles(configs conf.Map,
 	initAct func(bundle Initialize, args map[string]interface{})) {
 
 	for typeName, item := range configs {
@@ -200,6 +225,6 @@ func (re *RegisterEngine) registerBundles(configs conf.Map,
 	}
 }
 
-func (re *RegisterEngine) withTag(f func() *zerolog.Event) *zerolog.Event {
+func (re *Registration) withTag(f func() *zerolog.Event) *zerolog.Event {
 	return f().Str("tag", "Engine")
 }

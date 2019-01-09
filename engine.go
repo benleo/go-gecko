@@ -14,7 +14,7 @@ const DefaultLifeCycleTimeout = time.Second * 3
 
 // Engine管理内部组件，处理事件。
 type GeckoEngine struct {
-	*RegisterEngine
+	*Registration
 	// ID生成器
 	snowflake *Snowflake
 
@@ -31,7 +31,7 @@ type GeckoEngine struct {
 
 // 准备运行环境，初始化相关组件
 func (ge *GeckoEngine) PrepareEnv() {
-	ge.RegisterEngine = prepare()
+	ge.Registration = prepare()
 	// 查找Pipeline
 	ge.selector = func(proto string) ProtoPipeline {
 		return ge.pipelines[proto]
@@ -55,11 +55,11 @@ func (ge *GeckoEngine) PrepareEnv() {
 		}
 		ge.intChan <- ctx
 	}
-	// 事件循环
-	go func(shouldBreak <-chan struct{}) {
+	// 消息循环
+	go func(completed <-chan struct{}) {
 		for {
 			select {
-			case <-shouldBreak:
+			case <-completed:
 				return
 
 			case ctx := <-ge.intChan:
@@ -108,7 +108,17 @@ func (ge *GeckoEngine) Init(args map[string]interface{}) {
 // 启动Engine
 func (ge *GeckoEngine) Start() {
 	ge.withTag(log.Info).Msgf("Engine启动...")
-	defer ge.withTag(log.Info).Msgf("Engine启动...OK")
+	// Hook first
+	x.ForEach(ge.startBeforeHooks, func(it interface{}) {
+		it.(HookFunc)(ge)
+	})
+	defer func() {
+		x.ForEach(ge.startAfterHooks, func(it interface{}) {
+			it.(HookFunc)(ge)
+		})
+		ge.withTag(log.Info).Msgf("Engine启动...OK")
+	}()
+
 	// Plugin
 	x.ForEach(ge.plugins, func(it interface{}) {
 		ge.checkDefTimeout(it.(Plugin).OnStart)
@@ -132,7 +142,14 @@ func (ge *GeckoEngine) Start() {
 // 停止Engine
 func (ge *GeckoEngine) Stop() {
 	ge.withTag(log.Info).Msgf("Engine停止...")
+	// Hook first
+	x.ForEach(ge.stopBeforeHooks, func(it interface{}) {
+		it.(HookFunc)(ge)
+	})
 	defer func() {
+		x.ForEach(ge.stopAfterHooks, func(it interface{}) {
+			it.(HookFunc)(ge)
+		})
 		// 最终发起关闭信息
 		ge.shutdownCompleted <- struct{}{}
 		ge.withTag(log.Info).Msgf("Engine停止...OK")

@@ -36,33 +36,33 @@ func main() {
 }
 
 // 加载配置文件
-func loadConfig(dirpath string) map[string]interface{} {
-	if "" == dirpath {
-		dirpath = "conf.d"
+func loadConfig(path string) map[string]interface{} {
+	if "" == path {
+		path = "conf.d"
 	}
 
-	if fi, err := os.Stat(dirpath); nil != err || !fi.IsDir() {
-		withTag(log.Panic).Err(err).Msgf("Config path muse be a dir: %s", dirpath)
+	if fi, err := os.Stat(path); nil != err || !fi.IsDir() {
+		withTag(log.Panic).Err(err).Msgf("配置路径必须是目录，当前是: %s", path)
 		return nil
 	}
 
 	mergedTxt := new(bytes.Buffer)
-	withTag(log.Info).Msgf("Load config dir: %s", dirpath)
-	if files, err := ioutil.ReadDir(dirpath); nil != err {
-		withTag(log.Panic).Err(err).Msgf("Failed to list file in dir: %s", dirpath)
+	withTag(log.Info).Msgf("加载配置目录: %s", path)
+	if files, err := ioutil.ReadDir(path); nil != err {
+		withTag(log.Panic).Err(err).Msgf("无法列举目录文件: %s", path)
 	} else {
 		if 0 == len(files) {
-			withTag(log.Panic).Err(err).Msgf("Config file NOT FOUND in dir: %s", dirpath)
+			withTag(log.Panic).Err(err).Msgf("配置目录中没有任何文件: %s", path)
 		}
 		for _, f := range files {
 			name := f.Name()
 			if !strings.HasSuffix(name, ".toml") {
 				continue
 			}
-			path := fmt.Sprintf("%s%s%s", dirpath, "/", f.Name())
-			withTag(log.Info).Msgf("Load config file: %s", path)
+			path := fmt.Sprintf("%s%s%s", path, "/", f.Name())
+			withTag(log.Info).Msgf("加载TOML配置文件: %s", path)
 			if bs, err := ioutil.ReadFile(path); nil != err {
-				withTag(log.Panic).Err(err).Msgf("Failed to load file: %s", path)
+				withTag(log.Panic).Err(err).Msgf("加载配置文件出错: %s", path)
 			} else {
 				mergedTxt.Write(bs)
 			}
@@ -70,7 +70,7 @@ func loadConfig(dirpath string) map[string]interface{} {
 	}
 
 	if tree, err := toml.LoadBytes(mergedTxt.Bytes()); nil != err {
-		withTag(log.Panic).Err(err).Msg("Failed to decode toml config file")
+		withTag(log.Panic).Err(err).Msg("TOML配置文件无法解析")
 		return nil
 	} else {
 		return tree.ToMap()
