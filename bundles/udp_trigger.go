@@ -61,7 +61,10 @@ func (ust *UdpServerTrigger) OnStart(scoped gecko.GeckoScoped, invoker gecko.Inv
 			buffer := make([]byte, ust.bufferSize)
 			ust.udpConn.SetReadDeadline(time.Now().Add(ust.recvTimeout))
 			if n, addr, reErr := ust.udpConn.ReadFromUDP(buffer); nil != reErr {
-				ust.withTag(log.Error).Err(reErr).Msg("UDP服务器读取数据失败")
+				// 忽略等待连接的临时错误
+				if nErr, ok := reErr.(net.Error); !ok || (!nErr.Temporary() || !nErr.Timeout()) {
+					ust.withTag(log.Error).Err(nErr).Msg("UDP服务器读取数据失败")
+				}
 			} else {
 				// 使用Invoker调度内部系统处理，完成后返回给客户端
 				if json, deErr := ust.decoder(buffer[:n]); nil == deErr {
