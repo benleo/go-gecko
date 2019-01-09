@@ -5,6 +5,7 @@ import (
 	"github.com/parkingwang/go-conf"
 	"github.com/rs/zerolog/log"
 	"github.com/yoojia/go-gecko/x"
+	"sync"
 	"time"
 )
 
@@ -14,9 +15,13 @@ import (
 const DefaultLifeCycleTimeout = time.Second * 3
 
 var gSharedEngine = new(GeckoEngine)
+var gPrepareEnv = new(sync.Once)
 
 // 全局Engine对象
 func SharedEngine() *GeckoEngine {
+	gPrepareEnv.Do(func() {
+		gSharedEngine.prepareEnv()
+	})
 	return gSharedEngine
 }
 
@@ -39,7 +44,7 @@ type GeckoEngine struct {
 }
 
 // 准备运行环境，初始化相关组件
-func (ge *GeckoEngine) PrepareEnv() {
+func (ge *GeckoEngine) prepareEnv() {
 	ge.Registration = prepare()
 	ge.shutdownSignal, ge.shutdownFunc = context.WithCancel(context.Background())
 	// 查找Pipeline
