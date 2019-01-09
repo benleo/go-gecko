@@ -161,7 +161,7 @@ func (re *Registration) registerBundles(configs conf.Map,
 		}
 		config := conf.MapToMap(asMap)
 		if config.MustBool("disable") {
-			re.withTag(log.Panic).Msgf("组件[%s]在配置中禁用", typeName)
+			re.withTag(log.Warn).Msgf("组件[%s]在配置中禁用", typeName)
 			continue
 		}
 
