@@ -12,6 +12,13 @@ import (
 // 默认组件生命周期超时时间：3秒
 const DefaultLifeCycleTimeout = time.Second * 3
 
+var gSharedEngine = new(GeckoEngine)
+
+// 全局Engine对象
+func SharedEngine() *GeckoEngine {
+	return gSharedEngine
+}
+
 // Engine管理内部组件，处理事件。
 type GeckoEngine struct {
 	*Registration

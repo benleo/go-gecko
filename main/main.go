@@ -22,7 +22,7 @@ func main() {
 		withTag(log.Panic).Msgf("Config is empty")
 	}
 
-	engine := new(gecko.GeckoEngine)
+	engine := gecko.SharedEngine()
 	engine.PrepareEnv()
 	engine.Init(conf)
 	engine.Start()
