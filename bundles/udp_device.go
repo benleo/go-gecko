@@ -4,6 +4,7 @@ import (
 	conf2 "github.com/parkingwang/go-conf"
 	"github.com/rs/zerolog/log"
 	"github.com/yoojia/go-gecko"
+	"io"
 	"net"
 	"time"
 )
@@ -77,7 +78,7 @@ func (udv *UdpVirtualDevice) OnStart(scoped gecko.GeckoScoped) {
 
 			case frame := <-udv.sendChan:
 				udv.udpConn.SetWriteDeadline(time.Now().Add(udv.sendTimeout))
-				if _, err := udv.udpConn.Write(frame.Bytes); nil != err {
+				if _, err := io.Copy(udv.udpConn, frame.DataReader()); nil != err {
 					log.Error().Err(err).Msgf("发送数据到UDP服务端错误: " + udv.srvAddr.String())
 				}
 				// TODO 读取处理结果

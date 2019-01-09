@@ -34,6 +34,9 @@ type GeckoContext interface {
 
 	// 返回Outbound对象
 	Outbound() *Outbound
+
+	// 创建数据帧对象
+	NewPacketFrame(frame []byte) *PacketFrame
 }
 
 ////
@@ -85,4 +88,12 @@ func (gc *abcGeckoContext) Outbound() *Outbound {
 
 func (gc *abcGeckoContext) Escaped() time.Duration {
 	return time.Now().Sub(gc.Timestamp())
+}
+
+func (gc *abcGeckoContext) NewPacketFrame(frame []byte) *PacketFrame {
+	return &PacketFrame{
+		id:     gc.ContextId(),
+		header: gc.Attributes(),
+		frame:  frame,
+	}
 }
