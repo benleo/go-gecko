@@ -34,10 +34,10 @@ type Trigger interface {
 	GetTopic() string
 
 	// 启动
-	OnStart(scoped GeckoScoped, invoker Invoker)
+	OnStart(ctx Context, invoker Invoker)
 
 	// 停止
-	OnStop(scoped GeckoScoped, invoker Invoker)
+	OnStop(ctx Context, invoker Invoker)
 }
 
 //

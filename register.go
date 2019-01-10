@@ -240,5 +240,5 @@ func (re *Registration) registerBundles(configs conf.Map,
 }
 
 func (re *Registration) withTag(f func() *zerolog.Event) *zerolog.Event {
-	return f().Str("tag", "Engine")
+	return f().Str("tag", "Registration")
 }

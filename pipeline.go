@@ -43,22 +43,22 @@ type AbcProtoPipeline struct {
 	rwLock         *sync.RWMutex
 }
 
-func (app *AbcProtoPipeline) Init() {
-	app.addressDevices = make(map[string]VirtualDevice)
-	app.rwLock = new(sync.RWMutex)
+func (ap *AbcProtoPipeline) Init() {
+	ap.addressDevices = make(map[string]VirtualDevice)
+	ap.rwLock = new(sync.RWMutex)
 }
 
-func (app *AbcProtoPipeline) FindDeviceByAddress(unionAddress string) VirtualDevice {
-	app.rwLock.RLock()
-	defer app.rwLock.RUnlock()
-	return app.addressDevices[unionAddress]
+func (ap *AbcProtoPipeline) FindDeviceByAddress(unionAddress string) VirtualDevice {
+	ap.rwLock.RLock()
+	defer ap.rwLock.RUnlock()
+	return ap.addressDevices[unionAddress]
 }
 
-func (app *AbcProtoPipeline) FindDevicesByGroup(groupAddress string) []VirtualDevice {
-	app.rwLock.RLock()
-	defer app.rwLock.RUnlock()
+func (ap *AbcProtoPipeline) FindDevicesByGroup(groupAddress string) []VirtualDevice {
+	ap.rwLock.RLock()
+	defer ap.rwLock.RUnlock()
 	out := make([]VirtualDevice, 0)
-	for _, vd := range app.addressDevices {
+	for _, vd := range ap.addressDevices {
 		if groupAddress == vd.GetGroupAddress() {
 			out = append(out, vd)
 		}
@@ -66,30 +66,30 @@ func (app *AbcProtoPipeline) FindDevicesByGroup(groupAddress string) []VirtualDe
 	return out
 }
 
-func (app *AbcProtoPipeline) GetDevices() []VirtualDevice {
-	out := make([]VirtualDevice, 0, len(app.addressDevices))
-	app.rwLock.RLock()
-	defer app.rwLock.RUnlock()
-	for _, vd := range app.addressDevices {
+func (ap *AbcProtoPipeline) GetDevices() []VirtualDevice {
+	out := make([]VirtualDevice, 0, len(ap.addressDevices))
+	ap.rwLock.RLock()
+	defer ap.rwLock.RUnlock()
+	for _, vd := range ap.addressDevices {
 		out = append(out, vd)
 	}
 	return out
 }
 
-func (app *AbcProtoPipeline) AddDevice(device VirtualDevice) bool {
-	app.rwLock.Lock()
-	defer app.rwLock.Unlock()
+func (ap *AbcProtoPipeline) AddDevice(device VirtualDevice) bool {
+	ap.rwLock.Lock()
+	defer ap.rwLock.Unlock()
 	addr := device.GetUnionAddress()
-	if _, ok := app.addressDevices[addr]; ok {
+	if _, ok := ap.addressDevices[addr]; ok {
 		return false
 	} else {
-		app.addressDevices[addr] = device
+		ap.addressDevices[addr] = device
 		return true
 	}
 }
 
-func (app *AbcProtoPipeline) RemoveDevice(unionAddress string) {
-	app.rwLock.Lock()
-	defer app.rwLock.Unlock()
-	delete(app.addressDevices, unionAddress)
+func (ap *AbcProtoPipeline) RemoveDevice(unionAddress string) {
+	ap.rwLock.Lock()
+	defer ap.rwLock.Unlock()
+	delete(ap.addressDevices, unionAddress)
 }

@@ -7,9 +7,9 @@ package gecko
 type Bundle interface {
 	Initialize
 	// 启动
-	OnStart(scoped GeckoScoped)
+	OnStart(ctx Context)
 	// 停止
-	OnStop(scoped GeckoScoped)
+	OnStop(ctx Context)
 }
 
 // Plugin 用于隔离其它类型与 Bundle 的类型。

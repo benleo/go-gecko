@@ -1,99 +1,107 @@
 package gecko
 
-import "time"
+import (
+	"github.com/parkingwang/go-conf"
+	"github.com/rs/zerolog/log"
+	"time"
+)
 
 //
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-// GeckoContext 是每次请求生成的上下文对象，服务于事件请求的整个生命周期。
-type GeckoContext interface {
-	// 返回属性列表
-	Attributes() map[string]interface{}
+// Context 提供一些全局性质的函数
+type Context interface {
+	// 返回当前版本
+	Version() string
 
-	// 添加属性
-	AddAttribute(key string, value interface{})
+	// 检查操作是否超时
+	CheckTimeout(timeout time.Duration, action func())
 
-	// 添加多个属性。相同Key的属性将被覆盖。
-	AddAttributes(attributes map[string]interface{})
+	// 返回服务节点Domain
+	Domain() string
 
-	// Context创建的时间戳
-	Timestamp() time.Time
+	// 返回服务节点NodeId
+	NodeId() string
 
-	// 从创建起始，到当前时间的用时
-	Escaped() time.Duration
+	// 返回Global配置项
+	Globals() map[string]interface{}
 
-	// 当前事件的Topic
-	Topic() string
+	// Globals中是否开启了 loggingVerbose 标记位
+	IsVerboseEnabled() bool
 
-	// 当前事件的ContextId。每个事件具有唯一ID。
-	ContextId() int64
+	// 如果Globals设置了Verbose标记，则显示详细日志。
+	LogIfV(fun func())
 
-	// 返回Inbound对象
-	Inbound() *Inbound
+	////
 
-	// 返回Outbound对象
-	Outbound() *Outbound
+	// 返回Gecko的配置
+	gecko() map[string]interface{}
 
-	// 创建数据帧对象
-	NewPacketFrame(frame []byte) *PacketFrame
+	// 返回分布式ID生成器的WorkerId
+	workerId() int64
+
+	// 返回是否在Globals中配置了快速失败标记位
+	failFastEnabled() bool
 }
 
-////
+///
 
-type abcGeckoContext struct {
-	GeckoContext
-	timestamp       time.Time
-	attributes      map[string]interface{}
-	topic           string
-	contextId       int64
-	inbound         *Inbound
-	outbound        *Outbound
-	onCompletedFunc OnTriggerCompleted
+type contextImpl struct {
+	Context
+
+	geckoConf        map[string]interface{}
+	globalsConf      map[string]interface{}
+	pipelinesConf    map[string]interface{}
+	interceptorsConf map[string]interface{}
+	driversConf      map[string]interface{}
+	devicesConf      map[string]interface{}
+	triggersConf     map[string]interface{}
+	pluginsConf      map[string]interface{}
 }
 
-func (gc *abcGeckoContext) Attributes() map[string]interface{} {
-	return gc.attributes
+func (ci *contextImpl) gecko() map[string]interface{} {
+	return ci.geckoConf
 }
 
-func (gc *abcGeckoContext) AddAttribute(name string, value interface{}) {
-	gc.attributes[name] = value
+func (ci *contextImpl) workerId() int64 {
+	return conf.MapToMap(ci.geckoConf).GetInt64OrDefault("workerId", 0)
 }
 
-func (gc *abcGeckoContext) AddAttributes(attributes map[string]interface{}) {
-	for k, v := range attributes {
-		gc.AddAttribute(k, v)
-	}
+func (ci *contextImpl) failFastEnabled() bool {
+	return conf.MapToMap(ci.globalsConf).GetBoolOrDefault("failFastEnabled", false)
 }
 
-func (gc *abcGeckoContext) Timestamp() time.Time {
-	return gc.timestamp
+func (ci *contextImpl) Version() string {
+	return "G1-1.0.0"
 }
 
-func (gc *abcGeckoContext) Topic() string {
-	return gc.topic
+func (ci *contextImpl) CheckTimeout(timeout time.Duration, action func()) {
+	t := time.AfterFunc(timeout, func() {
+		log.Debug().Str("tag", "Context").Msgf("Action takes toooo long: %s", timeout.String())
+	})
+	defer t.Stop()
+	action()
 }
 
-func (gc *abcGeckoContext) ContextId() int64 {
-	return gc.contextId
+func (ci *contextImpl) Globals() map[string]interface{} {
+	return ci.globalsConf
 }
 
-func (gc *abcGeckoContext) Inbound() *Inbound {
-	return gc.inbound
+func (ci *contextImpl) Domain() string {
+	return conf.MapToMap(ci.gecko()).MustString("domain")
 }
 
-func (gc *abcGeckoContext) Outbound() *Outbound {
-	return gc.outbound
+func (ci *contextImpl) NodeId() string {
+	return conf.MapToMap(ci.gecko()).MustString("nodeId")
 }
 
-func (gc *abcGeckoContext) Escaped() time.Duration {
-	return time.Now().Sub(gc.Timestamp())
+func (ci *contextImpl) IsVerboseEnabled() bool {
+	return conf.MapToMap(ci.Globals()).MustBool("loggingVerbose")
 }
 
-func (gc *abcGeckoContext) NewPacketFrame(frame []byte) *PacketFrame {
-	return &PacketFrame{
-		id:     gc.ContextId(),
-		header: gc.Attributes(),
-		frame:  frame,
+func (ci *contextImpl) LogIfV(fun func()) {
+	if ci.IsVerboseEnabled() {
+		fun()
 	}
 }

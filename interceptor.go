@@ -18,7 +18,7 @@ type Interceptor interface {
 	SetPriority(p int)
 
 	// 拦截处理过程。抛出 {@link DropException} 来中断拦截。
-	Handle(ctx GeckoContext, scoped GeckoScoped) error
+	Handle(ctx Session, scoped Context) error
 }
 
 // 拦截器抛弃事件操作

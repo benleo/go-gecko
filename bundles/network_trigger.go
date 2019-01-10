@@ -35,7 +35,7 @@ type NetworkServerTrigger struct {
 	shutdownCompleted chan struct{}
 }
 
-func (ns *NetworkServerTrigger) OnInit(args map[string]interface{}, scoped gecko.GeckoScoped) {
+func (ns *NetworkServerTrigger) OnInit(args map[string]interface{}, scoped gecko.Context) {
 	ns.shutdownReady = false
 	ns.shutdownCompleted = make(chan struct{}, 1)
 	ns.decoder = gecko.JSONDefaultDecoder
@@ -49,7 +49,7 @@ func (ns *NetworkServerTrigger) OnInit(args map[string]interface{}, scoped gecko
 	ns.withTag(log.Info).Msg("Network服务器Trigger初始化")
 }
 
-func (ns *NetworkServerTrigger) OnStart(scoped gecko.GeckoScoped, invoker gecko.Invoker) {
+func (ns *NetworkServerTrigger) OnStart(scoped gecko.Context, invoker gecko.Invoker) {
 	ns.withTag(log.Info).Msgf("Network服务器启动，绑定地址： %s", ns.bindAddrGroup)
 	// Events
 	ns.ioEvents.Data = func(conn evio.Conn, in []byte) (out []byte, action evio.Action) {
@@ -92,7 +92,7 @@ func (ns *NetworkServerTrigger) OnStart(scoped gecko.GeckoScoped, invoker gecko.
 	}()
 }
 
-func (ns *NetworkServerTrigger) OnStop(scoped gecko.GeckoScoped, invoker gecko.Invoker) {
+func (ns *NetworkServerTrigger) OnStop(scoped gecko.Context, invoker gecko.Invoker) {
 	ns.shutdownReady = true
 	ns.withTag(log.Info).Msg("Network服务器关闭")
 	<-ns.shutdownCompleted

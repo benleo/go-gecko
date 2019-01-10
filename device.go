@@ -26,7 +26,7 @@ type VirtualDevice interface {
 	GetProtoName() string
 
 	// 设备对象接收控制事件；经设备驱动处理后，返回处理结果事件；
-	Process(frame *PacketFrame, scoped GeckoScoped) (*PacketFrame, error)
+	Process(frame *PacketFrame, ctx Context) (*PacketFrame, error)
 }
 
 //
@@ -39,30 +39,30 @@ type AbcVirtualDevice struct {
 	phyAddress   string
 }
 
-func (avd *AbcVirtualDevice) setDisplayName(name string) {
-	avd.displayName = name
+func (av *AbcVirtualDevice) setDisplayName(name string) {
+	av.displayName = name
 }
 
-func (avd *AbcVirtualDevice) GetDisplayName() string {
-	return avd.displayName
+func (av *AbcVirtualDevice) GetDisplayName() string {
+	return av.displayName
 }
 
-func (avd *AbcVirtualDevice) setGroupAddress(addr string) {
-	avd.groupAddress = addr
+func (av *AbcVirtualDevice) setGroupAddress(addr string) {
+	av.groupAddress = addr
 }
 
-func (avd *AbcVirtualDevice) GetGroupAddress() string {
-	return avd.groupAddress
+func (av *AbcVirtualDevice) GetGroupAddress() string {
+	return av.groupAddress
 }
 
-func (avd *AbcVirtualDevice) setPhyAddress(addr string) {
-	avd.phyAddress = addr
+func (av *AbcVirtualDevice) setPhyAddress(addr string) {
+	av.phyAddress = addr
 }
 
-func (avd *AbcVirtualDevice) GetPhyAddress() string {
-	return avd.phyAddress
+func (av *AbcVirtualDevice) GetPhyAddress() string {
+	return av.phyAddress
 }
 
-func (avd *AbcVirtualDevice) GetUnionAddress() string {
-	return "/" + avd.groupAddress + "/" + avd.phyAddress
+func (av *AbcVirtualDevice) GetUnionAddress() string {
+	return "/" + av.groupAddress + "/" + av.phyAddress
 }

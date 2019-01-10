@@ -6,5 +6,5 @@ package gecko
 
 type Initialize interface {
 	// 指定参数初始化组件
-	OnInit(args map[string]interface{}, scoped GeckoScoped)
+	OnInit(args map[string]interface{}, scoped Context)
 }
