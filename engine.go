@@ -306,6 +306,9 @@ func (en *Engine) handleDrivers(session Session) {
 func (en *Engine) handleOutput(session Session) {
 	en.ctx.LogIfV(func() {
 		en.withTag(log.Debug).Msgf("Output调度处理，Topic: %s", session.Topic())
+		for k, v := range session.Attributes() {
+			en.withTag(log.Debug).Msgf("SessionAttr: %s = %v", k, v)
+		}
 	})
 	session.AddAttribute("Output.Start", time.Now())
 	defer func() {
