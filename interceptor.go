@@ -21,6 +21,17 @@ type Interceptor interface {
 	Handle(ctx Session, scoped Context) error
 }
 
+// 拦截器排序
+type InterceptorSlice []Interceptor
+
+func (is InterceptorSlice) Len() int { return len(is) }
+
+func (is InterceptorSlice) Less(i, j int) bool {
+	return is[i].GetPriority() > is[j].GetPriority()
+}
+
+func (is InterceptorSlice) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
+
 // 拦截器抛弃事件操作
 func InterceptedDrop() error {
 	return ErrInterceptorDropped

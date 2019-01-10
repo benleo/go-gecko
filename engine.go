@@ -7,6 +7,7 @@ import (
 	"github.com/yoojia/go-gecko/x"
 	"os"
 	"os/signal"
+	"sort"
 	"strconv"
 	"sync"
 	"syscall"
@@ -231,7 +232,7 @@ func (en *Engine) handleInterceptor(session Session) {
 		en.checkRecover(recover(), "Interceptor-Goroutine内部错误")
 	}()
 	// 查找匹配的拦截器，按优先级排序并处理
-	// TODO 排序
+	matches := make(InterceptorSlice, 0)
 	for el := en.interceptors.Front(); el != nil; el = el.Next() {
 		interceptor := el.Value.(Interceptor)
 		match := anyTopicMatches(interceptor.GetTopicExpr(), session.Topic())
@@ -242,22 +243,27 @@ func (en *Engine) handleInterceptor(session Session) {
 				strconv.FormatBool(match))
 		})
 		if match {
-			err := interceptor.Handle(session, en.ctx)
-			if err == nil {
-				continue
+			matches = append(matches, interceptor)
+		}
+	}
+	sort.Sort(matches)
+	// 按排序结果顺序执行
+	for _, it := range matches {
+		err := it.Handle(session, en.ctx)
+		if err == nil {
+			continue
+		}
+		if err == ErrInterceptorDropped {
+			en.withTag(log.Debug).Err(err).Msgf("拦截器中断事件： %s", err.Error())
+			session.Outbound().AddDataField("error", "InterceptorDropped")
+			en.outChan <- session
+			return
+		} else {
+			logger := en.withTag(log.Error)
+			if en.ctx.failFastEnabled() {
+				logger = en.withTag(log.Panic)
 			}
-			if err == ErrInterceptorDropped {
-				en.withTag(log.Debug).Err(err).Msgf("拦截器中断事件： %s", err.Error())
-				session.Outbound().AddDataField("error", "InterceptorDropped")
-				en.outChan <- session
-				return
-			} else {
-				logger := en.withTag(log.Error)
-				if en.ctx.failFastEnabled() {
-					logger = en.withTag(log.Panic)
-				}
-				logger.Err(err).Msgf("拦截器发生错误： %s", err.Error())
-			}
+			logger.Err(err).Msgf("拦截器发生错误： %s", err.Error())
 		}
 	}
 	// 继续驱动处理
