@@ -70,11 +70,11 @@ func (ns *NetworkServerTrigger) OnInit(args map[string]interface{}, scoped gecko
 	} else {
 		ns.bindAddrGroup = group
 	}
-	ns.withTag(log.Info).Msg("Network服务器Trigger初始化")
+	ns.withTag(log.Info).Msg("NetworkTrigger服务初始化...")
 }
 
 func (ns *NetworkServerTrigger) OnStart(ctx gecko.Context, invoker gecko.Invoker) {
-	ns.withTag(log.Info).Msgf("Network服务器启动，绑定地址： %s", ns.bindAddrGroup)
+	ns.withTag(log.Info).Msgf("Network服务启动，绑定地址： %s", ns.bindAddrGroup)
 	// Events
 	ns.ioEvents.Data = func(conn evio.Conn, in []byte) (out []byte, action evio.Action) {
 		// 使用Invoker调度内部系统处理，完成后返回给客户端
@@ -110,18 +110,19 @@ func (ns *NetworkServerTrigger) OnStart(ctx gecko.Context, invoker gecko.Invoker
 	// Serve
 	go func() {
 		defer func() {
+			ns.withTag(log.Debug).Msg("Network服务停止")
 			ns.shutdown <- struct{}{}
 		}()
 		// 绑定服务
 		if err := evio.Serve(ns.ioEvents, ns.bindAddrGroup...); nil != err {
-			ns.withTag(log.Error).Err(err).Msg("Network服务器停止")
+			ns.withTag(log.Error).Err(err).Msg("Network服务异常")
 		}
 	}()
 }
 
 func (ns *NetworkServerTrigger) OnStop(ctx gecko.Context, invoker gecko.Invoker) {
 	ns.shutdownReady = true
-	ns.withTag(log.Info).Msg("Network服务器关闭")
+	ns.withTag(log.Info).Msg("Network服务准备关闭...")
 	<-ns.shutdown
 }
 
