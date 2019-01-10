@@ -1,0 +1,8 @@
+[DRIVERS.UdpDemoDriver]
+  disable = false
+  type = "UdpDemoDriver"
+  topics = [
+    "/demo/#"
+  ]
+[DRIVERS.UdpDemoDriver.InitArgs]
+  foo = "bar"

@@ -1,0 +1,4 @@
+# 指定Pipeline实现：UDP
+[PIPELINES.UdpProtoPipeline]
+  disable = false
+  type = "UdpProtoPipeline"

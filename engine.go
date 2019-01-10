@@ -7,6 +7,7 @@ import (
 	"github.com/yoojia/go-gecko/x"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -51,8 +52,9 @@ func (en *Engine) prepareEnv() {
 	en.Registration = prepare()
 	en.shutdownCtx, en.shutdownFunc = context.WithCancel(context.Background())
 	// 查找Pipeline
-	en.selector = func(proto string) ProtoPipeline {
-		return en.pipelines[proto]
+	en.selector = func(proto string) (pl ProtoPipeline, ok bool) {
+		pl, ok = en.pipelines[proto]
+		return
 	}
 	// 接收Trigger的输入事件
 	en.invoker = func(income *TriggerEvent, cbFunc OnTriggerCompleted) {
@@ -78,19 +80,20 @@ func (en *Engine) prepareEnv() {
 	}
 	// 消息循环
 	go func(breakSig <-chan struct{}) {
+		defer en.withTag(log.Info).Msg("已退出消息循环")
 		for {
 			select {
 			case <-breakSig:
 				return
 
-			case ctx := <-en.intChan:
-				go en.handleInterceptor(ctx)
+			case ss := <-en.intChan:
+				go en.handleInterceptor(ss)
 
-			case ctx := <-en.driChan:
-				go en.handleDrivers(ctx)
+			case ss := <-en.driChan:
+				go en.handleDrivers(ss)
 
-			case ctx := <-en.outChan:
-				go en.handleOutput(ctx)
+			case ss := <-en.outChan:
+				go en.handleOutput(ss)
 			}
 		}
 	}(en.shutdownCtx.Done())
@@ -98,8 +101,8 @@ func (en *Engine) prepareEnv() {
 
 // 初始化Engine
 func (en *Engine) Init(args map[string]interface{}) {
-	config := conf.MapToMap(args)
-	en.ctx = newGeckoContext(args)
+	geckoCtx := newGeckoContext(args)
+	en.ctx = geckoCtx
 	if sf, err := NewSnowflake(en.ctx.workerId()); nil != err {
 		en.withTag(log.Panic).Err(err).Msg("初始化发生错误")
 	} else {
@@ -114,15 +117,30 @@ func (en *Engine) Init(args map[string]interface{}) {
 	en.outChan = make(chan Session, outCapacity)
 
 	// 初始化组件：根据配置文件指定项目
-	initWithScoped := func(it Initialize, args map[string]interface{}) {
+	itemInitWithContext := func(it Initialize, args map[string]interface{}) {
 		it.OnInit(args, en.ctx)
 	}
-	en.registerBundles(config.MustMap("PLUGINS"), initWithScoped)
-	en.registerBundles(config.MustMap("PIPELINES"), initWithScoped)
-	en.registerBundles(config.MustMap("INTERCEPTORS"), initWithScoped)
-	en.registerBundles(config.MustMap("DRIVERS"), initWithScoped)
-	en.registerBundles(config.MustMap("DEVICES"), initWithScoped)
-	en.registerBundles(config.MustMap("TRIGGERS"), initWithScoped)
+
+	if !en.registerBundlesIfHit(geckoCtx.pluginsConf, itemInitWithContext) {
+		en.withTag(log.Warn).Msg("警告：未配置任何[Plugin]组件")
+	}
+	if !en.registerBundlesIfHit(geckoCtx.pipelinesConf, itemInitWithContext) {
+		en.withTag(log.Panic).Msg("严重：未配置任何[Pipeline]组件")
+	}
+	if !en.registerBundlesIfHit(geckoCtx.devicesConf, itemInitWithContext) {
+		en.withTag(log.Panic).Msg("严重：未配置任何[Devices]组件")
+	}
+	if !en.registerBundlesIfHit(geckoCtx.interceptorsConf, itemInitWithContext) {
+		en.withTag(log.Warn).Msg("警告：未配置任何[Interceptor]组件")
+	}
+	if !en.registerBundlesIfHit(geckoCtx.driversConf, itemInitWithContext) {
+		en.withTag(log.Warn).Msg("警告：未配置任何[Driver]组件")
+	}
+	if !en.registerBundlesIfHit(geckoCtx.triggersConf, itemInitWithContext) {
+		en.withTag(log.Panic).Msg("严重：未配置任何[Trigger]组件")
+	}
+	// show
+	en.showBundles()
 }
 
 // 启动Engine
@@ -141,19 +159,19 @@ func (en *Engine) Start() {
 
 	// Plugin
 	x.ForEach(en.plugins, func(it interface{}) {
-		en.checkDefTimeout(it.(Plugin).OnStart)
+		en.checkDefTimeout("Plugin.Start", it.(Plugin).OnStart)
 	})
 	// Pipeline
 	for _, pipeline := range en.pipelines {
-		en.checkDefTimeout(pipeline.OnStart)
+		en.checkDefTimeout("Pipeline.Start", pipeline.OnStart)
 	}
 	// Drivers
 	x.ForEach(en.drivers, func(it interface{}) {
-		en.checkDefTimeout(it.(Driver).OnStart)
+		en.checkDefTimeout("Driver.Start", it.(Driver).OnStart)
 	})
 	// Trigger
 	x.ForEach(en.triggers, func(it interface{}) {
-		en.ctx.CheckTimeout(DefaultLifeCycleTimeout, func() {
+		en.ctx.CheckTimeout("Trigger.Start", DefaultLifeCycleTimeout, func() {
 			it.(Trigger).OnStart(en.ctx, en.invoker)
 		})
 	})
@@ -176,21 +194,21 @@ func (en *Engine) Stop() {
 	}()
 	// Triggers
 	x.ForEach(en.triggers, func(it interface{}) {
-		en.ctx.CheckTimeout(DefaultLifeCycleTimeout, func() {
+		en.ctx.CheckTimeout("Trigger.Stop", DefaultLifeCycleTimeout, func() {
 			it.(Trigger).OnStop(en.ctx, en.invoker)
 		})
 	})
 	// Drivers
 	x.ForEach(en.drivers, func(it interface{}) {
-		en.checkDefTimeout(it.(Driver).OnStop)
+		en.checkDefTimeout("Driver.Stop", it.(Driver).OnStop)
 	})
 	// Pipeline
 	for _, pipeline := range en.pipelines {
-		en.checkDefTimeout(pipeline.OnStop)
+		en.checkDefTimeout("Pipeline.Stop", pipeline.OnStop)
 	}
 	// Plugin
 	x.ForEach(en.plugins, func(it interface{}) {
-		en.checkDefTimeout(it.(Plugin).OnStop)
+		en.checkDefTimeout("Plugin.Stop", it.(Plugin).OnStop)
 	})
 }
 
@@ -204,19 +222,26 @@ func (en *Engine) AwaitTermination() {
 
 // 处理拦截器过程
 func (en *Engine) handleInterceptor(session Session) {
+	en.ctx.LogIfV(func() {
+		en.withTag(log.Debug).Msgf("Interceptor调度处理，Topic: %s", session.Topic())
+	})
 	session.AddAttribute("Interceptor.Start", time.Now())
 	defer func() {
 		session.AddAttribute("Interceptor.End", time.Now())
 		en.checkRecover(recover(), "Interceptor-Goroutine内部错误")
 	}()
-	en.ctx.LogIfV(func() {
-		en.withTag(log.Debug).Msgf("Interceptor调度处理，Topic: %s", session.Topic())
-	})
 	// 查找匹配的拦截器，按优先级排序并处理
 	// TODO 排序
 	for el := en.interceptors.Front(); el != nil; el = el.Next() {
 		interceptor := el.Value.(Interceptor)
-		if anyTopicMatches(interceptor.GetTopicExpr(), session.Topic()) {
+		match := anyTopicMatches(interceptor.GetTopicExpr(), session.Topic())
+		en.ctx.LogIfV(func() {
+			en.withTag(log.Debug).Msgf("拦截器调度： interceptor[%s], topic: %s, Matches: %s",
+				x.SimpleClassName(interceptor),
+				session.Topic(),
+				strconv.FormatBool(match))
+		})
+		if match {
 			err := interceptor.Handle(session, en.ctx)
 			if err == nil {
 				continue
@@ -241,18 +266,26 @@ func (en *Engine) handleInterceptor(session Session) {
 
 // 处理驱动执行过程
 func (en *Engine) handleDrivers(session Session) {
+	en.ctx.LogIfV(func() {
+		en.withTag(log.Debug).Msgf("Driver调度处理，Topic: %s", session.Topic())
+	})
 	session.AddAttribute("Driver.Start", time.Now())
 	defer func() {
 		session.AddAttribute("Driver.End", time.Now())
 		en.checkRecover(recover(), "Driver-Goroutine内部错误")
 	}()
-	en.ctx.LogIfV(func() {
-		en.withTag(log.Debug).Msgf("Driver调度处理，Topic: %s", session.Topic())
-	})
+
 	// 查找匹配的用户驱动，并处理
 	for el := en.drivers.Front(); el != nil; el = el.Next() {
 		driver := el.Value.(Driver)
-		if anyTopicMatches(driver.GetTopicExpr(), session.Topic()) {
+		match := anyTopicMatches(driver.GetTopicExpr(), session.Topic())
+		en.ctx.LogIfV(func() {
+			en.withTag(log.Debug).Msgf("用户驱动处理： driver[%s], topic: %s, Matches: %s",
+				x.SimpleClassName(driver),
+				session.Topic(),
+				strconv.FormatBool(match))
+		})
+		if match {
 			err := driver.Handle(session, en.selector, en.ctx)
 			if nil != err {
 				logger := en.withTag(log.Error)
@@ -271,6 +304,9 @@ func (en *Engine) handleDrivers(session Session) {
 
 // 返回Trigger输出
 func (en *Engine) handleOutput(session Session) {
+	en.ctx.LogIfV(func() {
+		en.withTag(log.Debug).Msgf("Output调度处理，Topic: %s", session.Topic())
+	})
 	session.AddAttribute("Output.Start", time.Now())
 	defer func() {
 		session.AddAttribute("Output.End", time.Now())
@@ -279,8 +315,8 @@ func (en *Engine) handleOutput(session Session) {
 	session.(*sessionImpl).onCompletedFunc(session.Outbound().Data)
 }
 
-func (en *Engine) checkDefTimeout(act func(Context)) {
-	en.ctx.CheckTimeout(DefaultLifeCycleTimeout, func() {
+func (en *Engine) checkDefTimeout(msg string, act func(Context)) {
+	en.ctx.CheckTimeout(msg, DefaultLifeCycleTimeout, func() {
 		act(en.ctx)
 	})
 }
@@ -296,7 +332,7 @@ func (en *Engine) checkRecover(r interface{}, msg string) {
 	}
 }
 
-func newGeckoContext(config map[string]interface{}) Context {
+func newGeckoContext(config map[string]interface{}) *contextImpl {
 	mapConf := conf.MapToMap(config)
 	return &contextImpl{
 		geckoConf:        mapConf.MustMap("GECKO"),

@@ -16,7 +16,7 @@ type Context interface {
 	Version() string
 
 	// 检查操作是否超时
-	CheckTimeout(timeout time.Duration, action func())
+	CheckTimeout(msg string, timeout time.Duration, action func())
 
 	// 返回服务节点Domain
 	Domain() string
@@ -76,9 +76,9 @@ func (ci *contextImpl) Version() string {
 	return "G1-1.0.0"
 }
 
-func (ci *contextImpl) CheckTimeout(timeout time.Duration, action func()) {
+func (ci *contextImpl) CheckTimeout(msg string, timeout time.Duration, action func()) {
 	t := time.AfterFunc(timeout, func() {
-		log.Debug().Str("tag", "Context").Msgf("Action takes toooo long: %s", timeout.String())
+		log.Debug().Str("tag", "Context").Msgf("Action [%s] takes too long: %s", msg, timeout.String())
 	})
 	defer t.Stop()
 	action()

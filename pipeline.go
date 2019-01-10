@@ -2,6 +2,7 @@ package gecko
 
 import (
 	"sync"
+	"time"
 )
 
 //
@@ -33,19 +34,37 @@ type ProtoPipeline interface {
 }
 
 // 根据指定协议名，返回指定协议的Pipeline
-type ProtoPipelineSelector func(proto string) ProtoPipeline
+type ProtoPipelineSelector func(proto string) (ProtoPipeline, bool)
 
 ////
 
 // ProtoPipeline抽象实现类
 type AbcProtoPipeline struct {
+	ProtoPipeline
 	addressDevices map[string]VirtualDevice
 	rwLock         *sync.RWMutex
 }
 
-func (ap *AbcProtoPipeline) Init() {
+func (ap *AbcProtoPipeline) Prepare() *AbcProtoPipeline {
 	ap.addressDevices = make(map[string]VirtualDevice)
 	ap.rwLock = new(sync.RWMutex)
+	return ap
+}
+
+func (ap *AbcProtoPipeline) OnStart(ctx Context) {
+	for addr, dev := range ap.addressDevices {
+		ctx.CheckTimeout("Device.Start@"+addr, time.Second*3, func() {
+			dev.OnStart(ctx)
+		})
+	}
+}
+
+func (ap *AbcProtoPipeline) OnStop(ctx Context) {
+	for addr, dev := range ap.addressDevices {
+		ctx.CheckTimeout("Device.Stop@"+addr, time.Second*3, func() {
+			dev.OnStop(ctx)
+		})
+	}
 }
 
 func (ap *AbcProtoPipeline) FindDeviceByAddress(unionAddress string) VirtualDevice {

@@ -14,6 +14,9 @@ func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	gecko.Bootstrap(func(engine *gecko.Engine) {
 		// 通常使用这个函数来注册组件工厂函数
+		engine.RegisterBundleFactory(bundles.UdpProtoPipelineFactory())
+		engine.RegisterBundleFactory(bundles.UdpVirtualDeviceFactory())
 		engine.RegisterBundleFactory(bundles.NetworkServerTriggerFactory())
+		engine.RegisterBundleFactory(bundles.UdpDemoDriverFactory())
 	})
 }

@@ -1,7 +1,7 @@
 [DEVICES.UdpVirtualDevice]
-  disable = true
+  disable = false
   type = "UdpVirtualDevice"
-  groupAddress = "192.168.1.11"
+  groupAddress = "127.0.0.1"
   physicalAddress = 60000
 [DEVICES.UdpVirtualDevice.InitArgs]
   sendBuffSizeKB = 1

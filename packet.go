@@ -40,3 +40,11 @@ func (pf *PacketFrame) Data() []byte {
 func (pf *PacketFrame) Header() map[string]interface{} {
 	return pf.header
 }
+
+func NewPackFrame(id int64, header map[string]interface{}, frame []byte) *PacketFrame {
+	return &PacketFrame{
+		id:     id,
+		header: header,
+		frame:  frame,
+	}
+}

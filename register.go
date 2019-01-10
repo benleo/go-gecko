@@ -107,31 +107,33 @@ func (re *Registration) AddProtoPipeline(pipeline ProtoPipeline) {
 func (re *Registration) showBundles() {
 	re.withTag(log.Info).Msgf("已加载 Interceptors: %d", re.interceptors.Len())
 	x.ForEach(re.interceptors, func(it interface{}) {
-		re.withTag(log.Info).Msgf("  -Interceptor: " + x.SimpleClassName(it))
+		re.withTag(log.Info).Msg("  - Interceptor: " + x.SimpleClassName(it))
 	})
 
 	devices := make([]VirtualDevice, 0)
-	for _, pi := range re.pipelines {
+	re.withTag(log.Info).Msgf("已加载 Pipelines: %d", len(re.pipelines))
+	for proto, pi := range re.pipelines {
+		re.withTag(log.Info).Msgf("  -Pipeline[%s]: %s", proto, x.SimpleClassName(pi))
 		devices = append(devices, pi.GetDevices()...)
 	}
 	re.withTag(log.Info).Msgf("已加载 Devices: %d", len(devices))
 	for _, it := range devices {
-		re.withTag(log.Info).Msgf("  -Device: " + x.SimpleClassName(it))
+		re.withTag(log.Info).Msg("  - Device: " + x.SimpleClassName(it))
 	}
 
 	re.withTag(log.Info).Msgf("已加载 Drivers: %d", re.drivers.Len())
 	x.ForEach(re.drivers, func(it interface{}) {
-		re.withTag(log.Info).Msgf("  -Driver: " + x.SimpleClassName(it))
+		re.withTag(log.Info).Msg("  - Driver: " + x.SimpleClassName(it))
 	})
 
 	re.withTag(log.Info).Msgf("已加载 Triggers: %d", re.triggers.Len())
 	x.ForEach(re.triggers, func(it interface{}) {
-		re.withTag(log.Info).Msgf("  -Trigger: " + x.SimpleClassName(it))
+		re.withTag(log.Info).Msg("  - Trigger: " + x.SimpleClassName(it))
 	})
 
 	re.withTag(log.Info).Msgf("已加载 Plugins: %d", re.plugins.Len())
 	x.ForEach(re.plugins, func(it interface{}) {
-		re.withTag(log.Info).Msgf("  -Plugin: " + x.SimpleClassName(it))
+		re.withTag(log.Info).Msg("  - Plugin: " + x.SimpleClassName(it))
 	})
 }
 
@@ -139,6 +141,7 @@ func (re *Registration) RegisterBundleFactory(typeName string, factory BundleFac
 	if _, ok := re.bundleFactories[typeName]; ok {
 		re.withTag(log.Warn).Msgf("组件类型[%s]工厂函数被覆盖注册： %s", typeName, x.SimpleClassName(factory))
 	}
+	re.withTag(log.Info).Msgf("正在注册组件工厂函数： %s", typeName)
 	re.bundleFactories[typeName] = factory
 }
 
@@ -151,9 +154,12 @@ func (re *Registration) findFactory(typeName string) (BundleFactory, bool) {
 	}
 }
 
-func (re *Registration) registerBundles(configs conf.Map,
-	initAct func(bundle Initialize, args map[string]interface{})) {
-
+// 注册组件，如果注册失败，返回False
+func (re *Registration) registerBundlesIfHit(configs conf.Map,
+	initAct func(bundle Initialize, args map[string]interface{})) bool {
+	if 0 == len(configs) {
+		return false
+	}
 	for typeName, item := range configs {
 		asMap, ok := item.(map[string]interface{})
 		if !ok {
@@ -173,13 +179,10 @@ func (re *Registration) registerBundles(configs conf.Map,
 		factory, ok := re.findFactory(typeName)
 		if !ok {
 			re.withTag(log.Panic).Msgf("组件类型[%s]没有注册对应的工厂函数", typeName)
-			return
 		}
 		// 根据类型注册
 		bundle := factory()
 		switch bundle.(type) {
-		case Plugin:
-			re.AddPlugin(bundle.(Plugin))
 
 		case ProtoPipeline:
 			re.AddProtoPipeline(bundle.(ProtoPipeline))
@@ -219,8 +222,11 @@ func (re *Registration) registerBundles(configs conf.Map,
 			re.AddTrigger(tr)
 
 		default:
-			re.withTag(log.Panic).Msgf("未支持的组件类型：%s", typeName)
-			return
+			if plg, ok := bundle.(Plugin); ok {
+				re.AddPlugin(plg)
+			} else {
+				re.withTag(log.Panic).Msgf("未支持的组件类型：%s", typeName)
+			}
 		}
 
 		// 需要Topic过滤
@@ -228,7 +234,7 @@ func (re *Registration) registerBundles(configs conf.Map,
 			if topics, err := config.MustStringArray("topics"); nil != err || 0 == len(topics) {
 				re.withTag(log.Panic).Err(err).Msgf("配置项中[topics]必须是字符串数组： %s", typeName)
 			} else {
-				tf.SetTopics(topics)
+				tf.setTopics(topics)
 			}
 		}
 
@@ -237,6 +243,7 @@ func (re *Registration) registerBundles(configs conf.Map,
 			initAct(init, map[string]interface{}(config.MustMap("InitArgs")))
 		}
 	}
+	return true
 }
 
 func (re *Registration) withTag(f func() *zerolog.Event) *zerolog.Event {

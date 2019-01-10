@@ -9,7 +9,7 @@ import "strings"
 // 需要Topic支持
 type NeedTopicFilter interface {
 	// 设置当前Driver可处理的Topic列表
-	SetTopics(topics []string)
+	setTopics(topics []string)
 	// 返回当前Driver可处理的Topic列表
 	GetTopicExpr() []*TopicExpr
 }
