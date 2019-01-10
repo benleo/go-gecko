@@ -16,9 +16,13 @@ import (
 // 工厂函数
 func NetworkServerTriggerFactory() (string, func() interface{}) {
 	return "NetworkServerTrigger", func() interface{} {
-		return &NetworkServerTrigger{
-			AbcTrigger: new(gecko.AbcTrigger),
-		}
+		return NewNetworkServerTrigger()
+	}
+}
+
+func NewNetworkServerTrigger() *NetworkServerTrigger {
+	return &NetworkServerTrigger{
+		AbcTrigger: new(gecko.AbcTrigger),
 	}
 }
 
@@ -33,13 +37,33 @@ type NetworkServerTrigger struct {
 	bindAddrGroup []string
 	shutdownReady bool
 	shutdown      chan struct{}
+	//
+	incomeHook func(income map[string]interface{}, invoker gecko.Invoker)
+}
+
+func (ns *NetworkServerTrigger) SetDecoder(decoder gecko.Decoder) {
+	ns.decoder = decoder
+}
+
+func (ns *NetworkServerTrigger) SetEncoder(encoder gecko.Encoder) {
+	ns.encoder = encoder
+}
+
+func (ns *NetworkServerTrigger) SetIncomeHook(hook func(income map[string]interface{}, invoker gecko.Invoker)) {
+	ns.incomeHook = hook
 }
 
 func (ns *NetworkServerTrigger) OnInit(args map[string]interface{}, scoped gecko.Context) {
 	ns.shutdownReady = false
 	ns.shutdown = make(chan struct{}, 1)
-	ns.decoder = gecko.JSONDefaultDecoder
-	ns.encoder = gecko.JSONDefaultEncoder
+	if ns.decoder == nil {
+		ns.SetDecoder(gecko.JSONDefaultDecoder)
+		ns.withTag(log.Debug).Msg("使用默认JSONDecoder")
+	}
+	if ns.encoder == nil {
+		ns.SetEncoder(gecko.JSONDefaultEncoder)
+		ns.withTag(log.Debug).Msg("使用默认JSONEncoder")
+	}
 	config := conf.MapToMap(args)
 	if group, err := config.MustStringArray("bindAddrGroup"); nil != err || len(group) == 0 {
 		ns.withTag(log.Panic).Err(err).Msg("配置字段[bindAddrGroup]必须是个字符串数组")
@@ -55,7 +79,19 @@ func (ns *NetworkServerTrigger) OnStart(ctx gecko.Context, invoker gecko.Invoker
 	ns.ioEvents.Data = func(conn evio.Conn, in []byte) (out []byte, action evio.Action) {
 		// 使用Invoker调度内部系统处理，完成后返回给客户端
 		if json, deErr := ns.decoder(in); nil == deErr {
-			out = ns.OnIncomeProcess(json, invoker)
+			if ns.incomeHook != nil {
+				ns.incomeHook(json, invoker)
+			}
+			inEvent := gecko.NewTriggerEvent(ns.GetTopic(), json)
+			// 处理并等待结果
+			ret := invoker.Execute(inEvent)
+			// Decode and send back client
+			if bytes, enErr := ns.encoder(ret); nil == enErr {
+				out = bytes
+			} else {
+				ns.withTag(log.Error).Err(enErr).Msg("服务器无法序列化的数据")
+				out = []byte("{\"error\": \"SERVER_ENCODE_ERROR\"}")
+			}
 		} else {
 			ns.withTag(log.Error).Err(deErr).Msg("服务器接收到无法解析的数据：" + conn.RemoteAddr().String())
 			out = []byte("{\"error\": \"SERVER_DECODE_ERROR\"}")
@@ -87,19 +123,6 @@ func (ns *NetworkServerTrigger) OnStop(ctx gecko.Context, invoker gecko.Invoker)
 	ns.shutdownReady = true
 	ns.withTag(log.Info).Msg("Network服务器关闭")
 	<-ns.shutdown
-}
-
-func (ns *NetworkServerTrigger) OnIncomeProcess(json map[string]interface{}, invoker gecko.Invoker) []byte {
-	inEvent := gecko.NewTriggerEvent(ns.GetTopic(), json)
-	// 处理并等待结果
-	ret := invoker.Execute(inEvent)
-	// Decode and send back client
-	if bytes, enErr := ns.encoder(ret); nil == enErr {
-		return bytes
-	} else {
-		ns.withTag(log.Error).Err(enErr).Msg("服务器无法序列化的数据")
-		return []byte("{\"error\": \"SERVER_ENCODE_ERROR\"}")
-	}
 }
 
 func (ns *NetworkServerTrigger) withTag(fun func() *zerolog.Event) *zerolog.Event {
