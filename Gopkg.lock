@@ -18,14 +18,6 @@
   version = "v1.4.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:53bc4cd4914cd7cd52139990d5170d6dc99067ae31c56530621b18b35fc30318"
-  name = "github.com/mitchellh/mapstructure"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "3536a929edddb9a5b34bd6861dc4a9647cb459fe"
-
-[[projects]]
   digest = "1:33422d238f147d247752996a26574ac48dcf472976eda7f5134015f06bf16563"
   name = "github.com/modern-go/concurrent"
   packages = ["."]
@@ -42,12 +34,12 @@
   version = "1.0.1"
 
 [[projects]]
-  digest = "1:492451618533cdde7114081d80fbb0f2c4c5f8f538be47ff0f61bb4680322531"
+  digest = "1:274fe54317b917ffa1b8b2a53e723343218a510af6cb74bbecec946f7ea14371"
   name = "github.com/parkingwang/go-conf"
   packages = ["."]
   pruneopts = "UT"
-  revision = "82929e08249331e451763cc20d810929ec82896e"
-  version = "v2.0.2"
+  revision = "6d70049b63ed61beb1bb45db62350b3b51b0fdb7"
+  version = "v2.1.0"
 
 [[projects]]
   digest = "1:95741de3af260a92cc5c7f3f3061e85273f5a81b5db20d4bd68da74bd521675e"
