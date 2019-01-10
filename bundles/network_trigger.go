@@ -29,15 +29,15 @@ type NetworkServerTrigger struct {
 	decoder gecko.Decoder
 	encoder gecko.Encoder
 	//
-	ioEvents          evio.Events
-	bindAddrGroup     []string
-	shutdownReady     bool
-	shutdownCompleted chan struct{}
+	ioEvents      evio.Events
+	bindAddrGroup []string
+	shutdownReady bool
+	shutdown      chan struct{}
 }
 
 func (ns *NetworkServerTrigger) OnInit(args map[string]interface{}, scoped gecko.Context) {
 	ns.shutdownReady = false
-	ns.shutdownCompleted = make(chan struct{}, 1)
+	ns.shutdown = make(chan struct{}, 1)
 	ns.decoder = gecko.JSONDefaultDecoder
 	ns.encoder = gecko.JSONDefaultEncoder
 	config := conf.MapToMap(args)
@@ -73,6 +73,7 @@ func (ns *NetworkServerTrigger) OnStart(scoped gecko.Context, invoker gecko.Invo
 		return
 	}
 	// 定时检查服务关闭
+	// FIXME 并不能很好地解决如何平滑关闭Evio服务器的问题
 	ns.ioEvents.Tick = func() (time.Duration, evio.Action) {
 		if ns.shutdownReady {
 			return time.Nanosecond, evio.Shutdown
@@ -83,7 +84,7 @@ func (ns *NetworkServerTrigger) OnStart(scoped gecko.Context, invoker gecko.Invo
 	// Serve
 	go func() {
 		defer func() {
-			ns.shutdownCompleted <- struct{}{}
+			ns.shutdown <- struct{}{}
 		}()
 		// 绑定服务
 		if err := evio.Serve(ns.ioEvents, ns.bindAddrGroup...); nil != err {
@@ -95,7 +96,7 @@ func (ns *NetworkServerTrigger) OnStart(scoped gecko.Context, invoker gecko.Invo
 func (ns *NetworkServerTrigger) OnStop(scoped gecko.Context, invoker gecko.Invoker) {
 	ns.shutdownReady = true
 	ns.withTag(log.Info).Msg("Network服务器关闭")
-	<-ns.shutdownCompleted
+	<-ns.shutdown
 }
 
 func (ns *NetworkServerTrigger) withTag(fun func() *zerolog.Event) *zerolog.Event {
