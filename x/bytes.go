@@ -86,7 +86,7 @@ func (br *ByteWrapper) Reset() {
 
 ////
 
-func WrapByteReaderBigEndian(data []byte) *ByteWrapper {
+func WrapBytesBigEndian(data []byte) *ByteWrapper {
 	return &ByteWrapper{
 		data:   data,
 		offset: 0,
@@ -94,7 +94,7 @@ func WrapByteReaderBigEndian(data []byte) *ByteWrapper {
 	}
 }
 
-func WrapByteReaderLittleEndian(data []byte) *ByteWrapper {
+func WrapBytesLittleEndian(data []byte) *ByteWrapper {
 	return &ByteWrapper{
 		data:   data,
 		offset: 0,
