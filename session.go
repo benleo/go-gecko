@@ -42,7 +42,6 @@ type Session interface {
 ////
 
 type sessionImpl struct {
-	Session
 	timestamp       time.Time
 	attributes      map[string]interface{}
 	topic           string

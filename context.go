@@ -48,8 +48,6 @@ type Context interface {
 ///
 
 type contextImpl struct {
-	Context
-
 	geckoConf        map[string]interface{}
 	globalsConf      map[string]interface{}
 	pipelinesConf    map[string]interface{}
