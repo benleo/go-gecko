@@ -3,6 +3,7 @@ package gecko
 import (
 	"context"
 	"github.com/parkingwang/go-conf"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yoojia/go-gecko/x"
 	"os"
@@ -77,27 +78,39 @@ func (en *Engine) prepareEnv() {
 			},
 			onCompletedFunc: cbFunc,
 		}
-		en.intChan <- ss
+		select {
+		case en.intChan <- ss:
+			en.withTag(log.Debug).Msgf("Trigger已发送事件： %s", income.topic)
+
+		case <-time.After(time.Second):
+			en.failFastLogger().Msgf("Trigger事件阻塞超时： %s", income.topic)
+		}
+
 	}
 	// 消息循环
-	go func(breakSig <-chan struct{}) {
+	go func(breakSig <-chan struct{}, inr <-chan Session, dri <-chan Session, out <-chan Session) {
 		defer en.withTag(log.Info).Msg("已退出消息循环")
 		for {
+			en.withTag(log.Info).Msg("进入消息循环。。。。")
 			select {
 			case <-breakSig:
+				en.withTag(log.Info).Msg("已退出消息循环")
 				return
 
-			case ss := <-en.intChan:
-				go en.handleInterceptor(ss)
+			case ss := <-inr:
+				en.withTag(log.Debug).Msgf("主循环接收Int事件： %s", ss.Topic())
+				go en.handleInterceptor(ss, en.driChan)
 
-			case ss := <-en.driChan:
-				go en.handleDrivers(ss)
+				case ss := <-dri:
+					en.withTag(log.Debug).Msgf("主循环接收Dri事件： %s", ss.Topic())
+					go en.handleDrivers(ss, en.outChan)
 
-			case ss := <-en.outChan:
-				go en.handleOutput(ss)
+				case ss := <-out:
+					en.withTag(log.Debug).Msgf("主循环接收Out事件： %s", ss.Topic())
+					go en.handleOutput(ss)
 			}
 		}
-	}(en.shutdownCtx.Done())
+	}(en.shutdownCtx.Done(), en.intChan, en.driChan, en.outChan)
 }
 
 // 初始化Engine
@@ -110,12 +123,15 @@ func (en *Engine) Init(args map[string]interface{}) {
 		en.snowflake = sf
 	}
 	gecko := conf.MapToMap(en.ctx.gecko())
-	intCapacity := gecko.GetInt64OrDefault("interceptorChannelCapacity", 8)
-	driCapacity := gecko.GetInt64OrDefault("driverChannelCapacity", 8)
-	outCapacity := gecko.GetInt64OrDefault("outputChannelCapacity", 8)
-	en.intChan = make(chan Session, intCapacity)
-	en.driChan = make(chan Session, driCapacity)
-	en.outChan = make(chan Session, outCapacity)
+	intCap := gecko.GetInt64OrDefault("interceptorChannelCapacity", 8)
+	driCap := gecko.GetInt64OrDefault("driverChannelCapacity", 8)
+	outCap := gecko.GetInt64OrDefault("outputChannelCapacity", 8)
+	en.intChan = make(chan Session, intCap)
+	en.driChan = make(chan Session, driCap)
+	en.outChan = make(chan Session, outCap)
+	en.withTag(log.Info).Msgf("拦截通道容量： %d", intCap)
+	en.withTag(log.Info).Msgf("驱动通道容量： %d", driCap)
+	en.withTag(log.Info).Msgf("输出通道容量： %d", outCap)
 
 	// 初始化组件：根据配置文件指定项目
 	itemInitWithContext := func(it Initialize, args map[string]interface{}) {
@@ -222,7 +238,7 @@ func (en *Engine) AwaitTermination() {
 }
 
 // 处理拦截器过程
-func (en *Engine) handleInterceptor(session Session) {
+func (en *Engine) handleInterceptor(session Session, nextChan chan<- Session) {
 	en.ctx.LogIfV(func() {
 		en.withTag(log.Debug).Msgf("Interceptor调度处理，Topic: %s", session.Topic())
 	})
@@ -259,19 +275,20 @@ func (en *Engine) handleInterceptor(session Session) {
 			en.outChan <- session
 			return
 		} else {
-			logger := en.withTag(log.Error)
-			if en.ctx.failFastEnabled() {
-				logger = en.withTag(log.Panic)
-			}
-			logger.Err(err).Msgf("拦截器发生错误： %s", err.Error())
+			en.failFastLogger().Err(err).Msgf("拦截器发生错误： %s", err.Error())
 		}
 	}
 	// 继续驱动处理
-	en.driChan <- session
+	select {
+	case nextChan <- session:
+
+	case <-time.After(time.Second):
+		en.failFastLogger().Msgf("驱动处理事件阻塞超时： %s", session.Topic())
+	}
 }
 
 // 处理驱动执行过程
-func (en *Engine) handleDrivers(session Session) {
+func (en *Engine) handleDrivers(session Session, nextChan chan<- Session) {
 	en.ctx.LogIfV(func() {
 		en.withTag(log.Debug).Msgf("Driver调度处理，Topic: %s", session.Topic())
 	})
@@ -294,18 +311,19 @@ func (en *Engine) handleDrivers(session Session) {
 		if match {
 			err := driver.Handle(session, en.selector, en.ctx)
 			if nil != err {
-				logger := en.withTag(log.Error)
-				if en.ctx.failFastEnabled() {
-					logger = en.withTag(log.Panic)
-				}
-				logger.Err(err).Msgf("用户驱动发生错误： %s", err.Error())
+				en.failFastLogger().Err(err).Msgf("用户驱动发生错误： %s", err.Error())
 			}
 		} else {
 			continue
 		}
 	}
 	// 输出处理
-	en.outChan <- session
+	select {
+	case nextChan <- session:
+
+	case <-time.After(time.Second):
+		en.failFastLogger().Msgf("输出处理事件阻塞超时： %s", session.Topic())
+	}
 }
 
 // 返回Trigger输出
@@ -338,6 +356,14 @@ func (en *Engine) checkRecover(r interface{}, msg string) {
 		if en.ctx.failFastEnabled() {
 			panic(r)
 		}
+	}
+}
+
+func (en *Engine) failFastLogger() *zerolog.Event {
+	if en.ctx.failFastEnabled() {
+		return en.withTag(log.Panic)
+	} else {
+		return en.withTag(log.Error)
 	}
 }
 
