@@ -226,7 +226,7 @@ func (re *Registration) registerBundlesIfHit(configs conf.Map, initAct func(bund
 			if plg, ok := bundle.(Plugin); ok {
 				re.AddPlugin(plg)
 			} else {
-				re.withTag(log.Panic).Msgf("未支持的组件类型：%s", typeName)
+				re.withTag(log.Panic).Msgf("未支持的组件类型：%s. 你是否没有实现某个函数接口？", typeName)
 			}
 		}
 

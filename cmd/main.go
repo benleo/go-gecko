@@ -5,6 +5,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/yoojia/go-gecko"
 	"github.com/yoojia/go-gecko/bundles"
+	"github.com/yoojia/go-gecko/nop"
 	"os"
 )
 
@@ -17,8 +18,8 @@ func main() {
 		engine.RegisterBundleFactory(bundles.UdpProtoPipelineFactory())
 		engine.RegisterBundleFactory(bundles.UdpVirtualDeviceFactory())
 		engine.RegisterBundleFactory(bundles.NetworkServerTriggerFactory())
-		engine.RegisterBundleFactory(bundles.UdpDemoDriverFactory())
-		engine.RegisterBundleFactory(bundles.NopInterceptorFactor())
-		engine.RegisterBundleFactory(bundles.NopPluginFactory())
+		engine.RegisterBundleFactory(nop.NopUdpDriverFactory())
+		engine.RegisterBundleFactory(nop.NopInterceptorFactor())
+		engine.RegisterBundleFactory(nop.NopPluginFactory())
 	})
 }

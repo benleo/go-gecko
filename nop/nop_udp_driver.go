@@ -1,4 +1,4 @@
-package bundles
+package nop
 
 import (
 	"errors"
@@ -11,32 +11,32 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-func UdpDemoDriverFactory() (string, gecko.BundleFactory) {
-	return "UdpDemoDriver", func() interface{} {
-		return &UdpDemoDriver{
+func NopUdpDriverFactory() (string, gecko.BundleFactory) {
+	return "NopUdpDriver", func() interface{} {
+		return &NopUdpDriver{
 			AbcDriver: gecko.NewAbcDriver(),
 		}
 	}
 }
 
 // 触发UDP设备的模拟Driver
-type UdpDemoDriver struct {
+type NopUdpDriver struct {
 	*gecko.AbcDriver
 }
 
-func (du *UdpDemoDriver) OnInit(args map[string]interface{}, ctx gecko.Context) {
+func (du *NopUdpDriver) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	du.withTag(log.Debug).Msg("初始化...")
 }
 
-func (du *UdpDemoDriver) OnStart(ctx gecko.Context) {
+func (du *NopUdpDriver) OnStart(ctx gecko.Context) {
 	du.withTag(log.Debug).Msg("启动...")
 }
 
-func (du *UdpDemoDriver) OnStop(ctx gecko.Context) {
+func (du *NopUdpDriver) OnStop(ctx gecko.Context) {
 	du.withTag(log.Debug).Msg("停止...")
 }
 
-func (du *UdpDemoDriver) Handle(session gecko.Session, selector gecko.ProtoPipelineSelector, ctx gecko.Context) error {
+func (du *NopUdpDriver) Handle(session gecko.Session, selector gecko.ProtoPipelineSelector, ctx gecko.Context) error {
 	if pl, ok := selector("udp"); ok {
 		for _, dev := range pl.FindDevicesByGroup("127.0.0.1") {
 			if frame, err := dev.Process(session.NewPacketFrame([]byte("HAHAHAHA")), ctx); nil != err {
@@ -52,6 +52,6 @@ func (du *UdpDemoDriver) Handle(session gecko.Session, selector gecko.ProtoPipel
 	}
 }
 
-func (du *UdpDemoDriver) withTag(fun func() *zerolog.Event) *zerolog.Event {
-	return fun().Str("tag", "UdpDemoDriver")
+func (du *NopUdpDriver) withTag(fun func() *zerolog.Event) *zerolog.Event {
+	return fun().Str("tag", "NopUdpDriver")
 }

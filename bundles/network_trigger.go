@@ -20,7 +20,7 @@ func NetworkServerTriggerFactory() (string, func() interface{}) {
 	}
 }
 
-func NewNetworkServerTrigger() gecko.Trigger {
+func NewNetworkServerTrigger() *NetworkServerTrigger {
 	return &NetworkServerTrigger{
 		AbcTrigger: new(gecko.AbcTrigger),
 	}

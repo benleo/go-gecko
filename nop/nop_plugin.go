@@ -1,4 +1,4 @@
-package bundles
+package nop
 
 import "github.com/yoojia/go-gecko"
 
