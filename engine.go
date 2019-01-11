@@ -122,22 +122,22 @@ func (en *Engine) Init(args map[string]interface{}) {
 		it.OnInit(args, en.ctx)
 	}
 
-	if !en.registerBundlesIfHit(geckoCtx.pluginsConf, itemInitWithContext) {
+	if !en.registerBundlesIfHit(geckoCtx.confPlugins, itemInitWithContext) {
 		en.withTag(log.Warn).Msg("警告：未配置任何[Plugin]组件")
 	}
-	if !en.registerBundlesIfHit(geckoCtx.pipelinesConf, itemInitWithContext) {
+	if !en.registerBundlesIfHit(geckoCtx.confPipelines, itemInitWithContext) {
 		en.withTag(log.Panic).Msg("严重：未配置任何[Pipeline]组件")
 	}
-	if !en.registerBundlesIfHit(geckoCtx.devicesConf, itemInitWithContext) {
+	if !en.registerBundlesIfHit(geckoCtx.confDevices, itemInitWithContext) {
 		en.withTag(log.Panic).Msg("严重：未配置任何[Devices]组件")
 	}
-	if !en.registerBundlesIfHit(geckoCtx.interceptorsConf, itemInitWithContext) {
+	if !en.registerBundlesIfHit(geckoCtx.confInterceptors, itemInitWithContext) {
 		en.withTag(log.Warn).Msg("警告：未配置任何[Interceptor]组件")
 	}
-	if !en.registerBundlesIfHit(geckoCtx.driversConf, itemInitWithContext) {
+	if !en.registerBundlesIfHit(geckoCtx.confDrivers, itemInitWithContext) {
 		en.withTag(log.Warn).Msg("警告：未配置任何[Driver]组件")
 	}
-	if !en.registerBundlesIfHit(geckoCtx.triggersConf, itemInitWithContext) {
+	if !en.registerBundlesIfHit(geckoCtx.confTriggers, itemInitWithContext) {
 		en.withTag(log.Panic).Msg("严重：未配置任何[Trigger]组件")
 	}
 	// show
@@ -344,14 +344,14 @@ func (en *Engine) checkRecover(r interface{}, msg string) {
 func newGeckoContext(config map[string]interface{}) *contextImpl {
 	mapConf := conf.MapToMap(config)
 	return &contextImpl{
-		geckoConf:        mapConf.MustMap("GECKO"),
-		globalsConf:      mapConf.MustMap("GLOBALS"),
-		pipelinesConf:    mapConf.MustMap("PIPELINES"),
-		interceptorsConf: mapConf.MustMap("INTERCEPTORS"),
-		driversConf:      mapConf.MustMap("DRIVERS"),
-		devicesConf:      mapConf.MustMap("DEVICES"),
-		triggersConf:     mapConf.MustMap("TRIGGERS"),
-		pluginsConf:      mapConf.MustMap("PLUGINS"),
+		confGecko:        mapConf.MustMap("GECKO"),
+		confGlobals:      mapConf.MustMap("GLOBALS"),
+		confPipelines:    mapConf.MustMap("PIPELINES"),
+		confInterceptors: mapConf.MustMap("INTERCEPTORS"),
+		confDrivers:      mapConf.MustMap("DRIVERS"),
+		confDevices:      mapConf.MustMap("DEVICES"),
+		confTriggers:     mapConf.MustMap("TRIGGERS"),
+		confPlugins:      mapConf.MustMap("PLUGINS"),
 	}
 }
 

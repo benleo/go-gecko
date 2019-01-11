@@ -10,6 +10,8 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
+var GeckoVersion = "G1-0.0.1"
+
 // Context 提供一些全局性质的函数
 type Context interface {
 	// 返回当前版本
@@ -48,30 +50,30 @@ type Context interface {
 ///
 
 type contextImpl struct {
-	geckoConf        map[string]interface{}
-	globalsConf      map[string]interface{}
-	pipelinesConf    map[string]interface{}
-	interceptorsConf map[string]interface{}
-	driversConf      map[string]interface{}
-	devicesConf      map[string]interface{}
-	triggersConf     map[string]interface{}
-	pluginsConf      map[string]interface{}
+	confGecko        map[string]interface{}
+	confGlobals      map[string]interface{}
+	confPipelines    map[string]interface{}
+	confInterceptors map[string]interface{}
+	confDrivers      map[string]interface{}
+	confDevices      map[string]interface{}
+	confTriggers     map[string]interface{}
+	confPlugins      map[string]interface{}
 }
 
 func (ci *contextImpl) gecko() map[string]interface{} {
-	return ci.geckoConf
+	return ci.confGecko
 }
 
 func (ci *contextImpl) workerId() int64 {
-	return conf.MapToMap(ci.geckoConf).GetInt64OrDefault("workerId", 0)
+	return conf.MapToMap(ci.confGecko).GetInt64OrDefault("workerId", 0)
 }
 
 func (ci *contextImpl) failFastEnabled() bool {
-	return conf.MapToMap(ci.globalsConf).GetBoolOrDefault("failFastEnabled", false)
+	return conf.MapToMap(ci.confGlobals).GetBoolOrDefault("failFastEnabled", false)
 }
 
 func (ci *contextImpl) Version() string {
-	return "G1-1.0.0"
+	return GeckoVersion
 }
 
 func (ci *contextImpl) CheckTimeout(msg string, timeout time.Duration, action func()) {
@@ -83,7 +85,7 @@ func (ci *contextImpl) CheckTimeout(msg string, timeout time.Duration, action fu
 }
 
 func (ci *contextImpl) Globals() map[string]interface{} {
-	return ci.globalsConf
+	return ci.confGlobals
 }
 
 func (ci *contextImpl) Domain() string {
