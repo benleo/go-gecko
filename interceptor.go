@@ -18,7 +18,7 @@ type Interceptor interface {
 	setPriority(p int)
 
 	// 拦截处理过程。抛出 {@link DropException} 来中断拦截。
-	Handle(ctx Session, scoped Context) error
+	Handle(session Session, ctx Context) error
 }
 
 // Interceptor抽象实现

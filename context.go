@@ -2,6 +2,7 @@ package gecko
 
 import (
 	"github.com/parkingwang/go-conf"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"time"
 )
@@ -27,13 +28,20 @@ type Context interface {
 	NodeId() string
 
 	// 返回Global配置项
-	Globals() map[string]interface{}
+	GlobalConfig() map[string]interface{}
 
 	// Globals中是否开启了 loggingVerbose 标记位
 	IsVerboseEnabled() bool
 
 	// 如果Globals设置了Verbose标记，则显示详细日志。
 	LogIfV(fun func())
+
+	// 向Context添加Key-Value数据
+	// 添加的Key不可重复
+	PutMagic(key interface{}, value interface{})
+
+	// 读取Context的KeyValue数据
+	GetMagic(key interface{}) interface{}
 
 	////
 
@@ -58,6 +66,7 @@ type contextImpl struct {
 	confDevices      map[string]interface{}
 	confTriggers     map[string]interface{}
 	confPlugins      map[string]interface{}
+	magicKV          map[interface{}]interface{}
 }
 
 func (ci *contextImpl) gecko() map[string]interface{} {
@@ -76,15 +85,26 @@ func (ci *contextImpl) Version() string {
 	return GeckoVersion
 }
 
+func (ci *contextImpl) PutMagic(key interface{}, value interface{}) {
+	if _, ok := ci.magicKV[key]; ok {
+		ci.withTag(log.Panic).Msgf("MagicKey不可重复，Key已存在： %v", key)
+	}
+	ci.magicKV[key] = value
+}
+
+func (ci *contextImpl) GetMagic(key interface{}) interface{} {
+	return ci.magicKV[key]
+}
+
 func (ci *contextImpl) CheckTimeout(msg string, timeout time.Duration, action func()) {
 	t := time.AfterFunc(timeout, func() {
-		log.Debug().Str("tag", "Context").Msgf("Action [%s] takes too long: %s", msg, timeout.String())
+		ci.withTag(log.Debug).Msgf("Action [%s] takes too long: %s", msg, timeout.String())
 	})
 	defer t.Stop()
 	action()
 }
 
-func (ci *contextImpl) Globals() map[string]interface{} {
+func (ci *contextImpl) GlobalConfig() map[string]interface{} {
 	return ci.confGlobals
 }
 
@@ -97,11 +117,15 @@ func (ci *contextImpl) NodeId() string {
 }
 
 func (ci *contextImpl) IsVerboseEnabled() bool {
-	return conf.MapToMap(ci.Globals()).MustBool("loggingVerbose")
+	return conf.MapToMap(ci.GlobalConfig()).MustBool("loggingVerbose")
 }
 
 func (ci *contextImpl) LogIfV(fun func()) {
 	if ci.IsVerboseEnabled() {
 		fun()
 	}
+}
+
+func (ci *contextImpl) withTag(fun func() *zerolog.Event) *zerolog.Event {
+	return log.Debug().Str("tag", "Context")
 }
