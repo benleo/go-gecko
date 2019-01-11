@@ -17,18 +17,11 @@ type Driver interface {
 // Driver抽象实现
 type AbcDriver struct {
 	Driver
-	topics []*TopicExpr
+	*AbcTopicFilter
 }
 
-func (ad *AbcDriver) setTopics(topics []string) {
-	if nil == ad.topics {
-		ad.topics = make([]*TopicExpr, 0, len(topics))
+func NewAbcDriver() *AbcDriver {
+	return &AbcDriver{
+		AbcTopicFilter: new(AbcTopicFilter),
 	}
-	for _, t := range topics {
-		ad.topics = append(ad.topics, newTopicExpr(t))
-	}
-}
-
-func (ad *AbcDriver) GetTopicExpr() []*TopicExpr {
-	return ad.topics
 }

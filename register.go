@@ -188,7 +188,9 @@ func (re *Registration) registerBundlesIfHit(configs conf.Map,
 			re.AddProtoPipeline(bundle.(ProtoPipeline))
 
 		case Interceptor:
-			re.AddInterceptor(bundle.(Interceptor))
+			it := bundle.(Interceptor)
+			it.setPriority(int(config.MustInt64("priority")))
+			re.AddInterceptor(it)
 
 		case Driver:
 			re.AddDriver(bundle.(Driver))

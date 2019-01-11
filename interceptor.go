@@ -15,11 +15,39 @@ type Interceptor interface {
 	NeedTopicFilter
 	// Interceptor可设置优先级
 	GetPriority() int
-	SetPriority(p int)
+	setPriority(p int)
 
 	// 拦截处理过程。抛出 {@link DropException} 来中断拦截。
 	Handle(ctx Session, scoped Context) error
 }
+
+// Interceptor抽象实现
+type AbcInterceptor struct {
+	Interceptor
+	*AbcTopicFilter
+	priority int
+}
+
+func (ai *AbcInterceptor) GetPriority() int {
+	return ai.priority
+}
+
+func (ai *AbcInterceptor) setPriority(priority int) {
+	ai.priority = priority
+}
+
+func NewAbcInterceptor() *AbcInterceptor {
+	return &AbcInterceptor{
+		AbcTopicFilter: new(AbcTopicFilter),
+	}
+}
+
+// 拦截器抛弃事件操作
+func InterceptedDrop() error {
+	return ErrInterceptorDropped
+}
+
+////
 
 // 拦截器排序
 type InterceptorSlice []Interceptor
@@ -31,8 +59,3 @@ func (is InterceptorSlice) Less(i, j int) bool {
 }
 
 func (is InterceptorSlice) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
-
-// 拦截器抛弃事件操作
-func InterceptedDrop() error {
-	return ErrInterceptorDropped
-}
