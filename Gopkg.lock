@@ -81,6 +81,14 @@
   revision = "ea610eff86981249be649bbdcedbf409a2db2173"
   version = "v1.0.1"
 
+[[projects]]
+  digest = "1:1288ad22bc8cdcf22af77192f67406b07dca26bc80c2a885d23bf651aba574b8"
+  name = "github.com/yoojia/go-jsonx"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "7f6aba2652c731c55b26c543c9d9a60775ad6248"
+  version = "v1.1.1"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -92,6 +100,7 @@
     "github.com/rs/zerolog",
     "github.com/rs/zerolog/log",
     "github.com/tidwall/evio",
+    "github.com/yoojia/go-jsonx",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

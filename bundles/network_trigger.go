@@ -6,6 +6,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/tidwall/evio"
 	"github.com/yoojia/go-gecko"
+	"github.com/yoojia/go-jsonx"
 	"time"
 )
 
@@ -90,11 +91,11 @@ func (ns *NetworkServerTrigger) OnStart(ctx gecko.Context, invoker gecko.Invoker
 				out = bytes
 			} else {
 				ns.withTag(log.Error).Err(enErr).Msg("服务器无法序列化的数据")
-				out = []byte("{\"error\": \"SERVER_ENCODE_ERROR\"}")
+				out = _makeError("EncodeError", enErr.Error())
 			}
 		} else {
 			ns.withTag(log.Error).Err(deErr).Msg("服务器接收到无法解析的数据：" + conn.RemoteAddr().String())
-			out = []byte("{\"error\": \"SERVER_DECODE_ERROR\"}")
+			out = _makeError("DecodeError", deErr.Error())
 		}
 		return
 	}
@@ -128,4 +129,11 @@ func (ns *NetworkServerTrigger) OnStop(ctx gecko.Context, invoker gecko.Invoker)
 
 func (ns *NetworkServerTrigger) withTag(fun func() *zerolog.Event) *zerolog.Event {
 	return fun().Str("tag", "NetworkServerTrigger")
+}
+
+func _makeError(err string, msg string) []byte {
+	return jsonx.NewFatJSON().
+		Field("error", err).
+		Field("message", msg).
+		Bytes()
 }
