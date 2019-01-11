@@ -41,9 +41,7 @@ type Engine struct {
 	invoker  Invoker
 	selector ProtoPipelineSelector
 	// 事件通道
-	intChan chan Session
-	driChan chan Session
-	outChan chan Session
+	events *Events
 	// Engine关闭的信号控制
 	shutdownCtx  context.Context
 	shutdownFunc context.CancelFunc
@@ -78,39 +76,8 @@ func (en *Engine) prepareEnv() {
 			},
 			onCompletedFunc: cbFunc,
 		}
-		select {
-		case en.intChan <- ss:
-			en.withTag(log.Debug).Msgf("Trigger已发送事件： %s", income.topic)
-
-		case <-time.After(time.Second):
-			en.failFastLogger().Msgf("Trigger事件阻塞超时： %s", income.topic)
-		}
-
+		en.events.Lv0() <- ss
 	}
-	// 消息循环
-	go func(breakSig <-chan struct{}, inr <-chan Session, dri <-chan Session, out <-chan Session) {
-		defer en.withTag(log.Info).Msg("已退出消息循环")
-		for {
-			en.withTag(log.Info).Msg("进入消息循环。。。。")
-			select {
-			case <-breakSig:
-				en.withTag(log.Info).Msg("已退出消息循环")
-				return
-
-			case ss := <-inr:
-				en.withTag(log.Debug).Msgf("主循环接收Int事件： %s", ss.Topic())
-				go en.handleInterceptor(ss, en.driChan)
-
-				case ss := <-dri:
-					en.withTag(log.Debug).Msgf("主循环接收Dri事件： %s", ss.Topic())
-					go en.handleDrivers(ss, en.outChan)
-
-				case ss := <-out:
-					en.withTag(log.Debug).Msgf("主循环接收Out事件： %s", ss.Topic())
-					go en.handleOutput(ss)
-			}
-		}
-	}(en.shutdownCtx.Done(), en.intChan, en.driChan, en.outChan)
 }
 
 // 初始化Engine
@@ -123,15 +90,13 @@ func (en *Engine) Init(args map[string]interface{}) {
 		en.snowflake = sf
 	}
 	gecko := conf.MapToMap(en.ctx.gecko())
-	intCap := gecko.GetInt64OrDefault("interceptorChannelCapacity", 8)
-	driCap := gecko.GetInt64OrDefault("driverChannelCapacity", 8)
-	outCap := gecko.GetInt64OrDefault("outputChannelCapacity", 8)
-	en.intChan = make(chan Session, intCap)
-	en.driChan = make(chan Session, driCap)
-	en.outChan = make(chan Session, outCap)
-	en.withTag(log.Info).Msgf("拦截通道容量： %d", intCap)
-	en.withTag(log.Info).Msgf("驱动通道容量： %d", driCap)
-	en.withTag(log.Info).Msgf("输出通道容量： %d", outCap)
+	capacity := gecko.GetInt64OrDefault("eventsCapacity", 8)
+	en.withTag(log.Info).Msgf("事件通道容量： %d", capacity)
+	en.events = NewEvents(int(capacity), en.shutdownCtx.Done())
+	en.events.SetLv0Handler(en.handleInterceptor)
+	en.events.SetLv1Handler(en.handleDrivers)
+	en.events.SetLv2Handler(en.handleOutput)
+	go en.events.Serve()
 
 	// 初始化组件：根据配置文件指定项目
 	itemInitWithContext := func(it Initialize, args map[string]interface{}) {
@@ -238,7 +203,7 @@ func (en *Engine) AwaitTermination() {
 }
 
 // 处理拦截器过程
-func (en *Engine) handleInterceptor(session Session, nextChan chan<- Session) {
+func (en *Engine) handleInterceptor(session Session) {
 	en.ctx.LogIfV(func() {
 		en.withTag(log.Debug).Msgf("Interceptor调度处理，Topic: %s", session.Topic())
 	})
@@ -272,23 +237,19 @@ func (en *Engine) handleInterceptor(session Session, nextChan chan<- Session) {
 		if err == ErrInterceptorDropped {
 			en.withTag(log.Debug).Err(err).Msgf("拦截器中断事件： %s", err.Error())
 			session.Outbound().AddDataField("error", "InterceptorDropped")
-			en.outChan <- session
+			// 终止
+			en.events.Lv2() <- session
 			return
 		} else {
 			en.failFastLogger().Err(err).Msgf("拦截器发生错误： %s", err.Error())
 		}
 	}
-	// 继续驱动处理
-	select {
-	case nextChan <- session:
-
-	case <-time.After(time.Second):
-		en.failFastLogger().Msgf("驱动处理事件阻塞超时： %s", session.Topic())
-	}
+	// 继续
+	en.events.Lv1() <- session
 }
 
 // 处理驱动执行过程
-func (en *Engine) handleDrivers(session Session, nextChan chan<- Session) {
+func (en *Engine) handleDrivers(session Session) {
 	en.ctx.LogIfV(func() {
 		en.withTag(log.Debug).Msgf("Driver调度处理，Topic: %s", session.Topic())
 	})
@@ -318,12 +279,7 @@ func (en *Engine) handleDrivers(session Session, nextChan chan<- Session) {
 		}
 	}
 	// 输出处理
-	select {
-	case nextChan <- session:
-
-	case <-time.After(time.Second):
-		en.failFastLogger().Msgf("输出处理事件阻塞超时： %s", session.Topic())
-	}
+	en.events.Lv2() <- session
 }
 
 // 返回Trigger输出
