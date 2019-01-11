@@ -6,7 +6,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/tidwall/evio"
 	"github.com/yoojia/go-gecko"
-	"github.com/yoojia/go-jsonx"
 	"time"
 )
 
@@ -39,7 +38,7 @@ type NetworkServerTrigger struct {
 	shutdownReady bool
 	shutdown      chan struct{}
 	//
-	incomeHook func(income map[string]interface{}, invoker gecko.Invoker)
+	incomeFilter func(income map[string]interface{}, invoker gecko.Invoker)
 }
 
 func (ns *NetworkServerTrigger) SetDecoder(decoder gecko.Decoder) {
@@ -50,8 +49,8 @@ func (ns *NetworkServerTrigger) SetEncoder(encoder gecko.Encoder) {
 	ns.encoder = encoder
 }
 
-func (ns *NetworkServerTrigger) SetIncomeHook(hook func(income map[string]interface{}, invoker gecko.Invoker)) {
-	ns.incomeHook = hook
+func (ns *NetworkServerTrigger) SetIncomeFilter(hook func(income map[string]interface{}, invoker gecko.Invoker)) {
+	ns.incomeFilter = hook
 }
 
 func (ns *NetworkServerTrigger) OnInit(args map[string]interface{}, scoped gecko.Context) {
@@ -79,23 +78,27 @@ func (ns *NetworkServerTrigger) OnStart(ctx gecko.Context, invoker gecko.Invoker
 	// Events
 	ns.ioEvents.Data = func(conn evio.Conn, in []byte) (out []byte, action evio.Action) {
 		// 使用Invoker调度内部系统处理，完成后返回给客户端
+		resp := make(map[string]interface{})
 		if json, deErr := ns.decoder(in); nil == deErr {
-			if ns.incomeHook != nil {
-				ns.incomeHook(json, invoker)
+			if ns.incomeFilter != nil {
+				ns.incomeFilter(json, invoker)
 			}
-			inEvent := gecko.NewTriggerEvent(ns.GetTopic(), json)
-			// 处理并等待结果
-			ret := invoker.Execute(inEvent)
-			// Decode and send back client
-			if bytes, enErr := ns.encoder(ret); nil == enErr {
-				out = bytes
+			// 没有解析数据，忽略
+			if nil == json || 0 == len(json) {
+				resp = _makeError("NopPayload", "无效事件，忽略")
 			} else {
-				ns.withTag(log.Error).Err(enErr).Msg("服务器无法序列化的数据")
-				out = _makeError("EncodeError", enErr.Error())
+				resp = invoker.Execute(gecko.NewTriggerEvent(ns.GetTopic(), json))
 			}
 		} else {
+			resp = _makeError("DecodeError", deErr.Error())
 			ns.withTag(log.Error).Err(deErr).Msg("服务器接收到无法解析的数据：" + conn.RemoteAddr().String())
-			out = _makeError("DecodeError", deErr.Error())
+		}
+		// 编码返回
+		if bytes, enErr := ns.encoder(resp); nil == enErr {
+			out = bytes
+		} else {
+			out = []byte("{\"error\": \"EncodeError\"}")
+			ns.withTag(log.Error).Err(enErr).Msg("服务器无法序列化的数据")
 		}
 		return
 	}
@@ -131,9 +134,9 @@ func (ns *NetworkServerTrigger) withTag(fun func() *zerolog.Event) *zerolog.Even
 	return fun().Str("tag", "NetworkServerTrigger")
 }
 
-func _makeError(err string, msg string) []byte {
-	return jsonx.NewFatJSON().
-		Field("error", err).
-		Field("message", msg).
-		Bytes()
+func _makeError(err string, msg string) map[string]interface{} {
+	json := make(map[string]interface{}, 2)
+	json["error"] = err
+	json["message"] = msg
+	return json
 }
