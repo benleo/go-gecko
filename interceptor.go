@@ -16,7 +16,6 @@ type Interceptor interface {
 	// Interceptor可设置优先级
 	GetPriority() int
 	setPriority(p int)
-
 	// 拦截处理过程。抛出 {@link DropException} 来中断拦截。
 	Handle(session Session, ctx Context) error
 }
@@ -24,8 +23,8 @@ type Interceptor interface {
 // Interceptor抽象实现
 type AbcInterceptor struct {
 	Interceptor
-	*AbcTopicFilter
 	priority int
+	topics   []*TopicExpr
 }
 
 func (ai *AbcInterceptor) GetPriority() int {
@@ -36,9 +35,19 @@ func (ai *AbcInterceptor) setPriority(priority int) {
 	ai.priority = priority
 }
 
+func (ai *AbcInterceptor) setTopics(topics []string) {
+	for _, t := range topics {
+		ai.topics = append(ai.topics, newTopicExpr(t))
+	}
+}
+
+func (ai *AbcInterceptor) GetTopicExpr() []*TopicExpr {
+	return ai.topics
+}
+
 func NewAbcInterceptor() *AbcInterceptor {
 	return &AbcInterceptor{
-		AbcTopicFilter: new(AbcTopicFilter),
+		topics: make([]*TopicExpr, 0),
 	}
 }
 

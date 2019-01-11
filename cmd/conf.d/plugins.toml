@@ -1,0 +1,6 @@
+# 测试Nop插件
+[PLUGINS.NopPlugin]
+  disable = false
+  type = "NopPlugin"
+[PLUGINS.NopPlugin.InitArgs]
+  a = "b"

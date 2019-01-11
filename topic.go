@@ -14,23 +14,6 @@ type NeedTopicFilter interface {
 	GetTopicExpr() []*TopicExpr
 }
 
-type AbcTopicFilter struct {
-	topics []*TopicExpr
-}
-
-func (ad *AbcTopicFilter) setTopics(topics []string) {
-	if nil == ad.topics {
-		ad.topics = make([]*TopicExpr, 0, len(topics))
-	}
-	for _, t := range topics {
-		ad.topics = append(ad.topics, newTopicExpr(t))
-	}
-}
-
-func (ad *AbcTopicFilter) GetTopicExpr() []*TopicExpr {
-	return ad.topics
-}
-
 ////
 
 // Topic表达式，类似MQTT的Topic匹配方式

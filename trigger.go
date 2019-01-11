@@ -49,6 +49,7 @@ func (in Invoker) Execute0(event *TriggerEvent) <-chan map[string]interface{} {
 type Trigger interface {
 	Initialize
 
+	// Trigger需要设置Topic
 	setTopic(topic string)
 	GetTopic() string
 

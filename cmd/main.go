@@ -18,5 +18,7 @@ func main() {
 		engine.RegisterBundleFactory(bundles.UdpVirtualDeviceFactory())
 		engine.RegisterBundleFactory(bundles.NetworkServerTriggerFactory())
 		engine.RegisterBundleFactory(bundles.UdpDemoDriverFactory())
+		engine.RegisterBundleFactory(bundles.NopInterceptorFactor())
+		engine.RegisterBundleFactory(bundles.NopPluginFactory())
 	})
 }

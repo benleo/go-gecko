@@ -45,10 +45,11 @@ type AbcProtoPipeline struct {
 	rwLock         *sync.RWMutex
 }
 
-func (ap *AbcProtoPipeline) Prepare() *AbcProtoPipeline {
-	ap.addressDevices = make(map[string]VirtualDevice)
-	ap.rwLock = new(sync.RWMutex)
-	return ap
+func NewAbcProtoPipeline() *AbcProtoPipeline {
+	return &AbcProtoPipeline{
+		addressDevices: make(map[string]VirtualDevice),
+		rwLock:         new(sync.RWMutex),
+	}
 }
 
 func (ap *AbcProtoPipeline) OnStart(ctx Context) {

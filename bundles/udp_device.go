@@ -16,9 +16,13 @@ import (
 
 func UdpVirtualDeviceFactory() (string, gecko.BundleFactory) {
 	return "UdpVirtualDevice", func() interface{} {
-		return &UdpVirtualDevice{
-			AbcVirtualDevice: new(gecko.AbcVirtualDevice),
-		}
+		return NewUdpVirtualDevice()
+	}
+}
+
+func NewUdpVirtualDevice() gecko.VirtualDevice {
+	return &UdpVirtualDevice{
+		AbcVirtualDevice: gecko.NewAbcVirtualDevice(),
 	}
 }
 

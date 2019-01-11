@@ -14,7 +14,7 @@ import (
 func UdpDemoDriverFactory() (string, gecko.BundleFactory) {
 	return "UdpDemoDriver", func() interface{} {
 		return &UdpDemoDriver{
-			AbcDriver: new(gecko.AbcDriver),
+			AbcDriver: gecko.NewAbcDriver(),
 		}
 	}
 }

@@ -10,9 +10,13 @@ import (
 
 func UdpProtoPipelineFactory() (string, gecko.BundleFactory) {
 	return "UdpProtoPipeline", func() interface{} {
-		return &UdpProtoPipeline{
-			AbcProtoPipeline: new(gecko.AbcProtoPipeline).Prepare(),
-		}
+		return NewUdpProtoPipeline()
+	}
+}
+
+func NewUdpProtoPipeline() gecko.ProtoPipeline {
+	return &UdpProtoPipeline{
+		AbcProtoPipeline: gecko.NewAbcProtoPipeline(),
 	}
 }
 

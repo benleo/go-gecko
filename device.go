@@ -29,7 +29,7 @@ type VirtualDevice interface {
 	Process(frame *PacketFrame, ctx Context) (*PacketFrame, error)
 }
 
-//
+////
 
 // 虚拟设备对象抽象实现
 type AbcVirtualDevice struct {
@@ -37,6 +37,10 @@ type AbcVirtualDevice struct {
 	displayName  string
 	groupAddress string
 	phyAddress   string
+}
+
+func NewAbcVirtualDevice() *AbcVirtualDevice {
+	return new(AbcVirtualDevice)
 }
 
 func (av *AbcVirtualDevice) setDisplayName(name string) {

@@ -155,8 +155,7 @@ func (re *Registration) findFactory(typeName string) (BundleFactory, bool) {
 }
 
 // 注册组件，如果注册失败，返回False
-func (re *Registration) registerBundlesIfHit(configs conf.Map,
-	initAct func(bundle Initialize, args map[string]interface{})) bool {
+func (re *Registration) registerBundlesIfHit(configs conf.Map, initAct func(bundle Initialize, args map[string]interface{})) bool {
 	if 0 == len(configs) {
 		return false
 	}
