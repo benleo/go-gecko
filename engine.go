@@ -352,6 +352,7 @@ func newGeckoContext(config map[string]interface{}) *contextImpl {
 		confDevices:      mapConf.MustMap("DEVICES"),
 		confTriggers:     mapConf.MustMap("TRIGGERS"),
 		confPlugins:      mapConf.MustMap("PLUGINS"),
+		magicKV:          make(map[interface{}]interface{}),
 	}
 }
 
