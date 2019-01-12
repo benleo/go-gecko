@@ -62,7 +62,7 @@ func (en *Engine) prepareEnv() {
 		en.ctx.LogIfV(func() {
 			en.withTag(log.Debug).Msgf("Invoker接收请求，Topic: %s", income.topic)
 		})
-		ss := &sessionImpl{
+		en.events.Lv0() <- &sessionImpl{
 			timestamp:  time.Now(),
 			attributes: make(map[string]interface{}),
 			attrLock:   new(sync.RWMutex),
@@ -78,7 +78,6 @@ func (en *Engine) prepareEnv() {
 			},
 			onCompletedFunc: cbFunc,
 		}
-		en.events.Lv0() <- ss
 	}
 }
 
@@ -104,7 +103,6 @@ func (en *Engine) Init(args map[string]interface{}) {
 	itemInitWithContext := func(it Initialize, args map[string]interface{}) {
 		it.OnInit(args, en.ctx)
 	}
-
 	if !en.registerBundlesIfHit(geckoCtx.confPlugins, itemInitWithContext) {
 		en.withTag(log.Warn).Msg("警告：未配置任何[Plugin]组件")
 	}
