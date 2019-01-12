@@ -11,7 +11,7 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-var GeckoVersion = "G1-0.0.1"
+var GeckoVersion = "G1-0.1.0"
 
 // Context 提供一些全局性质的函数
 type Context interface {
