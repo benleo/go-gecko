@@ -45,6 +45,10 @@ func (ai *AbcInterceptor) GetTopicExpr() []*TopicExpr {
 	return ai.topics
 }
 
+func (ai *AbcInterceptor) Drop() error {
+	return InterceptedDropError()
+}
+
 func NewAbcInterceptor() *AbcInterceptor {
 	return &AbcInterceptor{
 		topics: make([]*TopicExpr, 0),
@@ -52,7 +56,7 @@ func NewAbcInterceptor() *AbcInterceptor {
 }
 
 // 拦截器抛弃事件操作
-func InterceptedDrop() error {
+func InterceptedDropError() error {
 	return ErrInterceptorDropped
 }
 
