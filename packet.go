@@ -12,14 +12,9 @@ import (
 // 消息包载体，包含一个Header信息、数据体的数据实体。
 // 用于设备对象的请求和响应。
 type PacketFrame struct {
-	// id
-	id int64
-
-	// Headers
-	header *conf.ImmutableMap
-
-	// 数据
-	frame []byte
+	id      int64              // id
+	headers *conf.ImmutableMap // Headers
+	frame   []byte             // 数据
 }
 
 // 返回数据帧编号
@@ -38,18 +33,18 @@ func (pf *PacketFrame) Data() []byte {
 }
 
 // 返回Header字段
-func (pf *PacketFrame) Header() *conf.ImmutableMap {
-	return pf.header
+func (pf *PacketFrame) Headers() *conf.ImmutableMap {
+	return pf.headers
 }
 
-func NewPackFrame(id int64, header map[string]interface{}, frame []byte) *PacketFrame {
-	return NewPackFrame0(id, conf.WrapImmutableMap(header), frame)
+func NewPackFrame(id int64, headers map[string]interface{}, frame []byte) *PacketFrame {
+	return NewPackFrame0(id, conf.WrapImmutableMap(headers), frame)
 }
 
-func NewPackFrame0(id int64, header *conf.ImmutableMap, frame []byte) *PacketFrame {
+func NewPackFrame0(id int64, headers *conf.ImmutableMap, frame []byte) *PacketFrame {
 	return &PacketFrame{
-		id:     id,
-		header: header,
-		frame:  frame,
+		id:      id,
+		headers: headers,
+		frame:   frame,
 	}
 }

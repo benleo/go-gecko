@@ -102,8 +102,8 @@ func (si *sessionImpl) Escaped() time.Duration {
 
 func (si *sessionImpl) NewPacketFrame(frame []byte) *PacketFrame {
 	return &PacketFrame{
-		id:     si.ContextId(),
-		header: si.Attributes(),
-		frame:  frame,
+		id:      si.ContextId(),
+		headers: si.Attributes(),
+		frame:   frame,
 	}
 }
