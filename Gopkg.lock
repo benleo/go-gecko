@@ -34,12 +34,12 @@
   version = "1.0.1"
 
 [[projects]]
-  digest = "1:9e243a9b988bb6db8fd599e86622e7f378f20cb6b7bed8dfb9e01a673b524618"
+  digest = "1:38b92169fbedc543e02283f1f8805ead2ebb33f6b99d0dab57a5a1f202f58205"
   name = "github.com/parkingwang/go-conf"
   packages = ["."]
   pruneopts = "UT"
-  revision = "e493f3319fed388e4465387712e97071b670cdf4"
-  version = "v2.1.2"
+  revision = "cac80b60ec1c026529301dbc83059290b1cdd0ac"
+  version = "v2.2.2"
 
 [[projects]]
   digest = "1:95741de3af260a92cc5c7f3f3061e85273f5a81b5db20d4bd68da74bd521675e"

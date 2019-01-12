@@ -102,7 +102,7 @@ func (uv *UdpVirtualDevice) OnStart(ctx gecko.Context) {
 					} else {
 						uv.recvChan <- gecko.NewPackFrame(
 							incoming.Id(),
-							make(map[string]interface{}, 0),
+							nil,
 							buffer[:n])
 					}
 				}

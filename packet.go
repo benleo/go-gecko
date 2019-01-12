@@ -2,6 +2,7 @@ package gecko
 
 import (
 	"bytes"
+	"parkingwang.com/go-conf"
 )
 
 //
@@ -15,7 +16,7 @@ type PacketFrame struct {
 	id int64
 
 	// Headers
-	header map[string]interface{}
+	header *conf.ImmutableMap
 
 	// 数据
 	frame []byte
@@ -37,11 +38,15 @@ func (pf *PacketFrame) Data() []byte {
 }
 
 // 返回Header字段
-func (pf *PacketFrame) Header() map[string]interface{} {
+func (pf *PacketFrame) Header() *conf.ImmutableMap {
 	return pf.header
 }
 
 func NewPackFrame(id int64, header map[string]interface{}, frame []byte) *PacketFrame {
+	return NewPackFrame0(id, conf.WrapImmutableMap(header), frame)
+}
+
+func NewPackFrame0(id int64, header *conf.ImmutableMap, frame []byte) *PacketFrame {
 	return &PacketFrame{
 		id:     id,
 		header: header,

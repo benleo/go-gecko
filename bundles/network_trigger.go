@@ -7,6 +7,7 @@ import (
 	"github.com/tidwall/evio"
 	"github.com/yoojia/go-gecko"
 	"time"
+	"sync/atomic"
 )
 
 //
@@ -35,7 +36,7 @@ type NetworkServerTrigger struct {
 	//
 	ioEvents      evio.Events
 	bindAddrGroup []string
-	shutdownReady bool
+	shutdownReady uint32
 	shutdown      chan struct{}
 	//
 	incomeFilter func(income map[string]interface{}, invoker gecko.Invoker)
@@ -54,7 +55,7 @@ func (ns *NetworkServerTrigger) SetIncomeFilter(hook func(income map[string]inte
 }
 
 func (ns *NetworkServerTrigger) OnInit(args map[string]interface{}, scoped gecko.Context) {
-	ns.shutdownReady = false
+	atomic.StoreUint32(&ns.shutdownReady, 0)
 	ns.shutdown = make(chan struct{}, 1)
 	if ns.decoder == nil {
 		ns.SetDecoder(gecko.JSONDefaultDecoder)
@@ -105,7 +106,7 @@ func (ns *NetworkServerTrigger) OnStart(ctx gecko.Context, invoker gecko.Invoker
 	// 定时检查服务关闭
 	// FIXME 并不能很好地解决如何平滑关闭Evio服务器的问题
 	ns.ioEvents.Tick = func() (time.Duration, evio.Action) {
-		if ns.shutdownReady {
+		if 0 < atomic.LoadUint32(&ns.shutdownReady) {
 			return time.Nanosecond, evio.Shutdown
 		} else {
 			return time.Millisecond * 500, evio.None
@@ -125,7 +126,7 @@ func (ns *NetworkServerTrigger) OnStart(ctx gecko.Context, invoker gecko.Invoker
 }
 
 func (ns *NetworkServerTrigger) OnStop(ctx gecko.Context, invoker gecko.Invoker) {
-	ns.shutdownReady = true
+	atomic.StoreUint32(&ns.shutdownReady, 1)
 	ns.withTag(log.Info).Msg("Network服务准备关闭...")
 	<-ns.shutdown
 }

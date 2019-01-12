@@ -1,6 +1,10 @@
 package gecko
 
-import "time"
+import (
+	"time"
+	"sync"
+	"parkingwang.com/go-conf"
+)
 
 //
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
@@ -9,7 +13,7 @@ import "time"
 // Session 是每次请求生成的上下文对象，服务于事件请求的整个生命周期。
 type Session interface {
 	// 返回属性列表
-	Attributes() map[string]interface{}
+	Attributes() *conf.ImmutableMap
 
 	// 添加属性
 	AddAttribute(key string, value interface{})
@@ -44,6 +48,7 @@ type Session interface {
 type sessionImpl struct {
 	timestamp       time.Time
 	attributes      map[string]interface{}
+	attrLock        *sync.RWMutex
 	topic           string
 	contextId       int64
 	inbound         *Inbound
@@ -51,15 +56,21 @@ type sessionImpl struct {
 	onCompletedFunc OnTriggerCompleted
 }
 
-func (si *sessionImpl) Attributes() map[string]interface{} {
-	return si.attributes
+func (si *sessionImpl) Attributes() *conf.ImmutableMap {
+	si.attrLock.RLock()
+	defer si.attrLock.RUnlock()
+	return conf.WrapImmutableMap(si.attributes)
 }
 
 func (si *sessionImpl) AddAttribute(name string, value interface{}) {
+	si.attrLock.Lock()
+	defer si.attrLock.Unlock()
 	si.attributes[name] = value
 }
 
 func (si *sessionImpl) AddAttributes(attributes map[string]interface{}) {
+	si.attrLock.Lock()
+	defer si.attrLock.Unlock()
 	for k, v := range attributes {
 		si.AddAttribute(k, v)
 	}

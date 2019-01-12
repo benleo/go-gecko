@@ -155,11 +155,11 @@ func (re *Registration) findFactory(typeName string) (BundleFactory, bool) {
 }
 
 // 注册组件，如果注册失败，返回False
-func (re *Registration) registerBundlesIfHit(configs conf.Map, initAct func(bundle Initialize, args map[string]interface{})) bool {
-	if 0 == len(configs) {
+func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap, initAct func(bundle Initialize, args map[string]interface{})) bool {
+	if configs.IsEmpty() {
 		return false
 	}
-	for typeName, item := range configs {
+	configs.ForEach(func(typeName string, item interface{}) {
 		asMap, ok := item.(map[string]interface{})
 		if !ok {
 			re.withTag(log.Panic).Msgf("组件配置信息类型错误: %s", typeName)
@@ -167,7 +167,7 @@ func (re *Registration) registerBundlesIfHit(configs conf.Map, initAct func(bund
 		config := conf.MapToMap(asMap)
 		if config.MustBool("disable") {
 			re.withTag(log.Warn).Msgf("组件[%s]在配置中禁用", typeName)
-			continue
+			return
 		}
 
 		// 配置选项中，指定 type 字段为类型名称
@@ -243,7 +243,7 @@ func (re *Registration) registerBundlesIfHit(configs conf.Map, initAct func(bund
 		if init, ok := bundle.(Initialize); ok {
 			initAct(init, map[string]interface{}(config.MustMap("InitArgs")))
 		}
-	}
+	})
 	return true
 }
 

@@ -64,6 +64,7 @@ func (en *Engine) prepareEnv() {
 		ss := &sessionImpl{
 			timestamp:  time.Now(),
 			attributes: make(map[string]interface{}),
+			attrLock:   new(sync.RWMutex),
 			topic:      income.topic,
 			contextId:  0,
 			inbound: &Inbound{
@@ -89,7 +90,7 @@ func (en *Engine) Init(args map[string]interface{}) {
 	} else {
 		en.snowflake = sf
 	}
-	gecko := conf.MapToMap(en.ctx.gecko())
+	gecko := en.ctx.gecko()
 	capacity := gecko.GetInt64OrDefault("eventsCapacity", 8)
 	en.withTag(log.Info).Msgf("事件通道容量： %d", capacity)
 	en.events = NewEvents(int(capacity), en.shutdownCtx.Done())
@@ -286,9 +287,9 @@ func (en *Engine) handleDrivers(session Session) {
 func (en *Engine) handleOutput(session Session) {
 	en.ctx.LogIfV(func() {
 		en.withTag(log.Debug).Msgf("Output调度处理，Topic: %s", session.Topic())
-		for k, v := range session.Attributes() {
+		session.Attributes().ForEach(func(k string, v interface{}) {
 			en.withTag(log.Debug).Msgf("SessionAttr: %s = %v", k, v)
-		}
+		})
 	})
 	session.AddAttribute("Output.Start", time.Now())
 	defer func() {
@@ -324,16 +325,16 @@ func (en *Engine) failFastLogger() *zerolog.Event {
 }
 
 func newGeckoContext(config map[string]interface{}) *contextImpl {
-	mapConf := conf.MapToMap(config)
+	mapConf := conf.WrapImmutableMap(config)
 	return &contextImpl{
-		confGecko:        mapConf.MustMap("GECKO"),
-		confGlobals:      mapConf.MustMap("GLOBALS"),
-		confPipelines:    mapConf.MustMap("PIPELINES"),
-		confInterceptors: mapConf.MustMap("INTERCEPTORS"),
-		confDrivers:      mapConf.MustMap("DRIVERS"),
-		confDevices:      mapConf.MustMap("DEVICES"),
-		confTriggers:     mapConf.MustMap("TRIGGERS"),
-		confPlugins:      mapConf.MustMap("PLUGINS"),
+		confGecko:        mapConf.MustImmutableMap("GECKO"),
+		confGlobals:      mapConf.MustImmutableMap("GLOBALS"),
+		confPipelines:    mapConf.MustImmutableMap("PIPELINES"),
+		confInterceptors: mapConf.MustImmutableMap("INTERCEPTORS"),
+		confDrivers:      mapConf.MustImmutableMap("DRIVERS"),
+		confDevices:      mapConf.MustImmutableMap("DEVICES"),
+		confTriggers:     mapConf.MustImmutableMap("TRIGGERS"),
+		confPlugins:      mapConf.MustImmutableMap("PLUGINS"),
 		magicKV:          make(map[interface{}]interface{}),
 	}
 }

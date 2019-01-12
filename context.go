@@ -28,7 +28,7 @@ type Context interface {
 	NodeId() string
 
 	// 返回Global配置项
-	GlobalConfig() map[string]interface{}
+	GlobalConfig() *conf.ImmutableMap
 
 	// Globals中是否开启了 loggingVerbose 标记位
 	IsVerboseEnabled() bool
@@ -46,7 +46,7 @@ type Context interface {
 	////
 
 	// 返回Gecko的配置
-	gecko() map[string]interface{}
+	gecko() *conf.ImmutableMap
 
 	// 返回分布式ID生成器的WorkerId
 	workerId() int64
@@ -58,27 +58,27 @@ type Context interface {
 ///
 
 type contextImpl struct {
-	confGecko        map[string]interface{}
-	confGlobals      map[string]interface{}
-	confPipelines    map[string]interface{}
-	confInterceptors map[string]interface{}
-	confDrivers      map[string]interface{}
-	confDevices      map[string]interface{}
-	confTriggers     map[string]interface{}
-	confPlugins      map[string]interface{}
+	confGecko        *conf.ImmutableMap
+	confGlobals      *conf.ImmutableMap
+	confPipelines    *conf.ImmutableMap
+	confInterceptors *conf.ImmutableMap
+	confDrivers      *conf.ImmutableMap
+	confDevices      *conf.ImmutableMap
+	confTriggers     *conf.ImmutableMap
+	confPlugins      *conf.ImmutableMap
 	magicKV          map[interface{}]interface{}
 }
 
-func (ci *contextImpl) gecko() map[string]interface{} {
+func (ci *contextImpl) gecko() *conf.ImmutableMap {
 	return ci.confGecko
 }
 
 func (ci *contextImpl) workerId() int64 {
-	return conf.MapToMap(ci.confGecko).GetInt64OrDefault("workerId", 0)
+	return ci.confGecko.GetInt64OrDefault("workerId", 0)
 }
 
 func (ci *contextImpl) failFastEnabled() bool {
-	return conf.MapToMap(ci.confGlobals).GetBoolOrDefault("failFastEnabled", false)
+	return ci.confGlobals.GetBoolOrDefault("failFastEnabled", false)
 }
 
 func (ci *contextImpl) Version() string {
@@ -104,20 +104,20 @@ func (ci *contextImpl) CheckTimeout(msg string, timeout time.Duration, action fu
 	action()
 }
 
-func (ci *contextImpl) GlobalConfig() map[string]interface{} {
+func (ci *contextImpl) GlobalConfig() *conf.ImmutableMap {
 	return ci.confGlobals
 }
 
 func (ci *contextImpl) Domain() string {
-	return conf.MapToMap(ci.gecko()).MustString("domain")
+	return ci.gecko().MustString("domain")
 }
 
 func (ci *contextImpl) NodeId() string {
-	return conf.MapToMap(ci.gecko()).MustString("nodeId")
+	return ci.gecko().MustString("nodeId")
 }
 
 func (ci *contextImpl) IsVerboseEnabled() bool {
-	return conf.MapToMap(ci.GlobalConfig()).MustBool("loggingVerbose")
+	return ci.GlobalConfig().MustBool("loggingVerbose")
 }
 
 func (ci *contextImpl) LogIfV(fun func()) {
