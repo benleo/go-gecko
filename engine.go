@@ -20,7 +20,9 @@ import (
 // 默认组件生命周期超时时间：3秒
 const DefaultLifeCycleTimeout = time.Second * 3
 
-var gSharedEngine = new(Engine)
+var gSharedEngine = &Engine{
+	Registration: prepare(),
+}
 var gPrepareEnv = new(sync.Once)
 
 // 全局Engine对象
@@ -49,7 +51,6 @@ type Engine struct {
 
 // 准备运行环境，初始化相关组件
 func (en *Engine) prepareEnv() {
-	en.Registration = prepare()
 	en.shutdownCtx, en.shutdownFunc = context.WithCancel(context.Background())
 	// 查找Pipeline
 	en.selector = func(proto string) (pl ProtoPipeline, ok bool) {
