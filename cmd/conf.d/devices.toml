@@ -2,7 +2,7 @@
   disable = false
   type = "UdpVirtualDevice"
   groupAddress = "127.0.0.1"
-  physicalAddress = 60000
+  privateAddress = 60000
 [DEVICES.UdpVirtualDevice.InitArgs]
   sendBuffSizeKB = 1
   recvBuffSizeKB = 1

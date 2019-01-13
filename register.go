@@ -139,7 +139,7 @@ func (re *Registration) showBundles() {
 
 func (re *Registration) RegisterBundleFactory(typeName string, factory BundleFactory) {
 	if _, ok := re.bundleFactories[typeName]; ok {
-		re.withTag(log.Warn).Msgf("组件类型[%s]工厂函数被覆盖注册： %s", typeName, x.SimpleClassName(factory))
+		re.withTag(log.Warn).Msgf("组件类型[%s]，旧的工厂函数将被覆盖为： %s", typeName, x.SimpleClassName(factory))
 	}
 	re.withTag(log.Info).Msgf("正在注册组件工厂函数： %s", typeName)
 	re.bundleFactories[typeName] = factory
@@ -178,7 +178,7 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 
 		factory, ok := re.findFactory(typeName)
 		if !ok {
-			re.withTag(log.Panic).Msgf("组件类型[%s]没有注册对应的工厂函数", typeName)
+			re.withTag(log.Panic).Msgf("组件类型[%s]，没有注册对应的工厂函数", typeName)
 		}
 		// 根据类型注册
 		bundle := factory()
@@ -197,28 +197,28 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 
 		case VirtualDevice:
 			dev := bundle.(VirtualDevice)
-			if name := config.MustString("name"); "" == name {
-				dev.setDisplayName(typeName)
+			if name := config.MustString("displayName"); "" == name {
+				re.withTag(log.Panic).Msg("VirtualDevice配置项[displayName]是必填参数")
 			} else {
 				dev.setDisplayName(name)
 			}
 			group := config.MustString("groupAddress")
 			if "" == group {
-				re.withTag(log.Panic).Msgf("配置项[groupAddress]是必填参数")
+				re.withTag(log.Panic).Msg("VirtualDevice配置项[groupAddress]是必填参数")
 			}
-			phy := config.MustString("physicalAddress")
+			phy := config.MustString("privateAddress")
 			if "" == phy {
-				re.withTag(log.Panic).Msgf("配置项[physicalAddress]是必填参数")
+				re.withTag(log.Panic).Msg("VirtualDevice配置项[privateAddress]是必填参数")
 			}
 			dev.setGroupAddress(group)
-			dev.setPhyAddress(phy)
+			dev.setPrivateAddress(phy)
 			re.AddVirtualDevice(dev)
 
 		case Trigger:
 			tr := bundle.(Trigger)
 			tp := config.MustString("topic")
 			if "" == tp {
-				re.withTag(log.Panic).Msgf("配置项[topic]是必填参数")
+				re.withTag(log.Panic).Msg("Trigger配置项[topic]是必填参数")
 			}
 			tr.setTopic(tp)
 			re.AddTrigger(tr)

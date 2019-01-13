@@ -11,11 +11,11 @@ type VirtualDevice interface {
 	// 属组地址
 	setGroupAddress(addr string)
 	GetGroupAddress() string
-	// 设置设备物理地址
-	setPhyAddress(addr string)
-	GetPhyAddress() string
+	// 设置设备私有地址
+	setPrivateAddress(addr string)
+	GetPrivateAddress() string
 
-	// 获取设备地址，由 /{GroupAddress}/{PhysicalAddress} 组成。
+	// 获取设备地址，由 /{GroupAddress}/{PrivateAddress} 组成。
 	GetUnionAddress() string
 
 	// 设备名称
@@ -34,9 +34,9 @@ type VirtualDevice interface {
 // 虚拟设备对象抽象实现
 type AbcVirtualDevice struct {
 	VirtualDevice
-	displayName  string
-	groupAddress string
-	phyAddress   string
+	displayName    string
+	groupAddress   string
+	privateAddress string
 }
 
 func NewAbcVirtualDevice() *AbcVirtualDevice {
@@ -59,14 +59,14 @@ func (av *AbcVirtualDevice) GetGroupAddress() string {
 	return av.groupAddress
 }
 
-func (av *AbcVirtualDevice) setPhyAddress(addr string) {
-	av.phyAddress = addr
+func (av *AbcVirtualDevice) setPrivateAddress(addr string) {
+	av.privateAddress = addr
 }
 
-func (av *AbcVirtualDevice) GetPhyAddress() string {
-	return av.phyAddress
+func (av *AbcVirtualDevice) GetPrivateAddress() string {
+	return av.privateAddress
 }
 
 func (av *AbcVirtualDevice) GetUnionAddress() string {
-	return "/" + av.groupAddress + "/" + av.phyAddress
+	return "/" + av.groupAddress + "/" + av.privateAddress
 }
