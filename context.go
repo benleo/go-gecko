@@ -11,7 +11,7 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-var GeckoVersion = "G1-0.1.1"
+var GeckoVersion = "G1-0.1.2"
 
 // Context 提供一些全局性质的函数
 type Context interface {
@@ -33,8 +33,14 @@ type Context interface {
 	// Globals中是否开启了 loggingVerbose 标记位
 	IsVerboseEnabled() bool
 
-	// 如果Globals设置了Verbose标记，则显示详细日志。
-	LogIfV(fun func())
+	// 返回是否在Globals中配置了快速失败标记位
+	IsFailFastEnabled() bool
+
+	// 如果Globals设置了Verbose标记，则调用此函数
+	OnIfLogV(fun func())
+
+	// 如果启用了FailFast标记则调用此函数
+	OnIfFailFast(fun func())
 
 	// 向Context添加Key-Value数据
 	// 添加的Key不可重复
@@ -50,9 +56,6 @@ type Context interface {
 
 	// 返回分布式ID生成器的WorkerId
 	workerId() int64
-
-	// 返回是否在Globals中配置了快速失败标记位
-	failFastEnabled() bool
 }
 
 ///
@@ -75,10 +78,6 @@ func (ci *contextImpl) gecko() *conf.ImmutableMap {
 
 func (ci *contextImpl) workerId() int64 {
 	return ci.confGecko.GetInt64OrDefault("workerId", 0)
-}
-
-func (ci *contextImpl) failFastEnabled() bool {
-	return ci.confGlobals.GetBoolOrDefault("failFastEnabled", false)
 }
 
 func (ci *contextImpl) Version() string {
@@ -109,19 +108,29 @@ func (ci *contextImpl) GlobalConfig() *conf.ImmutableMap {
 }
 
 func (ci *contextImpl) Domain() string {
-	return ci.gecko().MustString("domain")
+	return ci.confGecko.MustString("domain")
 }
 
 func (ci *contextImpl) NodeId() string {
-	return ci.gecko().MustString("nodeId")
+	return ci.confGecko.MustString("nodeId")
 }
 
 func (ci *contextImpl) IsVerboseEnabled() bool {
-	return ci.GlobalConfig().MustBool("loggingVerbose")
+	return ci.confGlobals.MustBool("loggingVerbose")
 }
 
-func (ci *contextImpl) LogIfV(fun func()) {
+func (ci *contextImpl) IsFailFastEnabled() bool {
+	return ci.confGlobals.GetBoolOrDefault("failFastEnabled", false)
+}
+
+func (ci *contextImpl) OnIfLogV(fun func()) {
 	if ci.IsVerboseEnabled() {
+		fun()
+	}
+}
+
+func (ci *contextImpl) OnIfFailFast(fun func()) {
+	if ci.IsFailFastEnabled() {
 		fun()
 	}
 }

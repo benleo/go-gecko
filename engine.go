@@ -59,7 +59,7 @@ func (en *Engine) prepareEnv() {
 	}
 	// 接收Trigger的输入事件
 	en.invoker = func(income *TriggerEvent, cbFunc OnTriggerCompleted) {
-		en.ctx.LogIfV(func() {
+		en.ctx.OnIfLogV(func() {
 			en.withTag(log.Debug).Msgf("Invoker接收请求，Topic: %s", income.topic)
 		})
 		en.events.Lv0() <- &sessionImpl{
@@ -204,7 +204,7 @@ func (en *Engine) AwaitTermination() {
 
 // 处理拦截器过程
 func (en *Engine) handleInterceptor(session Session) {
-	en.ctx.LogIfV(func() {
+	en.ctx.OnIfLogV(func() {
 		en.withTag(log.Debug).Msgf("Interceptor调度处理，Topic: %s", session.Topic())
 	})
 	session.AddAttribute("Interceptor.Start", time.Now())
@@ -217,7 +217,7 @@ func (en *Engine) handleInterceptor(session Session) {
 	for el := en.interceptors.Front(); el != nil; el = el.Next() {
 		interceptor := el.Value.(Interceptor)
 		match := anyTopicMatches(interceptor.GetTopicExpr(), session.Topic())
-		en.ctx.LogIfV(func() {
+		en.ctx.OnIfLogV(func() {
 			en.withTag(log.Debug).Msgf("拦截器调度： interceptor[%s], topic: %s, Matches: %s",
 				x.SimpleClassName(interceptor),
 				session.Topic(),
@@ -250,7 +250,7 @@ func (en *Engine) handleInterceptor(session Session) {
 
 // 处理驱动执行过程
 func (en *Engine) handleDrivers(session Session) {
-	en.ctx.LogIfV(func() {
+	en.ctx.OnIfLogV(func() {
 		en.withTag(log.Debug).Msgf("Driver调度处理，Topic: %s", session.Topic())
 	})
 	session.AddAttribute("Driver.Start", time.Now())
@@ -263,7 +263,7 @@ func (en *Engine) handleDrivers(session Session) {
 	for el := en.drivers.Front(); el != nil; el = el.Next() {
 		driver := el.Value.(Driver)
 		match := anyTopicMatches(driver.GetTopicExpr(), session.Topic())
-		en.ctx.LogIfV(func() {
+		en.ctx.OnIfLogV(func() {
 			en.withTag(log.Debug).Msgf("用户驱动处理： driver[%s], topic: %s, Matches: %s",
 				x.SimpleClassName(driver),
 				session.Topic(),
@@ -284,7 +284,7 @@ func (en *Engine) handleDrivers(session Session) {
 
 // 返回Trigger输出
 func (en *Engine) handleOutput(session Session) {
-	en.ctx.LogIfV(func() {
+	en.ctx.OnIfLogV(func() {
 		en.withTag(log.Debug).Msgf("Output调度处理，Topic: %s", session.Topic())
 		session.Attributes().ForEach(func(k string, v interface{}) {
 			en.withTag(log.Debug).Msgf("SessionAttr: %s = %v", k, v)
@@ -309,14 +309,14 @@ func (en *Engine) checkRecover(r interface{}, msg string) {
 		if err, ok := r.(error); ok {
 			en.withTag(log.Error).Err(err).Msg(msg)
 		}
-		if en.ctx.failFastEnabled() {
+		en.ctx.OnIfFailFast(func() {
 			panic(r)
-		}
+		})
 	}
 }
 
 func (en *Engine) failFastLogger() *zerolog.Event {
-	if en.ctx.failFastEnabled() {
+	if en.ctx.IsFailFastEnabled() {
 		return en.withTag(log.Panic)
 	} else {
 		return en.withTag(log.Error)
