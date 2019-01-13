@@ -1,9 +1,9 @@
 package gecko
 
 import (
-	"time"
+	"github.com/parkingwang/go-conf"
 	"sync"
-	"parkingwang.com/go-conf"
+	"time"
 )
 
 //

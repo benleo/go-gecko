@@ -2,7 +2,7 @@ package gecko
 
 import (
 	"bytes"
-	"parkingwang.com/go-conf"
+	"github.com/parkingwang/go-conf"
 )
 
 //
