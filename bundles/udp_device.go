@@ -58,9 +58,9 @@ func (uv *UdpVirtualDevice) OnInit(args map[string]interface{}, ctx gecko.Contex
 	uv.recvBuffSize = config.GetInt64OrDefault("recvBuffSizeKB", 1) * 1024
 	uv.sendTimeout = config.GetDurationOrDefault("sendTimeout", time.Second*3)
 	uv.recvTimeout = config.GetDurationOrDefault("recvTimeout", time.Second*3)
-	// 使用GroupAddress作为UDP地址
-	// 使用PhysicalAddress作为UDP端口
-	udpAddr := uv.GetGroupAddress() + ":" + uv.GetPhyAddress()
+	// 使用 GroupAddress 作为UDP地址
+	// 使用 PrivateAddress 作为UDP端口
+	udpAddr := uv.GetGroupAddress() + ":" + uv.GetPrivateAddress()
 	if addr, err := net.ResolveUDPAddr("udp", udpAddr); nil != err {
 		uv.withTag(log.Panic).Err(err).Msgf("非法的UDP地址：" + udpAddr)
 	} else {
