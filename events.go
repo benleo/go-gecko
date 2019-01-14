@@ -1,12 +1,13 @@
 package gecko
 
+import "context"
+
 type SessionHandler func(session Session)
 
 //
 
 // Events是一个三级Channel的事件处理器
 type Events struct {
-	shutdown   <-chan struct{}
 	lv0Chan    chan Session
 	lv1Chan    chan Session
 	lv2Chan    chan Session
@@ -15,12 +16,11 @@ type Events struct {
 	lv2Handler SessionHandler
 }
 
-func NewEvents(capacity int, shutdown <-chan struct{}) *Events {
+func NewEvents(capacity int) *Events {
 	return &Events{
-		lv0Chan:  make(chan Session, capacity),
-		lv1Chan:  make(chan Session, capacity),
-		lv2Chan:  make(chan Session, capacity),
-		shutdown: shutdown,
+		lv0Chan: make(chan Session, capacity),
+		lv1Chan: make(chan Session, capacity),
+		lv2Chan: make(chan Session, capacity),
 	}
 }
 
@@ -48,13 +48,13 @@ func (es *Events) Lv2() chan<- Session {
 	return es.lv2Chan
 }
 
-func (es *Events) Serve() {
+func (es *Events) Serve(shutdown context.Context) {
 	var c0 <-chan Session = es.lv0Chan
 	var c1 <-chan Session = es.lv1Chan
 	var c2 <-chan Session = es.lv2Chan
 	for {
 		select {
-		case <-es.shutdown:
+		case <-shutdown.Done():
 			return
 
 		case v := <-c0:

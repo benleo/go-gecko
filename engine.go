@@ -93,11 +93,11 @@ func (en *Engine) Init(args map[string]interface{}) {
 	gecko := en.ctx.gecko()
 	capacity := gecko.GetInt64OrDefault("eventsCapacity", 8)
 	en.withTag(log.Info).Msgf("事件通道容量： %d", capacity)
-	en.events = NewEvents(int(capacity), en.shutdownCtx.Done())
+	en.events = NewEvents(int(capacity))
 	en.events.SetLv0Handler(en.handleInterceptor)
-	en.events.SetLv1Handler(en.handleDrivers)
+	en.events.SetLv1Handler(en.handleDriver)
 	en.events.SetLv2Handler(en.handleOutput)
-	go en.events.Serve()
+	go en.events.Serve(en.shutdownCtx)
 
 	// 初始化组件：根据配置文件指定项目
 	itemInitWithContext := func(it Initialize, args map[string]interface{}) {
@@ -196,9 +196,9 @@ func (en *Engine) Stop() {
 
 // 等待系统终止信息
 func (en *Engine) AwaitTermination() {
-	sysSignal := make(chan os.Signal, 1)
-	signal.Notify(sysSignal, syscall.SIGINT, syscall.SIGTERM)
-	<-sysSignal
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+	<-c
 	en.withTag(log.Warn).Msgf("接收到系统停止信号")
 }
 
@@ -209,7 +209,7 @@ func (en *Engine) handleInterceptor(session Session) {
 	})
 	session.AddAttribute("Interceptor.Start", time.Now())
 	defer func() {
-		session.AddAttribute("Interceptor.End", time.Now())
+		session.AddAttribute("Interceptor.End", session.Escaped())
 		en.checkRecover(recover(), "Interceptor-Goroutine内部错误")
 	}()
 	// 查找匹配的拦截器，按优先级排序并处理
@@ -249,13 +249,13 @@ func (en *Engine) handleInterceptor(session Session) {
 }
 
 // 处理驱动执行过程
-func (en *Engine) handleDrivers(session Session) {
+func (en *Engine) handleDriver(session Session) {
 	en.ctx.OnIfLogV(func() {
 		en.withTag(log.Debug).Msgf("Driver调度处理，Topic: %s", session.Topic())
 	})
 	session.AddAttribute("Driver.Start", time.Now())
 	defer func() {
-		session.AddAttribute("Driver.End", time.Now())
+		session.AddAttribute("Driver.End", session.Escaped())
 		en.checkRecover(recover(), "Driver-Goroutine内部错误")
 	}()
 
@@ -292,7 +292,7 @@ func (en *Engine) handleOutput(session Session) {
 	})
 	session.AddAttribute("Output.Start", time.Now())
 	defer func() {
-		session.AddAttribute("Output.End", time.Now())
+		session.AddAttribute("Output.End", session.Escaped())
 		en.checkRecover(recover(), "Output-Goroutine内部错误")
 	}()
 	session.(*sessionImpl).onCompletedFunc(session.Outbound().Data)
