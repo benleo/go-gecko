@@ -8,7 +8,7 @@ import (
 func BenchmarkNewEvents(b *testing.B) {
 
 	breakChan := make(chan struct{}, 1)
-	events := NewEvents(4, breakChan)
+	events := NewDispatcher(4, breakChan)
 
 	wg := new(sync.WaitGroup)
 	// 600 ns

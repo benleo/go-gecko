@@ -43,7 +43,7 @@ type Engine struct {
 	invoker  Invoker
 	selector ProtoPipelineSelector
 	// 事件通道
-	events *Events
+	dispatcher *Dispatcher
 	// Engine关闭的信号控制
 	shutdownCtx  context.Context
 	shutdownFunc context.CancelFunc
@@ -62,7 +62,7 @@ func (en *Engine) prepareEnv() {
 		en.ctx.OnIfLogV(func() {
 			en.withTag(log.Debug).Msgf("Invoker接收请求，Topic: %s", income.topic)
 		})
-		en.events.Lv0() <- &sessionImpl{
+		en.dispatcher.Lv0() <- &sessionImpl{
 			timestamp:  time.Now(),
 			attributes: make(map[string]interface{}),
 			attrLock:   new(sync.RWMutex),
@@ -93,11 +93,11 @@ func (en *Engine) Init(args map[string]interface{}) {
 	gecko := en.ctx.gecko()
 	capacity := gecko.GetInt64OrDefault("eventsCapacity", 8)
 	en.withTag(log.Info).Msgf("事件通道容量： %d", capacity)
-	en.events = NewEvents(int(capacity))
-	en.events.SetLv0Handler(en.handleInterceptor)
-	en.events.SetLv1Handler(en.handleDriver)
-	en.events.SetLv2Handler(en.handleOutput)
-	go en.events.Serve(en.shutdownCtx)
+	en.dispatcher = NewDispatcher(int(capacity))
+	en.dispatcher.SetLv0Handler(en.handleInterceptor)
+	en.dispatcher.SetLv1Handler(en.handleDriver)
+	en.dispatcher.SetLv2Handler(en.handleOutput)
+	go en.dispatcher.Serve(en.shutdownCtx)
 
 	// 初始化组件：根据配置文件指定项目
 	itemInitWithContext := func(it Initialize, args map[string]interface{}) {
@@ -238,14 +238,14 @@ func (en *Engine) handleInterceptor(session Session) {
 			en.withTag(log.Debug).Err(err).Msgf("拦截器中断事件： %s", err.Error())
 			session.Outbound().AddDataField("error", "InterceptorDropped")
 			// 终止
-			en.events.Lv2() <- session
+			en.dispatcher.Lv2() <- session
 			return
 		} else {
 			en.failFastLogger().Err(err).Msgf("拦截器发生错误： %s", err.Error())
 		}
 	}
 	// 继续
-	en.events.Lv1() <- session
+	en.dispatcher.Lv1() <- session
 }
 
 // 处理驱动执行过程
@@ -279,7 +279,7 @@ func (en *Engine) handleDriver(session Session) {
 		}
 	}
 	// 输出处理
-	en.events.Lv2() <- session
+	en.dispatcher.Lv2() <- session
 }
 
 // 返回Trigger输出

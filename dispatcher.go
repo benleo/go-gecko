@@ -7,7 +7,7 @@ type SessionHandler func(session Session)
 //
 
 // Events是一个三级Channel的事件处理器
-type Events struct {
+type Dispatcher struct {
 	lv0Chan    chan Session
 	lv1Chan    chan Session
 	lv2Chan    chan Session
@@ -16,39 +16,39 @@ type Events struct {
 	lv2Handler SessionHandler
 }
 
-func NewEvents(capacity int) *Events {
-	return &Events{
+func NewDispatcher(capacity int) *Dispatcher {
+	return &Dispatcher{
 		lv0Chan: make(chan Session, capacity),
 		lv1Chan: make(chan Session, capacity),
 		lv2Chan: make(chan Session, capacity),
 	}
 }
 
-func (es *Events) SetLv0Handler(handler SessionHandler) {
+func (es *Dispatcher) SetLv0Handler(handler SessionHandler) {
 	es.lv0Handler = handler
 }
 
-func (es *Events) SetLv1Handler(handler SessionHandler) {
+func (es *Dispatcher) SetLv1Handler(handler SessionHandler) {
 	es.lv1Handler = handler
 }
 
-func (es *Events) SetLv2Handler(handler SessionHandler) {
+func (es *Dispatcher) SetLv2Handler(handler SessionHandler) {
 	es.lv2Handler = handler
 }
 
-func (es *Events) Lv0() chan<- Session {
+func (es *Dispatcher) Lv0() chan<- Session {
 	return es.lv0Chan
 }
 
-func (es *Events) Lv1() chan<- Session {
+func (es *Dispatcher) Lv1() chan<- Session {
 	return es.lv1Chan
 }
 
-func (es *Events) Lv2() chan<- Session {
+func (es *Dispatcher) Lv2() chan<- Session {
 	return es.lv2Chan
 }
 
-func (es *Events) Serve(shutdown context.Context) {
+func (es *Dispatcher) Serve(shutdown context.Context) {
 	var c0 <-chan Session = es.lv0Chan
 	var c1 <-chan Session = es.lv1Chan
 	var c2 <-chan Session = es.lv2Chan
