@@ -45,7 +45,7 @@ func (ur *UdpInputDevice) OnStart(ctx gecko.Context) {
 	address := ur.GetUnionAddress()
 	ur.withTag(log.Info).Msgf("使用UDP服务端模式，绑定地址： %s", address)
 	ur.cancelCtx, ur.cancelFun = context.WithCancel(context.Background())
-	if nil != ur.onServeHandler {
+	if nil == ur.onServeHandler {
 		ur.withTag(log.Warn).Msg("使用默认数据处理接口")
 		if "" == ur.topic {
 			ur.withTag(log.Panic).Msg("使用默认接口必须设置topic参数")
@@ -69,6 +69,7 @@ func (ur *UdpInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer) er
 	if nil != cErr {
 		return cErr
 	}
+	ur.withTag(log.Info).Msgf("开始监听UDP服务端口： %s", address)
 	defer conn.Close()
 
 	buffer := make([]byte, ur.maxBufferSize)
@@ -94,6 +95,11 @@ func (ur *UdpInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer) er
 		}
 	}
 	return nil
+}
+
+// 改写Union地址的拼接方式
+func (ur *UdpInputDevice) GetUnionAddress() string {
+	return ur.GetGroupAddress() + ":" + ur.GetPrivateAddress()
 }
 
 // 设置Serve处理函数
