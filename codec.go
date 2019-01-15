@@ -14,7 +14,7 @@ type Encoder func(data map[string]interface{}) ([]byte, error)
 
 ////
 
-func JSONDefaultDecoderFactory() (string, BundleFactory) {
+func JSONDefaultDecoderFactory() (string, CodecFactory) {
 	return "JSONDefaultDecoder", func() interface{} {
 		return Decoder(JSONDefaultDecoder)
 	}
@@ -27,7 +27,7 @@ func JSONDefaultDecoder(bytes []byte) (map[string]interface{}, error) {
 	return json, err
 }
 
-func JSONDefaultEncoderFactory() (string, BundleFactory) {
+func JSONDefaultEncoderFactory() (string, CodecFactory) {
 	return "JSONDefaultEncoder", func() interface{} {
 		return Encoder(JSONDefaultEncoder)
 	}

@@ -14,3 +14,6 @@ type Bundle interface {
 
 // 组件创建工厂函数
 type BundleFactory func() interface{}
+
+// 编码解码工厂函数
+type CodecFactory func() interface{}

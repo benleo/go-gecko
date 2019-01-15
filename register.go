@@ -43,6 +43,7 @@ func prepare() *Registration {
 	re.interceptors = list.New()
 	re.drivers = list.New()
 	re.inputs = list.New()
+	re.outputs = list.New()
 	re.startBeforeHooks = list.New()
 	re.startAfterHooks = list.New()
 	re.stopBeforeHooks = list.New()
@@ -87,7 +88,7 @@ func (re *Registration) AddInputDevice(device InputDevice) {
 		re.withTag(log.Panic).Msgf("InputDevice设备地址重复: %s", addr)
 	} else {
 		re.namedInputs[addr] = device
-		re.outputs.PushBack(device)
+		re.inputs.PushBack(device)
 	}
 }
 
@@ -128,11 +129,6 @@ func (re *Registration) showBundles() {
 		re.withTag(log.Info).Msg("  - Interceptor: " + x.SimpleClassName(it))
 	})
 
-	re.withTag(log.Info).Msgf("已加载 Pipelines: %d", len(re.namedOutputs))
-	for proto, pi := range re.namedOutputs {
-		re.withTag(log.Info).Msgf("  -Pipeline[%s]: %s", proto, x.SimpleClassName(pi))
-	}
-
 	re.withTag(log.Info).Msgf("已加载 InputDevices: %d", re.inputs.Len())
 	x.ForEach(re.inputs, func(it interface{}) {
 		re.withTag(log.Info).Msg("  - InputDevice: " + x.SimpleClassName(it))
@@ -154,12 +150,28 @@ func (re *Registration) showBundles() {
 	})
 }
 
+// 注册组件工厂函数
 func (re *Registration) RegisterBundleFactory(typeName string, factory BundleFactory) {
 	if _, ok := re.bundleFactories[typeName]; ok {
 		re.withTag(log.Warn).Msgf("组件类型[%s]，旧的工厂函数将被覆盖为： %s", typeName, x.SimpleClassName(factory))
 	}
 	re.withTag(log.Info).Msgf("正在注册组件工厂函数： %s", typeName)
 	re.bundleFactories[typeName] = factory
+}
+
+// 注册编码解码工厂函数
+func (re *Registration) RegisterCodecFactory(typeName string, factory CodecFactory) {
+	codec := factory()
+	switch codec.(type) {
+	case Decoder:
+		re.AddDecoder(typeName, codec.(Decoder))
+
+	case Encoder:
+		re.AddEncoder(typeName, codec.(Encoder))
+
+	default:
+		re.withTag(log.Panic).Msgf("未知的编/解码类型[%s]，工厂函数： %s", typeName, x.SimpleClassName(factory))
+	}
 }
 
 // 查找指定类型的
@@ -201,12 +213,6 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 		bundle := factory()
 		switch bundle.(type) {
 
-		case Encoder:
-			re.AddEncoder(bundleType, bundle.(Encoder))
-
-		case Decoder:
-			re.AddDecoder(bundleType, bundle.(Decoder))
-
 		case Driver:
 			re.AddDriver(bundle.(Driver))
 
@@ -218,25 +224,25 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 		case VirtualDevice:
 			device := bundle.(VirtualDevice)
 			if name := config.MustString("displayName"); "" == name {
-				re.withTag(log.Panic).Msg("VirtualDevice配置项[displayName]是必填参数")
+				re.withTag(log.Panic).Msgf("VirtualDevice[%s]配置项[displayName]是必填参数", bundleType)
 			} else {
 				device.setDisplayName(name)
 			}
 
 			if group := config.MustString("groupAddress"); "" == group {
-				re.withTag(log.Panic).Msg("VirtualDevice配置项[groupAddress]是必填参数")
+				re.withTag(log.Panic).Msgf("VirtualDevice[%s]配置项[groupAddress]是必填参数", bundleType)
 			} else {
 				device.setGroupAddress(group)
 			}
 
 			if private := config.MustString("privateAddress"); "" == private {
-				re.withTag(log.Panic).Msg("VirtualDevice配置项[privateAddress]是必填参数")
+				re.withTag(log.Panic).Msgf("VirtualDevice[%s]配置项[privateAddress]是必填参数", bundleType)
 			} else {
 				device.setPrivateAddress(private)
 			}
 
 			if name := config.MustString("encoder"); "" == name {
-				re.withTag(log.Panic).Msg("VirtualDevice配置项[encoder]是必填参数")
+				re.withTag(log.Panic).Msgf("VirtualDevice[%s]配置项[encoder]是必填参数", bundleType)
 			} else {
 				if encoder, ok := re.namedEncoders[name]; ok {
 					device.setEncoder(encoder)
@@ -246,7 +252,7 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 			}
 
 			if name := config.MustString("decoder"); "" == name {
-				re.withTag(log.Panic).Msg("VirtualDevice配置项[decoder]是必填参数")
+				re.withTag(log.Panic).Msgf("VirtualDevice[%s]配置项[decoder]是必填参数", bundleType)
 			} else {
 				if decoder, ok := re.namedDecoders[name]; ok {
 					device.setDecoder(decoder)

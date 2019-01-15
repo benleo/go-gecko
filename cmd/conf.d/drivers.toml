@@ -1,6 +1,6 @@
 [DRIVERS.NopUdpDriver]
   disable = false
-  type = "NopUdpDriver"
+  type = "NopDriver"
   topics = [
     "/demo/#"
   ]

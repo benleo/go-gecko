@@ -2,6 +2,9 @@
 [INPUTS.UdpInputDevice]
   disable = false
   type = "UdpInputDevice"
+  displayName = "UdpInputDevice"
+  groupAddress = "127.0.0.1"
+  privateAddress = "60000"
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
 [INPUTS.UdpInputDevice.InitArgs]
