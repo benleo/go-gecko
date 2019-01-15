@@ -174,7 +174,11 @@ func (pl *Pipeline) Start() {
 	// Input Serve Last
 	x.ForEach(pl.inputs, func(it interface{}) {
 		device := it.(InputDevice)
-		go device.Serve(pl.ctx, pl.serve(device))
+		go func() {
+			if err := device.Serve(pl.ctx, pl.serve(device)); nil != err {
+				pl.withTag(log.Error).Err(err).Msgf("启动Input服务失败： %s", x.SimpleClassName(device))
+			}
+		}()
 	})
 }
 
