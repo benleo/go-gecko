@@ -2,6 +2,7 @@ package gecko
 
 import (
 	"context"
+	"errors"
 	"github.com/parkingwang/go-conf"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -10,6 +11,7 @@ import (
 	"os/signal"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -41,8 +43,8 @@ type Engine struct {
 
 	ctx      Context
 	serve    func(device InputDevice) Deliverer
-	selector ProtoPipelineSelector
-	// 事件通道
+	executor OutputExecutor
+	// 事件派发
 	dispatcher *Dispatcher
 	// Engine关闭的信号控制
 	shutdownCtx  context.Context
@@ -52,11 +54,6 @@ type Engine struct {
 // 准备运行环境，初始化相关组件
 func (en *Engine) prepareEnv() {
 	en.shutdownCtx, en.shutdownFunc = context.WithCancel(context.Background())
-	// 查找Pipeline
-	en.selector = func(proto string) (pl ProtoPipeline, ok bool) {
-		pl, ok = en.pipelines[proto]
-		return
-	}
 	// 创建输入调度的处理
 	en.serve = func(device InputDevice) Deliverer {
 		return func(topic string, frame PacketFrame) (PacketFrame, error) {
@@ -94,6 +91,25 @@ func (en *Engine) prepareEnv() {
 			}
 		}
 	}
+	// 搜索设备，并执行
+	en.executor = OutputExecutor(func(unionOrGroupAddress string, isUnionAddress bool, frame PacketFrame) (PacketFrame, error) {
+		if isUnionAddress {
+			if device, ok := en.namedOutputs[unionOrGroupAddress]; ok {
+				return device.Process(frame, en.ctx)
+			} else {
+				return nil, errors.New("OutputDeviceNotFound:" + unionOrGroupAddress)
+			}
+		} else /*is Group Address*/ {
+			for addr, dev := range en.namedOutputs {
+				if strings.HasPrefix(addr, "/"+unionOrGroupAddress) {
+					if _, err := dev.Process(frame, en.ctx); nil != err {
+						en.withTag(log.Error).Err(err).Msgf("OutputDevice处理广播错误： %s", x.SimpleClassName(dev))
+					}
+				}
+			}
+			return nil, nil
+		}
+	})
 }
 
 // 初始化Engine
@@ -119,9 +135,6 @@ func (en *Engine) Init(args map[string]interface{}) {
 	}
 	if !en.registerBundlesIfHit(geckoCtx.plugins, itemInitWithContext) {
 		en.withTag(log.Warn).Msg("警告：未配置任何[Plugin]组件")
-	}
-	if !en.registerBundlesIfHit(geckoCtx.pipelines, itemInitWithContext) {
-		en.withTag(log.Panic).Msg("严重：未配置任何[Pipeline]组件")
 	}
 	if !en.registerBundlesIfHit(geckoCtx.outputs, itemInitWithContext) {
 		en.withTag(log.Panic).Msg("严重：未配置任何[OutputDevice]组件")
@@ -156,10 +169,6 @@ func (en *Engine) Start() {
 	x.ForEach(en.plugins, func(it interface{}) {
 		en.checkDefTimeout("Plugin.Start", it.(Plugin).OnStart)
 	})
-	// Pipeline
-	for _, pipeline := range en.pipelines {
-		en.checkDefTimeout("Pipeline.Start", pipeline.OnStart)
-	}
 	// Drivers
 	x.ForEach(en.drivers, func(it interface{}) {
 		en.checkDefTimeout("Driver.Start", it.(Driver).OnStart)
@@ -202,10 +211,6 @@ func (en *Engine) Stop() {
 	x.ForEach(en.drivers, func(it interface{}) {
 		en.checkDefTimeout("Driver.Stop", it.(Driver).OnStop)
 	})
-	// Pipeline
-	for _, pipeline := range en.pipelines {
-		en.checkDefTimeout("Pipeline.Stop", pipeline.OnStop)
-	}
 	// Plugin
 	x.ForEach(en.plugins, func(it interface{}) {
 		en.checkDefTimeout("Plugin.Stop", it.(Plugin).OnStop)
@@ -288,7 +293,7 @@ func (en *Engine) handleDriver(session Session) {
 				strconv.FormatBool(match))
 		})
 		if match {
-			err := driver.Handle(session, en.selector, en.ctx)
+			err := driver.Handle(session, en.executor, en.ctx)
 			if nil != err {
 				en.failFastLogger().Err(err).Msgf("用户驱动发生错误： %s", err.Error())
 			}
@@ -345,7 +350,6 @@ func newGeckoContext(config map[string]interface{}) *_GeckoContext {
 	return &_GeckoContext{
 		geckos:       mapConf.MustImmutableMap("GECKO"),
 		globals:      mapConf.MustImmutableMap("GLOBALS"),
-		pipelines:    mapConf.MustImmutableMap("PIPELINES"),
 		interceptors: mapConf.MustImmutableMap("INTERCEPTORS"),
 		drivers:      mapConf.MustImmutableMap("DRIVERS"),
 		outputs:      mapConf.MustImmutableMap("OUTPUTS"),

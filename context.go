@@ -11,7 +11,7 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-var GeckoVersion = "G1-0.1.2"
+var GeckoVersion = "G1-0.2.0"
 
 // Context 提供一些全局性质的函数
 type Context interface {
@@ -63,7 +63,6 @@ type Context interface {
 type _GeckoContext struct {
 	geckos       *conf.ImmutableMap
 	globals      *conf.ImmutableMap
-	pipelines    *conf.ImmutableMap
 	interceptors *conf.ImmutableMap
 	drivers      *conf.ImmutableMap
 	outputs      *conf.ImmutableMap

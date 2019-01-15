@@ -15,7 +15,8 @@ import (
 // 负责对Engine组件的注册管理
 type Registration struct {
 	// 组件管理
-	pipelines    map[string]ProtoPipeline
+	namedOutputs map[string]OutputDevice
+	namedInputs  map[string]InputDevice
 	plugins      *list.List
 	interceptors *list.List
 	drivers      *list.List
@@ -32,8 +33,9 @@ type Registration struct {
 
 func prepare() *Registration {
 	re := new(Registration)
+	re.namedOutputs = make(map[string]OutputDevice)
+	re.namedInputs = make(map[string]InputDevice)
 	re.plugins = list.New()
-	re.pipelines = make(map[string]ProtoPipeline)
 	re.interceptors = list.New()
 	re.drivers = list.New()
 	re.inputs = list.New()
@@ -45,30 +47,25 @@ func prepare() *Registration {
 	return re
 }
 
-// 添加OutputDevice，同时将Device注册到对应协议的Pipeline中。
+// 添加OutputDevice
 func (re *Registration) AddOutputDevice(device OutputDevice) {
-	re.checkPipeline(device, func() {
-		re.outputs.PushBack(device)
-	})
-}
-
-// 添加InputDevice，同时将Device注册到对应协议的Pipeline中。
-func (re *Registration) AddInputDevice(inputDevice InputDevice) {
-	re.checkPipeline(inputDevice, func() {
-		re.inputs.PushBack(inputDevice)
-	})
-}
-
-func (re *Registration) checkPipeline(device VirtualDevice, onIfPipelinePassed func()) {
-	proto := device.GetProtoName()
-	if pipeline, ok := re.pipelines[proto]; ok {
-		if !pipeline.register(device) {
-			re.withTag(log.Panic).Msgf("设备地址重复: %s", device.GetUnionAddress())
-		} else {
-			onIfPipelinePassed()
-		}
+	addr := device.GetUnionAddress()
+	if _, ok := re.namedOutputs[addr]; ok {
+		re.withTag(log.Panic).Msgf("OutputDevice设备地址重复: %s", addr)
 	} else {
-		re.withTag(log.Panic).Msgf("未找到对应协议的Pipeline: %s", proto)
+		re.namedOutputs[addr] = device
+		re.outputs.PushBack(device)
+	}
+}
+
+// 添加InputDevice
+func (re *Registration) AddInputDevice(device InputDevice) {
+	addr := device.GetUnionAddress()
+	if _, ok := re.namedInputs[addr]; ok {
+		re.withTag(log.Panic).Msgf("InputDevice设备地址重复: %s", addr)
+	} else {
+		re.namedInputs[addr] = device
+		re.outputs.PushBack(device)
 	}
 }
 
@@ -103,25 +100,14 @@ func (re *Registration) AddStopAfterHook(hook HookFunc) {
 	re.startAfterHooks.PushBack(hook)
 }
 
-// 添加Pipeline。
-// 如果已存在相同协议的Pipeline，会抛出异常
-func (re *Registration) AddProtoPipeline(pipeline ProtoPipeline) {
-	proto := pipeline.GetProtoName()
-	if _, ok := re.pipelines[proto]; !ok {
-		re.pipelines[proto] = pipeline
-	} else {
-		re.withTag(log.Panic).Msgf("已存在相同协议的Pipeline: %s", proto)
-	}
-}
-
 func (re *Registration) showBundles() {
 	re.withTag(log.Info).Msgf("已加载 Interceptors: %d", re.interceptors.Len())
 	x.ForEach(re.interceptors, func(it interface{}) {
 		re.withTag(log.Info).Msg("  - Interceptor: " + x.SimpleClassName(it))
 	})
 
-	re.withTag(log.Info).Msgf("已加载 Pipelines: %d", len(re.pipelines))
-	for proto, pi := range re.pipelines {
+	re.withTag(log.Info).Msgf("已加载 Pipelines: %d", len(re.namedOutputs))
+	for proto, pi := range re.namedOutputs {
 		re.withTag(log.Info).Msgf("  -Pipeline[%s]: %s", proto, x.SimpleClassName(pi))
 	}
 
@@ -193,9 +179,6 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 		bundle := factory()
 		switch bundle.(type) {
 
-		case ProtoPipeline:
-			re.AddProtoPipeline(bundle.(ProtoPipeline))
-
 		case Interceptor:
 			it := bundle.(Interceptor)
 			it.setPriority(int(config.MustInt64("priority")))
@@ -225,6 +208,8 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 				re.AddInputDevice(inputDevice)
 			} else if outputDevice, ok := device.(OutputDevice); ok {
 				re.AddOutputDevice(outputDevice)
+			} else {
+				re.withTag(log.Panic).Msgf("未知VirtualDevice类型： %s", x.SimpleClassName(device))
 			}
 
 		default:
