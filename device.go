@@ -20,6 +20,11 @@ type VirtualDevice interface {
 	GetDisplayName() string
 	// 返回当前设备支持的通讯协议名称
 	GetProtoName() string
+	// 编码/解码
+	setDecoder(decoder Decoder)
+	GetDecoder() Decoder
+	setEncoder(encoder Encoder)
+	GetEncoder() Encoder
 }
 
 //// Input
@@ -27,11 +32,6 @@ type VirtualDevice interface {
 // Input设备是表示向系统输入数据的设备
 type InputDevice interface {
 	VirtualDevice
-	// 编码/解码
-	setDecoder(decoder Decoder)
-	GetDecoder() Decoder
-	setEncoder(encoder Encoder)
-	GetEncoder() Encoder
 	// 监听设备的输入数据。如果设备发生错误，返回错误信息。
 	Serve(ctx Context, deliverer Deliverer) error
 }
@@ -98,11 +98,6 @@ func NewAbcInputDevice() *AbcInputDevice {
 // OutputDevice 是可交互的硬件的设备。它可以接收派发到此设备的事件，做出操作后，返回一个响应事件。
 type OutputDevice interface {
 	VirtualDevice
-	// 编码/解码
-	setDecoder(decoder Decoder)
-	GetDecoder() Decoder
-	setEncoder(encoder Encoder)
-	GetEncoder() Encoder
 	// 设备对象接收控制事件；经设备驱动处理后，返回处理结果事件；
 	Process(frame PacketFrame, ctx Context) (PacketFrame, error)
 }

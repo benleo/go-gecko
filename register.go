@@ -15,13 +15,15 @@ import (
 // 负责对Engine组件的注册管理
 type Registration struct {
 	// 组件管理
-	namedOutputs map[string]OutputDevice
-	namedInputs  map[string]InputDevice
-	plugins      *list.List
-	interceptors *list.List
-	drivers      *list.List
-	outputs      *list.List
-	inputs       *list.List
+	namedOutputs  map[string]OutputDevice
+	namedInputs   map[string]InputDevice
+	namedDecoders map[string]Decoder
+	namedEncoders map[string]Encoder
+	plugins       *list.List
+	interceptors  *list.List
+	drivers       *list.List
+	outputs       *list.List
+	inputs        *list.List
 	// Hooks
 	startBeforeHooks *list.List
 	startAfterHooks  *list.List
@@ -45,6 +47,24 @@ func prepare() *Registration {
 	re.stopAfterHooks = list.New()
 	re.bundleFactories = make(map[string]BundleFactory)
 	return re
+}
+
+// 添加Encoder
+func (re *Registration) AddEncoder(name string, encoder Encoder) {
+	if _, ok := re.namedEncoders[name]; ok {
+		re.withTag(log.Panic).Msgf("Encoder类型重复: %s", name)
+	} else {
+		re.namedEncoders[name] = encoder
+	}
+}
+
+// 添加Decoder
+func (re *Registration) AddDecoder(name string, decoder Decoder) {
+	if _, ok := re.namedDecoders[name]; ok {
+		re.withTag(log.Panic).Msgf("Decoder类型重复: %s", name)
+	} else {
+		re.namedDecoders[name] = decoder
+	}
 }
 
 // 添加OutputDevice
@@ -155,37 +175,43 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 	if configs.IsEmpty() {
 		return false
 	}
-	configs.ForEach(func(typeName string, item interface{}) {
+	configs.ForEach(func(bundleType string, item interface{}) {
 		asMap, ok := item.(map[string]interface{})
 		if !ok {
-			re.withTag(log.Panic).Msgf("组件配置信息类型错误: %s", typeName)
+			re.withTag(log.Panic).Msgf("组件配置信息类型错误: %s", bundleType)
 		}
 		config := conf.MapToMap(asMap)
 		if config.MustBool("disable") {
-			re.withTag(log.Warn).Msgf("组件[%s]在配置中禁用", typeName)
+			re.withTag(log.Warn).Msgf("组件[%s]在配置中禁用", bundleType)
 			return
 		}
 
 		// 配置选项中，指定 type 字段为类型名称
-		if defineTypeName := config.MustString("type"); "" != defineTypeName {
-			typeName = defineTypeName
+		if typeName := config.MustString("type"); "" != typeName {
+			bundleType = typeName
 		}
 
-		factory, ok := re.findFactory(typeName)
+		factory, ok := re.findFactory(bundleType)
 		if !ok {
-			re.withTag(log.Panic).Msgf("组件类型[%s]，没有注册对应的工厂函数", typeName)
+			re.withTag(log.Panic).Msgf("组件类型[%s]，没有注册对应的工厂函数", bundleType)
 		}
 		// 根据类型注册
 		bundle := factory()
 		switch bundle.(type) {
 
+		case Encoder:
+			re.AddEncoder(bundleType, bundle.(Encoder))
+
+		case Decoder:
+			re.AddDecoder(bundleType, bundle.(Decoder))
+
+		case Driver:
+			re.AddDriver(bundle.(Driver))
+
 		case Interceptor:
 			it := bundle.(Interceptor)
 			it.setPriority(int(config.MustInt64("priority")))
 			re.AddInterceptor(it)
-
-		case Driver:
-			re.AddDriver(bundle.(Driver))
 
 		case VirtualDevice:
 			device := bundle.(VirtualDevice)
@@ -194,16 +220,39 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 			} else {
 				device.setDisplayName(name)
 			}
-			group := config.MustString("groupAddress")
-			if "" == group {
+
+			if group := config.MustString("groupAddress"); "" == group {
 				re.withTag(log.Panic).Msg("VirtualDevice配置项[groupAddress]是必填参数")
+			} else {
+				device.setGroupAddress(group)
 			}
-			private := config.MustString("privateAddress")
-			if "" == private {
+
+			if private := config.MustString("privateAddress"); "" == private {
 				re.withTag(log.Panic).Msg("VirtualDevice配置项[privateAddress]是必填参数")
+			} else {
+				device.setPrivateAddress(private)
 			}
-			device.setGroupAddress(group)
-			device.setPrivateAddress(private)
+
+			if name := config.MustString("encoder"); "" == name {
+				re.withTag(log.Panic).Msg("VirtualDevice配置项[encoder]是必填参数")
+			} else {
+				if encoder, ok := re.namedEncoders[name]; ok {
+					device.setEncoder(encoder)
+				} else {
+					re.withTag(log.Panic).Msgf("Encoder[%s]未注册", name)
+				}
+			}
+
+			if name := config.MustString("decoder"); "" == name {
+				re.withTag(log.Panic).Msg("VirtualDevice配置项[decoder]是必填参数")
+			} else {
+				if decoder, ok := re.namedDecoders[name]; ok {
+					device.setDecoder(decoder)
+				} else {
+					re.withTag(log.Panic).Msgf("Decoder[%s]未注册", name)
+				}
+			}
+
 			if inputDevice, ok := device.(InputDevice); ok {
 				re.AddInputDevice(inputDevice)
 			} else if outputDevice, ok := device.(OutputDevice); ok {
@@ -216,14 +265,14 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 			if plg, ok := bundle.(Plugin); ok {
 				re.AddPlugin(plg)
 			} else {
-				re.withTag(log.Panic).Msgf("未支持的组件类型：%s. 你是否没有实现某个函数接口？", typeName)
+				re.withTag(log.Panic).Msgf("未支持的组件类型：%s. 你是否没有实现某个函数接口？", bundleType)
 			}
 		}
 
 		// 需要Topic过滤
 		if tf, ok := bundle.(NeedTopicFilter); ok {
 			if topics, err := config.MustStringArray("topics"); nil != err || 0 == len(topics) {
-				re.withTag(log.Panic).Err(err).Msgf("配置项中[topics]必须是字符串数组： %s", typeName)
+				re.withTag(log.Panic).Err(err).Msgf("配置项中[topics]必须是字符串数组： %s", bundleType)
 			} else {
 				tf.setTopics(topics)
 			}

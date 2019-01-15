@@ -1,4 +1,4 @@
 package gecko
 
 // 生命周期Hook
-type HookFunc func(engine *Engine)
+type HookFunc func(pipeline *Pipeline)
