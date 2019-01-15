@@ -14,21 +14,21 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-func UdpVirtualDeviceFactory() (string, gecko.BundleFactory) {
-	return "UdpVirtualDevice", func() interface{} {
-		return NewUdpVirtualDevice()
+func UdpInteractiveDeviceFactory() (string, gecko.BundleFactory) {
+	return "UdpInteractiveDevice", func() interface{} {
+		return NewUdpInteractiveDevice()
 	}
 }
 
-func NewUdpVirtualDevice() gecko.VirtualDevice {
-	return &UdpVirtualDevice{
-		AbcVirtualDevice: gecko.NewAbcVirtualDevice(),
+func NewUdpInteractiveDevice() gecko.InteractiveDevice {
+	return &UdpInteractiveDevice{
+		AbcInteractiveDevice: gecko.NewAbcInteractiveDevice(),
 	}
 }
 
 // UDP虚拟设备
-type UdpVirtualDevice struct {
-	*gecko.AbcVirtualDevice
+type UdpInteractiveDevice struct {
+	*gecko.AbcInteractiveDevice
 	//
 	srvAddr      *net.UDPAddr
 	udpConn      *net.UDPConn
@@ -43,12 +43,12 @@ type UdpVirtualDevice struct {
 	shutdownCompleted chan struct{}
 }
 
-func (uv *UdpVirtualDevice) GetProtoName() string {
+func (uv *UdpInteractiveDevice) GetProtoName() string {
 	return "udp"
 }
 
 // 初始化
-func (uv *UdpVirtualDevice) OnInit(args map[string]interface{}, ctx gecko.Context) {
+func (uv *UdpInteractiveDevice) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	uv.sendChan = make(chan *gecko.PacketFrame, 1)
 	uv.recvChan = make(chan *gecko.PacketFrame, 1)
 	uv.errChan = make(chan error, 1)
@@ -70,7 +70,7 @@ func (uv *UdpVirtualDevice) OnInit(args map[string]interface{}, ctx gecko.Contex
 }
 
 // 启动，建立与目标设备的连接
-func (uv *UdpVirtualDevice) OnStart(ctx gecko.Context) {
+func (uv *UdpInteractiveDevice) OnStart(ctx gecko.Context) {
 	remoteAddr := uv.srvAddr.String()
 	if conn, err := net.DialUDP("udp", nil, uv.srvAddr); nil != err {
 		uv.withTag(log.Panic).Err(err).Str("remote", remoteAddr).Msgf("无法建立与目标设备UDP通讯连接： %s", remoteAddr)
@@ -112,7 +112,7 @@ func (uv *UdpVirtualDevice) OnStart(ctx gecko.Context) {
 }
 
 // 停止，关闭UDP通讯连接
-func (uv *UdpVirtualDevice) OnStop(ctx gecko.Context) {
+func (uv *UdpInteractiveDevice) OnStop(ctx gecko.Context) {
 	if uv.udpConn != nil {
 		uv.udpConn.Close()
 	}
@@ -120,7 +120,7 @@ func (uv *UdpVirtualDevice) OnStop(ctx gecko.Context) {
 }
 
 // 处理事件
-func (uv *UdpVirtualDevice) Process(in *gecko.PacketFrame, ctx gecko.Context) (out *gecko.PacketFrame, err error) {
+func (uv *UdpInteractiveDevice) Process(in *gecko.PacketFrame, ctx gecko.Context) (out *gecko.PacketFrame, err error) {
 	// Send and receive
 	uv.sendChan <- in
 	select {
@@ -130,6 +130,6 @@ func (uv *UdpVirtualDevice) Process(in *gecko.PacketFrame, ctx gecko.Context) (o
 	return
 }
 
-func (uv *UdpVirtualDevice) withTag(fun func() *zerolog.Event) *zerolog.Event {
-	return fun().Str("tag", "NetworkServerTrigger")
+func (uv *UdpInteractiveDevice) withTag(fun func() *zerolog.Event) *zerolog.Event {
+	return fun().Str("tag", "UdpInteractiveDevice")
 }

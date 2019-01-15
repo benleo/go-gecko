@@ -46,11 +46,11 @@ func prepare() *Registration {
 
 // 添加一个设备对象。
 // 设备对象的地址必须唯一。如果设备地址重复，会抛出异常。
-func (re *Registration) AddVirtualDevice(device VirtualDevice) {
-	proto := device.GetProtoName()
+func (re *Registration) AddVirtualHardware(hw VirtualHardware) {
+	proto := hw.GetProtoName()
 	if pipeline, ok := re.pipelines[proto]; ok {
-		if !pipeline.AddDevice(device) {
-			re.withTag(log.Panic).Msgf("设备地址重复: %s", device.GetUnionAddress())
+		if !pipeline.AddHardware(hw) {
+			re.withTag(log.Panic).Msgf("设备地址重复: %s", hw.GetUnionAddress())
 		}
 	} else {
 		re.withTag(log.Panic).Msgf("未找到对应协议的Pipeline: %s", proto)
@@ -110,11 +110,11 @@ func (re *Registration) showBundles() {
 		re.withTag(log.Info).Msg("  - Interceptor: " + x.SimpleClassName(it))
 	})
 
-	devices := make([]VirtualDevice, 0)
+	devices := make([]VirtualHardware, 0)
 	re.withTag(log.Info).Msgf("已加载 Pipelines: %d", len(re.pipelines))
 	for proto, pi := range re.pipelines {
 		re.withTag(log.Info).Msgf("  -Pipeline[%s]: %s", proto, x.SimpleClassName(pi))
-		devices = append(devices, pi.GetDevices()...)
+		devices = append(devices, pi.GetManagedHardware()...)
 	}
 	re.withTag(log.Info).Msgf("已加载 Devices: %d", len(devices))
 	for _, it := range devices {
@@ -195,12 +195,12 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 		case Driver:
 			re.AddDriver(bundle.(Driver))
 
-		case VirtualDevice:
-			dev := bundle.(VirtualDevice)
+		case VirtualHardware:
+			hw := bundle.(VirtualHardware)
 			if name := config.MustString("displayName"); "" == name {
 				re.withTag(log.Panic).Msg("VirtualDevice配置项[displayName]是必填参数")
 			} else {
-				dev.setDisplayName(name)
+				hw.setDisplayName(name)
 			}
 			group := config.MustString("groupAddress")
 			if "" == group {
@@ -210,9 +210,9 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 			if "" == phy {
 				re.withTag(log.Panic).Msg("VirtualDevice配置项[privateAddress]是必填参数")
 			}
-			dev.setGroupAddress(group)
-			dev.setPrivateAddress(phy)
-			re.AddVirtualDevice(dev)
+			hw.setGroupAddress(group)
+			hw.setPrivateAddress(phy)
+			re.AddVirtualHardware(hw)
 
 		case Trigger:
 			tr := bundle.(Trigger)

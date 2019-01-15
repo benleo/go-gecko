@@ -1,9 +1,10 @@
-[DEVICES.UdpVirtualDevice]
+[DEVICES.UdpInteractiveDevice]
   disable = false
-  type = "UdpVirtualDevice"
+  type = "UdpInteractiveDevice"
+  displayName = "UdpInteractiveDevice"
   groupAddress = "127.0.0.1"
   privateAddress = 60000
-[DEVICES.UdpVirtualDevice.InitArgs]
+[DEVICES.UdpInteractiveDevice.InitArgs]
   sendBuffSizeKB = 1
   recvBuffSizeKB = 1
   sendTimeout = "3s"

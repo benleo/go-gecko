@@ -16,7 +16,7 @@ func main() {
 	gecko.Bootstrap(func(engine *gecko.Engine) {
 		// 通常使用这个函数来注册组件工厂函数
 		engine.RegisterBundleFactory(bundles.UdpProtoPipelineFactory())
-		engine.RegisterBundleFactory(bundles.UdpVirtualDeviceFactory())
+		engine.RegisterBundleFactory(bundles.UdpInteractiveDeviceFactory())
 		engine.RegisterBundleFactory(bundles.NetworkServerTriggerFactory())
 		engine.RegisterBundleFactory(nop.NopUdpDriverFactory())
 		engine.RegisterBundleFactory(nop.NopInterceptorFactor())

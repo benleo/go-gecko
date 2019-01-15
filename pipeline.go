@@ -17,20 +17,20 @@ type ProtoPipeline interface {
 	GetProtoName() string
 
 	// 根据设备地址查找设备对象
-	FindDeviceByAddress(unionAddress string) VirtualDevice
+	FindHardwareByUnionAddress(unionAddress string) VirtualHardware
 
 	// 根据Group地址，返回设备列表
-	FindDevicesByGroup(group string) []VirtualDevice
+	FindHardwareByGroupAddress(group string) []VirtualHardware
 
 	// 返回当前管理的全部设备对象
-	GetDevices() []VirtualDevice
+	GetManagedHardware() []VirtualHardware
 
 	// 添加设备对象。
 	// 如果设备对象的地址重复，会返回False。
-	AddDevice(device VirtualDevice) bool
+	AddHardware(hw VirtualHardware) bool
 
 	// 移除设备对象
-	RemoveDevice(unionAddress string)
+	RemoveHardware(unionAddress string)
 }
 
 // 根据指定协议名，返回指定协议的Pipeline
@@ -41,19 +41,19 @@ type ProtoPipelineSelector func(proto string) (ProtoPipeline, bool)
 // ProtoPipeline抽象实现类
 type AbcProtoPipeline struct {
 	ProtoPipeline
-	addressDevices map[string]VirtualDevice
-	rwLock         *sync.RWMutex
+	addressedHardware map[string]VirtualHardware
+	rwLock            *sync.RWMutex
 }
 
 func NewAbcProtoPipeline() *AbcProtoPipeline {
 	return &AbcProtoPipeline{
-		addressDevices: make(map[string]VirtualDevice),
-		rwLock:         new(sync.RWMutex),
+		addressedHardware: make(map[string]VirtualHardware),
+		rwLock:            new(sync.RWMutex),
 	}
 }
 
 func (ap *AbcProtoPipeline) OnStart(ctx Context) {
-	for addr, dev := range ap.addressDevices {
+	for addr, dev := range ap.addressedHardware {
 		ctx.CheckTimeout("Device.Start@"+addr, time.Second*3, func() {
 			dev.OnStart(ctx)
 		})
@@ -61,24 +61,24 @@ func (ap *AbcProtoPipeline) OnStart(ctx Context) {
 }
 
 func (ap *AbcProtoPipeline) OnStop(ctx Context) {
-	for addr, dev := range ap.addressDevices {
+	for addr, dev := range ap.addressedHardware {
 		ctx.CheckTimeout("Device.Stop@"+addr, time.Second*3, func() {
 			dev.OnStop(ctx)
 		})
 	}
 }
 
-func (ap *AbcProtoPipeline) FindDeviceByAddress(unionAddress string) VirtualDevice {
+func (ap *AbcProtoPipeline) FindHardwareByUnionAddress(unionAddress string) VirtualHardware {
 	ap.rwLock.RLock()
 	defer ap.rwLock.RUnlock()
-	return ap.addressDevices[unionAddress]
+	return ap.addressedHardware[unionAddress]
 }
 
-func (ap *AbcProtoPipeline) FindDevicesByGroup(groupAddress string) []VirtualDevice {
+func (ap *AbcProtoPipeline) FindHardwareByGroupAddress(groupAddress string) []VirtualHardware {
 	ap.rwLock.RLock()
 	defer ap.rwLock.RUnlock()
-	out := make([]VirtualDevice, 0)
-	for _, vd := range ap.addressDevices {
+	out := make([]VirtualHardware, 0)
+	for _, vd := range ap.addressedHardware {
 		if groupAddress == vd.GetGroupAddress() {
 			out = append(out, vd)
 		}
@@ -86,30 +86,30 @@ func (ap *AbcProtoPipeline) FindDevicesByGroup(groupAddress string) []VirtualDev
 	return out
 }
 
-func (ap *AbcProtoPipeline) GetDevices() []VirtualDevice {
-	out := make([]VirtualDevice, 0, len(ap.addressDevices))
+func (ap *AbcProtoPipeline) GetManagedHardware() []VirtualHardware {
+	out := make([]VirtualHardware, 0, len(ap.addressedHardware))
 	ap.rwLock.RLock()
 	defer ap.rwLock.RUnlock()
-	for _, vd := range ap.addressDevices {
+	for _, vd := range ap.addressedHardware {
 		out = append(out, vd)
 	}
 	return out
 }
 
-func (ap *AbcProtoPipeline) AddDevice(device VirtualDevice) bool {
+func (ap *AbcProtoPipeline) AddHardware(hw VirtualHardware) bool {
 	ap.rwLock.Lock()
 	defer ap.rwLock.Unlock()
-	addr := device.GetUnionAddress()
-	if _, ok := ap.addressDevices[addr]; ok {
+	addr := hw.GetUnionAddress()
+	if _, ok := ap.addressedHardware[addr]; ok {
 		return false
 	} else {
-		ap.addressDevices[addr] = device
+		ap.addressedHardware[addr] = hw
 		return true
 	}
 }
 
-func (ap *AbcProtoPipeline) RemoveDevice(unionAddress string) {
+func (ap *AbcProtoPipeline) RemoveHardware(unionAddress string) {
 	ap.rwLock.Lock()
 	defer ap.rwLock.Unlock()
-	delete(ap.addressDevices, unionAddress)
+	delete(ap.addressedHardware, unionAddress)
 }
