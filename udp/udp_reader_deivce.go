@@ -35,7 +35,7 @@ func (ur *AbcUdpReaderDevice) OnInit(args map[string]interface{}, ctx gecko.Cont
 
 func (ur *AbcUdpReaderDevice) OnStart(ctx gecko.Context) {
 	address := ur.GetUnionAddress()
-	ur.withTag(log.Info).Msgf("使用UDPReader，服务地址： %s", address)
+	ur.withTag(log.Info).Msgf("使用UDP服务端模式，绑定地址： %s", address)
 	ur.cancelCtx, ur.cancelFun = context.WithCancel(context.Background())
 }
 
@@ -48,7 +48,6 @@ func (ur *AbcUdpReaderDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer
 		return errors.New("未设置onServeHandler接口")
 	}
 	address := ur.GetUnionAddress()
-	ur.withTag(log.Info).Msgf("绑定UDP服务端： %s", address)
 	conn, cErr := net.ListenPacket("udp", address)
 	if nil != cErr {
 		return cErr
@@ -63,10 +62,12 @@ func (ur *AbcUdpReaderDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer
 
 		default:
 			if err := conn.SetReadDeadline(time.Now().Add(ur.readTimeout)); nil != err {
+				// FIXME timeout
 				return err
 			}
 			n, _, err := conn.ReadFrom(buffer)
 			if nil != err {
+				// FIXME timeout
 				return err
 			}
 			frame := gecko.NewPackFrame(buffer[:n])
