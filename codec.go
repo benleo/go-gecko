@@ -14,11 +14,23 @@ type Encoder func(data map[string]interface{}) ([]byte, error)
 
 ////
 
+func JSONDefaultDecoderFactory() (string, BundleFactory) {
+	return "JSONDefaultDecoder", func() interface{} {
+		return Decoder(JSONDefaultDecoder)
+	}
+}
+
 // 将Byte数据解析成JSON对象
 func JSONDefaultDecoder(bytes []byte) (map[string]interface{}, error) {
 	json := make(map[string]interface{})
 	err := x.UnmarshalJSON(bytes, &json)
 	return json, err
+}
+
+func JSONDefaultEncoderFactory() (string, BundleFactory) {
+	return "JSONDefaultEncoder", func() interface{} {
+		return Encoder(JSONDefaultEncoder)
+	}
 }
 
 // 将JSON对象解析成Bytes对象

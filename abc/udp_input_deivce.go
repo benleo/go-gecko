@@ -1,4 +1,4 @@
-package udp
+package abc
 
 import (
 	"context"
@@ -11,14 +11,20 @@ import (
 	"time"
 )
 
-func NewAbcUdpReaderDevice() *AbcUdpReaderDevice {
-	return &AbcUdpReaderDevice{
+func UdpInputDeviceFactory() (string, gecko.BundleFactory) {
+	return "UdpInputDevice", func() interface{} {
+		return NewUdpInputDevice()
+	}
+}
+
+func NewUdpInputDevice() *UdpInputDevice {
+	return &UdpInputDevice{
 		AbcInputDevice: gecko.NewAbcInputDevice(),
 	}
 }
 
 // UDP服务器读取设备
-type AbcUdpReaderDevice struct {
+type UdpInputDevice struct {
 	*gecko.AbcInputDevice
 	maxBufferSize  int64
 	readTimeout    time.Duration
@@ -28,14 +34,14 @@ type AbcUdpReaderDevice struct {
 	topic          string
 }
 
-func (ur *AbcUdpReaderDevice) OnInit(args map[string]interface{}, ctx gecko.Context) {
+func (ur *UdpInputDevice) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	config := conf.WrapImmutableMap(args)
 	ur.maxBufferSize = config.GetInt64OrDefault("bufferSizeKB", 1) * 1024
 	ur.readTimeout = config.GetDurationOrDefault("readTimeout", time.Second*10)
 	ur.topic = config.MustString("topic")
 }
 
-func (ur *AbcUdpReaderDevice) OnStart(ctx gecko.Context) {
+func (ur *UdpInputDevice) OnStart(ctx gecko.Context) {
 	address := ur.GetUnionAddress()
 	ur.withTag(log.Info).Msgf("使用UDP服务端模式，绑定地址： %s", address)
 	ur.cancelCtx, ur.cancelFun = context.WithCancel(context.Background())
@@ -50,11 +56,11 @@ func (ur *AbcUdpReaderDevice) OnStart(ctx gecko.Context) {
 	}
 }
 
-func (ur *AbcUdpReaderDevice) OnStop(ctx gecko.Context) {
+func (ur *UdpInputDevice) OnStop(ctx gecko.Context) {
 	ur.cancelFun()
 }
 
-func (ur *AbcUdpReaderDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer) error {
+func (ur *UdpInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer) error {
 	if nil == ur.onServeHandler {
 		return errors.New("未设置onServeHandler接口")
 	}
@@ -91,10 +97,10 @@ func (ur *AbcUdpReaderDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer
 }
 
 // 设置Serve处理函数
-func (ur *AbcUdpReaderDevice) SetServeHandler(handler func([]byte, gecko.Context, gecko.Deliverer) error) {
+func (ur *UdpInputDevice) SetServeHandler(handler func([]byte, gecko.Context, gecko.Deliverer) error) {
 	ur.onServeHandler = handler
 }
 
-func (ur *AbcUdpReaderDevice) withTag(f func() *zerolog.Event) *zerolog.Event {
-	return f().Str("tag", "AbcUdpReaderDevice")
+func (ur *UdpInputDevice) withTag(f func() *zerolog.Event) *zerolog.Event {
+	return f().Str("tag", "UdpInputDevice")
 }

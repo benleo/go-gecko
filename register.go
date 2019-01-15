@@ -37,6 +37,8 @@ func prepare() *Registration {
 	re := new(Registration)
 	re.namedOutputs = make(map[string]OutputDevice)
 	re.namedInputs = make(map[string]InputDevice)
+	re.namedDecoders = make(map[string]Decoder)
+	re.namedEncoders = make(map[string]Encoder)
 	re.plugins = list.New()
 	re.interceptors = list.New()
 	re.drivers = list.New()
