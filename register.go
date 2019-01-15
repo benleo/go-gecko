@@ -19,7 +19,8 @@ type Registration struct {
 	plugins      *list.List
 	interceptors *list.List
 	drivers      *list.List
-	triggers     *list.List
+	outputs      *list.List
+	inputs       *list.List
 	// Hooks
 	startBeforeHooks *list.List
 	startAfterHooks  *list.List
@@ -35,7 +36,7 @@ func prepare() *Registration {
 	re.pipelines = make(map[string]ProtoPipeline)
 	re.interceptors = list.New()
 	re.drivers = list.New()
-	re.triggers = list.New()
+	re.inputs = list.New()
 	re.startBeforeHooks = list.New()
 	re.startAfterHooks = list.New()
 	re.stopBeforeHooks = list.New()
@@ -44,13 +45,27 @@ func prepare() *Registration {
 	return re
 }
 
-// 添加一个设备对象。
-// 设备对象的地址必须唯一。如果设备地址重复，会抛出异常。
-func (re *Registration) AddVirtualDevice(hw VirtualDevice) {
-	proto := hw.GetProtoName()
+// 添加OutputDevice，同时将Device注册到对应协议的Pipeline中。
+func (re *Registration) AddOutputDevice(device OutputDevice) {
+	re.checkPipeline(device, func() {
+		re.outputs.PushBack(device)
+	})
+}
+
+// 添加InputDevice，同时将Device注册到对应协议的Pipeline中。
+func (re *Registration) AddInputDevice(inputDevice InputDevice) {
+	re.checkPipeline(inputDevice, func() {
+		re.inputs.PushBack(inputDevice)
+	})
+}
+
+func (re *Registration) checkPipeline(device VirtualDevice, onIfPipelinePassed func()) {
+	proto := device.GetProtoName()
 	if pipeline, ok := re.pipelines[proto]; ok {
-		if !pipeline.AddDevice(hw) {
-			re.withTag(log.Panic).Msgf("设备地址重复: %s", hw.GetUnionAddress())
+		if !pipeline.register(device) {
+			re.withTag(log.Panic).Msgf("设备地址重复: %s", device.GetUnionAddress())
+		} else {
+			onIfPipelinePassed()
 		}
 	} else {
 		re.withTag(log.Panic).Msgf("未找到对应协议的Pipeline: %s", proto)
@@ -70,11 +85,6 @@ func (re *Registration) AddInterceptor(interceptor Interceptor) {
 // 添加Driver
 func (re *Registration) AddDriver(driver Driver) {
 	re.drivers.PushBack(driver)
-}
-
-// 添加Trigger
-func (re *Registration) AddTrigger(trigger Trigger) {
-	re.triggers.PushBack(trigger)
 }
 
 func (re *Registration) AddStartBeforeHook(hook HookFunc) {
@@ -110,25 +120,24 @@ func (re *Registration) showBundles() {
 		re.withTag(log.Info).Msg("  - Interceptor: " + x.SimpleClassName(it))
 	})
 
-	devices := make([]VirtualDevice, 0)
 	re.withTag(log.Info).Msgf("已加载 Pipelines: %d", len(re.pipelines))
 	for proto, pi := range re.pipelines {
 		re.withTag(log.Info).Msgf("  -Pipeline[%s]: %s", proto, x.SimpleClassName(pi))
-		devices = append(devices, pi.GetManagedDevices()...)
 	}
-	re.withTag(log.Info).Msgf("已加载 Devices: %d", len(devices))
-	for _, it := range devices {
-		re.withTag(log.Info).Msg("  - Device: " + x.SimpleClassName(it))
-	}
+
+	re.withTag(log.Info).Msgf("已加载 InputDevices: %d", re.inputs.Len())
+	x.ForEach(re.inputs, func(it interface{}) {
+		re.withTag(log.Info).Msg("  - InputDevice: " + x.SimpleClassName(it))
+	})
+
+	re.withTag(log.Info).Msgf("已加载OutputDevices: %d", re.outputs.Len())
+	x.ForEach(re.outputs, func(it interface{}) {
+		re.withTag(log.Info).Msg("  - OutputDevice: " + x.SimpleClassName(it))
+	})
 
 	re.withTag(log.Info).Msgf("已加载 Drivers: %d", re.drivers.Len())
 	x.ForEach(re.drivers, func(it interface{}) {
 		re.withTag(log.Info).Msg("  - Driver: " + x.SimpleClassName(it))
-	})
-
-	re.withTag(log.Info).Msgf("已加载 Triggers: %d", re.triggers.Len())
-	x.ForEach(re.triggers, func(it interface{}) {
-		re.withTag(log.Info).Msg("  - Trigger: " + x.SimpleClassName(it))
 	})
 
 	re.withTag(log.Info).Msgf("已加载 Plugins: %d", re.plugins.Len())
@@ -196,32 +205,27 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 			re.AddDriver(bundle.(Driver))
 
 		case VirtualDevice:
-			hw := bundle.(VirtualDevice)
+			device := bundle.(VirtualDevice)
 			if name := config.MustString("displayName"); "" == name {
 				re.withTag(log.Panic).Msg("VirtualDevice配置项[displayName]是必填参数")
 			} else {
-				hw.setDisplayName(name)
+				device.setDisplayName(name)
 			}
 			group := config.MustString("groupAddress")
 			if "" == group {
 				re.withTag(log.Panic).Msg("VirtualDevice配置项[groupAddress]是必填参数")
 			}
-			phy := config.MustString("privateAddress")
-			if "" == phy {
+			private := config.MustString("privateAddress")
+			if "" == private {
 				re.withTag(log.Panic).Msg("VirtualDevice配置项[privateAddress]是必填参数")
 			}
-			hw.setGroupAddress(group)
-			hw.setPrivateAddress(phy)
-			re.AddVirtualDevice(hw)
-
-		case Trigger:
-			tr := bundle.(Trigger)
-			tp := config.MustString("topic")
-			if "" == tp {
-				re.withTag(log.Panic).Msg("Trigger配置项[topic]是必填参数")
+			device.setGroupAddress(group)
+			device.setPrivateAddress(private)
+			if inputDevice, ok := device.(InputDevice); ok {
+				re.AddInputDevice(inputDevice)
+			} else if outputDevice, ok := device.(OutputDevice); ok {
+				re.AddOutputDevice(outputDevice)
 			}
-			tr.setTopic(tp)
-			re.AddTrigger(tr)
 
 		default:
 			if plg, ok := bundle.(Plugin); ok {

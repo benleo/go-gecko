@@ -1,10 +1,10 @@
-[DEVICES.UdpInteractiveDevice]
+[DEVICES.UdpOutputDevice]
   disable = false
-  type = "UdpInteractiveDevice"
-  displayName = "UdpInteractiveDevice"
+  type = "UdpOutputDevice"
+  displayName = "UdpOutputDevice"
   groupAddress = "127.0.0.1"
   privateAddress = 60000
-[DEVICES.UdpInteractiveDevice.InitArgs]
+[DEVICES.UdpOutputDevice.InitArgs]
   sendBuffSizeKB = 1
   recvBuffSizeKB = 1
   sendTimeout = "3s"

@@ -30,45 +30,38 @@ type Session interface {
 	// 当前事件的Topic
 	Topic() string
 
-	// 当前事件的ContextId。每个事件具有唯一ID。
-	ContextId() int64
-
 	// 返回Inbound对象
 	Inbound() *Inbound
 
 	// 返回Outbound对象
 	Outbound() *Outbound
-
-	// 创建数据帧对象
-	NewPacketFrame(frame []byte) *PacketFrame
 }
 
 ////
 
-type sessionImpl struct {
-	timestamp       time.Time
-	attributes      map[string]interface{}
-	attrLock        *sync.RWMutex
-	topic           string
-	contextId       int64
-	inbound         *Inbound
-	outbound        *Outbound
-	onCompletedFunc OnTriggerCompleted
+type _GeckoSession struct {
+	timestamp          time.Time
+	attributes         map[string]interface{}
+	attrLock           *sync.RWMutex
+	topic              string
+	inbound            *Inbound
+	outbound           *Outbound
+	onSessionCompleted func(data map[string]interface{})
 }
 
-func (si *sessionImpl) Attributes() *conf.ImmutableMap {
+func (si *_GeckoSession) Attributes() *conf.ImmutableMap {
 	si.attrLock.RLock()
 	defer si.attrLock.RUnlock()
 	return conf.WrapImmutableMap(si.attributes)
 }
 
-func (si *sessionImpl) AddAttribute(name string, value interface{}) {
+func (si *_GeckoSession) AddAttribute(name string, value interface{}) {
 	si.attrLock.Lock()
 	defer si.attrLock.Unlock()
 	si.attributes[name] = value
 }
 
-func (si *sessionImpl) AddAttributes(attributes map[string]interface{}) {
+func (si *_GeckoSession) AddAttributes(attributes map[string]interface{}) {
 	si.attrLock.Lock()
 	defer si.attrLock.Unlock()
 	for k, v := range attributes {
@@ -76,34 +69,22 @@ func (si *sessionImpl) AddAttributes(attributes map[string]interface{}) {
 	}
 }
 
-func (si *sessionImpl) Timestamp() time.Time {
+func (si *_GeckoSession) Timestamp() time.Time {
 	return si.timestamp
 }
 
-func (si *sessionImpl) Topic() string {
+func (si *_GeckoSession) Topic() string {
 	return si.topic
 }
 
-func (si *sessionImpl) ContextId() int64 {
-	return si.contextId
-}
-
-func (si *sessionImpl) Inbound() *Inbound {
+func (si *_GeckoSession) Inbound() *Inbound {
 	return si.inbound
 }
 
-func (si *sessionImpl) Outbound() *Outbound {
+func (si *_GeckoSession) Outbound() *Outbound {
 	return si.outbound
 }
 
-func (si *sessionImpl) Escaped() time.Duration {
+func (si *_GeckoSession) Escaped() time.Duration {
 	return time.Now().Sub(si.Timestamp())
-}
-
-func (si *sessionImpl) NewPacketFrame(frame []byte) *PacketFrame {
-	return &PacketFrame{
-		id:      si.ContextId(),
-		headers: si.Attributes(),
-		frame:   frame,
-	}
 }

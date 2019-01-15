@@ -22,35 +22,145 @@ type VirtualDevice interface {
 	GetProtoName() string
 }
 
-//// InteractiveDevice - 可交互设备
+//// Input
 
-// InteractiveDevice 是可交互的硬件的设备。
-// 它可以接收派发到此设备的事件，做出操作后，返回一个响应事件。
-type InteractiveDevice interface {
-	VirtualDevice
-	// 设备对象接收控制事件；经设备驱动处理后，返回处理结果事件；
-	Process(frame *PacketFrame, ctx Context) (*PacketFrame, error)
-}
-
-//// Input设备
-
-// Input设备是表示向系统输入数据的设备；它只输出数据，不接受其它控制信号；
+// Input设备是表示向系统输入数据的设备
 type InputDevice interface {
 	VirtualDevice
-
+	// 编码/解码
+	setDecoder(decoder Decoder)
+	GetDecoder() Decoder
+	setEncoder(encoder Encoder)
+	GetEncoder() Encoder
 	// 监听设备的输入数据。如果设备发生错误，返回错误信息。
-	Subscribe(ctx Context, onReceived OnReceivedListener) error
+	Serve(ctx Context, deliverer Deliverer) error
 }
 
-// Input设备监听回调函数
-type OnReceivedListener func(frame *PacketFrame, err error)
+// AbcInputDevice
+type AbcInputDevice struct {
+	InputDevice
+	displayName    string
+	groupAddress   string
+	privateAddress string
+	decoder        Decoder
+	encoder        Encoder
+}
 
-//// Output设备
+func (dev *AbcInputDevice) setDecoder(decoder Decoder) {
+	dev.decoder = decoder
+}
 
-// Output设备表示系统向其输出数据的设备；它只负责接收数据，并向特定目标设备输出，不对处理结果做出反馈；
+func (dev *AbcInputDevice) GetDecoder() Decoder {
+	return dev.decoder
+}
+
+func (dev *AbcInputDevice) setEncoder(encoder Encoder) {
+	dev.encoder = encoder
+}
+
+func (dev *AbcInputDevice) GetEncoder() Encoder {
+	return dev.encoder
+}
+func (dev *AbcInputDevice) setDisplayName(name string) {
+	dev.displayName = name
+}
+
+func (dev *AbcInputDevice) GetDisplayName() string {
+	return dev.displayName
+}
+
+func (dev *AbcInputDevice) setGroupAddress(addr string) {
+	dev.groupAddress = addr
+}
+
+func (dev *AbcInputDevice) GetGroupAddress() string {
+	return dev.groupAddress
+}
+
+func (dev *AbcInputDevice) setPrivateAddress(addr string) {
+	dev.privateAddress = addr
+}
+
+func (dev *AbcInputDevice) GetPrivateAddress() string {
+	return dev.privateAddress
+}
+
+func (dev *AbcInputDevice) GetUnionAddress() string {
+	return "/" + dev.groupAddress + "/" + dev.privateAddress
+}
+
+func NewAbcInputDevice() *AbcInputDevice {
+	return new(AbcInputDevice)
+}
+
+//// Output
+
+// OutputDevice 是可交互的硬件的设备。它可以接收派发到此设备的事件，做出操作后，返回一个响应事件。
 type OutputDevice interface {
 	VirtualDevice
+	// 编码/解码
+	setDecoder(decoder Decoder)
+	GetDecoder() Decoder
+	setEncoder(encoder Encoder)
+	GetEncoder() Encoder
+	// 设备对象接收控制事件；经设备驱动处理后，返回处理结果事件；
+	Process(frame PacketFrame, ctx Context) (PacketFrame, error)
+}
 
-	// 发送输出数据。如果设备发生错误，返回错误信息；
-	Publish(ctx Context, frame *PacketFrame) error
+// AbcOutputDevice
+type AbcOutputDevice struct {
+	OutputDevice
+	displayName    string
+	groupAddress   string
+	privateAddress string
+	decoder        Decoder
+	encoder        Encoder
+}
+
+func (dev *AbcOutputDevice) setDecoder(decoder Decoder) {
+	dev.decoder = decoder
+}
+
+func (dev *AbcOutputDevice) GetDecoder() Decoder {
+	return dev.decoder
+}
+
+func (dev *AbcOutputDevice) setEncoder(encoder Encoder) {
+	dev.encoder = encoder
+}
+
+func (dev *AbcOutputDevice) GetEncoder() Encoder {
+	return dev.encoder
+}
+
+func (dev *AbcOutputDevice) setDisplayName(name string) {
+	dev.displayName = name
+}
+
+func (dev *AbcOutputDevice) GetDisplayName() string {
+	return dev.displayName
+}
+
+func (dev *AbcOutputDevice) setGroupAddress(addr string) {
+	dev.groupAddress = addr
+}
+
+func (dev *AbcOutputDevice) GetGroupAddress() string {
+	return dev.groupAddress
+}
+
+func (dev *AbcOutputDevice) setPrivateAddress(addr string) {
+	dev.privateAddress = addr
+}
+
+func (dev *AbcOutputDevice) GetPrivateAddress() string {
+	return dev.privateAddress
+}
+
+func (dev *AbcOutputDevice) GetUnionAddress() string {
+	return "/" + dev.groupAddress + "/" + dev.privateAddress
+}
+
+func NewAbcOutputDevice() *AbcOutputDevice {
+	return new(AbcOutputDevice)
 }

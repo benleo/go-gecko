@@ -40,7 +40,7 @@ type Engine struct {
 	snowflake *Snowflake
 
 	ctx      Context
-	invoker  Invoker
+	serve    func(device InputDevice) Deliverer
 	selector ProtoPipelineSelector
 	// 事件通道
 	dispatcher *Dispatcher
@@ -57,26 +57,41 @@ func (en *Engine) prepareEnv() {
 		pl, ok = en.pipelines[proto]
 		return
 	}
-	// 接收Trigger的输入事件
-	en.invoker = func(income *TriggerEvent, cbFunc OnTriggerCompleted) {
-		en.ctx.OnIfLogV(func() {
-			en.withTag(log.Debug).Msgf("Invoker接收请求，Topic: %s", income.topic)
-		})
-		en.dispatcher.Lv0() <- &sessionImpl{
-			timestamp:  time.Now(),
-			attributes: make(map[string]interface{}),
-			attrLock:   new(sync.RWMutex),
-			topic:      income.topic,
-			contextId:  0,
-			inbound: &Inbound{
-				Topic: income.topic,
-				Data:  income.data,
-			},
-			outbound: &Outbound{
-				Topic: income.topic,
-				Data:  make(map[string]interface{}),
-			},
-			onCompletedFunc: cbFunc,
+	// 创建输入调度的处理
+	en.serve = func(device InputDevice) Deliverer {
+		return func(topic string, frame PacketFrame) (PacketFrame, error) {
+			// 解码
+			input, deErr := device.GetDecoder()(frame.Data())
+			if nil != deErr {
+				en.withTag(log.Error).Err(deErr).Msgf("InputDevice解码/Decode错误： %s", x.SimpleClassName(device))
+				return nil, deErr
+			}
+			// 处理
+			output := make(chan map[string]interface{}, 1)
+			en.dispatcher.Lv0() <- &_GeckoSession{
+				timestamp:  time.Now(),
+				attributes: make(map[string]interface{}),
+				attrLock:   new(sync.RWMutex),
+				topic:      topic,
+				inbound: &Inbound{
+					Topic: topic,
+					Data:  input,
+				},
+				outbound: &Outbound{
+					Topic: topic,
+					Data:  make(map[string]interface{}),
+				},
+				onSessionCompleted: func(data map[string]interface{}) {
+					output <- data
+				},
+			}
+			// 编码
+			if bytes, err := device.GetEncoder()(<-output); nil != err {
+				en.withTag(log.Error).Err(err).Msgf("InputDevice编码/Encode错误： %s", x.SimpleClassName(device))
+				return nil, err
+			} else {
+				return NewPackFrame(bytes), nil
+			}
 		}
 	}
 }
@@ -96,30 +111,29 @@ func (en *Engine) Init(args map[string]interface{}) {
 	en.dispatcher = NewDispatcher(int(capacity))
 	en.dispatcher.SetLv0Handler(en.handleInterceptor)
 	en.dispatcher.SetLv1Handler(en.handleDriver)
-	en.dispatcher.SetLv2Handler(en.handleOutput)
 	go en.dispatcher.Serve(en.shutdownCtx)
 
 	// 初始化组件：根据配置文件指定项目
 	itemInitWithContext := func(it Initialize, args map[string]interface{}) {
 		it.OnInit(args, en.ctx)
 	}
-	if !en.registerBundlesIfHit(geckoCtx.confPlugins, itemInitWithContext) {
+	if !en.registerBundlesIfHit(geckoCtx.plugins, itemInitWithContext) {
 		en.withTag(log.Warn).Msg("警告：未配置任何[Plugin]组件")
 	}
-	if !en.registerBundlesIfHit(geckoCtx.confPipelines, itemInitWithContext) {
+	if !en.registerBundlesIfHit(geckoCtx.pipelines, itemInitWithContext) {
 		en.withTag(log.Panic).Msg("严重：未配置任何[Pipeline]组件")
 	}
-	if !en.registerBundlesIfHit(geckoCtx.confDevices, itemInitWithContext) {
-		en.withTag(log.Panic).Msg("严重：未配置任何[Devices]组件")
+	if !en.registerBundlesIfHit(geckoCtx.outputs, itemInitWithContext) {
+		en.withTag(log.Panic).Msg("严重：未配置任何[OutputDevice]组件")
 	}
-	if !en.registerBundlesIfHit(geckoCtx.confInterceptors, itemInitWithContext) {
+	if !en.registerBundlesIfHit(geckoCtx.interceptors, itemInitWithContext) {
 		en.withTag(log.Warn).Msg("警告：未配置任何[Interceptor]组件")
 	}
-	if !en.registerBundlesIfHit(geckoCtx.confDrivers, itemInitWithContext) {
+	if !en.registerBundlesIfHit(geckoCtx.drivers, itemInitWithContext) {
 		en.withTag(log.Warn).Msg("警告：未配置任何[Driver]组件")
 	}
-	if !en.registerBundlesIfHit(geckoCtx.confTriggers, itemInitWithContext) {
-		en.withTag(log.Panic).Msg("严重：未配置任何[Trigger]组件")
+	if !en.registerBundlesIfHit(geckoCtx.inputs, itemInitWithContext) {
+		en.withTag(log.Panic).Msg("严重：未配置任何[InputDevice]组件")
 	}
 	// show
 	en.showBundles()
@@ -138,7 +152,6 @@ func (en *Engine) Start() {
 		})
 		en.withTag(log.Info).Msgf("Engine启动...OK")
 	}()
-
 	// Plugin
 	x.ForEach(en.plugins, func(it interface{}) {
 		en.checkDefTimeout("Plugin.Start", it.(Plugin).OnStart)
@@ -151,11 +164,16 @@ func (en *Engine) Start() {
 	x.ForEach(en.drivers, func(it interface{}) {
 		en.checkDefTimeout("Driver.Start", it.(Driver).OnStart)
 	})
-	// Trigger
-	x.ForEach(en.triggers, func(it interface{}) {
+	// Inputs
+	x.ForEach(en.inputs, func(it interface{}) {
 		en.ctx.CheckTimeout("Trigger.Start", DefaultLifeCycleTimeout, func() {
-			it.(Trigger).OnStart(en.ctx, en.invoker)
+			it.(InputDevice).OnStart(en.ctx)
 		})
+	})
+	// Input Serve Last
+	x.ForEach(en.inputs, func(it interface{}) {
+		device := it.(InputDevice)
+		go device.Serve(en.ctx, en.serve(device))
 	})
 }
 
@@ -174,10 +192,10 @@ func (en *Engine) Stop() {
 		en.shutdownFunc()
 		en.withTag(log.Info).Msgf("Engine停止...OK")
 	}()
-	// Triggers
-	x.ForEach(en.triggers, func(it interface{}) {
+	// Inputs
+	x.ForEach(en.inputs, func(it interface{}) {
 		en.ctx.CheckTimeout("Trigger.Stop", DefaultLifeCycleTimeout, func() {
-			it.(Trigger).OnStop(en.ctx, en.invoker)
+			it.(InputDevice).OnStop(en.ctx)
 		})
 	})
 	// Drivers
@@ -237,8 +255,8 @@ func (en *Engine) handleInterceptor(session Session) {
 		if err == ErrInterceptorDropped {
 			en.withTag(log.Debug).Err(err).Msgf("拦截器中断事件： %s", err.Error())
 			session.Outbound().AddDataField("error", "InterceptorDropped")
-			// 终止
-			en.dispatcher.Lv2() <- session
+			// 终止，输出处理
+			en.output(session)
 			return
 		} else {
 			en.failFastLogger().Err(err).Msgf("拦截器发生错误： %s", err.Error())
@@ -279,11 +297,10 @@ func (en *Engine) handleDriver(session Session) {
 		}
 	}
 	// 输出处理
-	en.dispatcher.Lv2() <- session
+	en.output(session)
 }
 
-// 返回Trigger输出
-func (en *Engine) handleOutput(session Session) {
+func (en *Engine) output(session Session) {
 	en.ctx.OnIfLogV(func() {
 		en.withTag(log.Debug).Msgf("Output调度处理，Topic: %s", session.Topic())
 		session.Attributes().ForEach(func(k string, v interface{}) {
@@ -295,7 +312,7 @@ func (en *Engine) handleOutput(session Session) {
 		session.AddAttribute("Output.End", session.Escaped())
 		en.checkRecover(recover(), "Output-Goroutine内部错误")
 	}()
-	session.(*sessionImpl).onCompletedFunc(session.Outbound().Data)
+	session.(*_GeckoSession).onSessionCompleted(session.Outbound().Data)
 }
 
 func (en *Engine) checkDefTimeout(msg string, act func(Context)) {
@@ -323,18 +340,18 @@ func (en *Engine) failFastLogger() *zerolog.Event {
 	}
 }
 
-func newGeckoContext(config map[string]interface{}) *contextImpl {
+func newGeckoContext(config map[string]interface{}) *_GeckoContext {
 	mapConf := conf.WrapImmutableMap(config)
-	return &contextImpl{
-		confGecko:        mapConf.MustImmutableMap("GECKO"),
-		confGlobals:      mapConf.MustImmutableMap("GLOBALS"),
-		confPipelines:    mapConf.MustImmutableMap("PIPELINES"),
-		confInterceptors: mapConf.MustImmutableMap("INTERCEPTORS"),
-		confDrivers:      mapConf.MustImmutableMap("DRIVERS"),
-		confDevices:      mapConf.MustImmutableMap("DEVICES"),
-		confTriggers:     mapConf.MustImmutableMap("TRIGGERS"),
-		confPlugins:      mapConf.MustImmutableMap("PLUGINS"),
-		magicKV:          make(map[interface{}]interface{}),
+	return &_GeckoContext{
+		geckos:       mapConf.MustImmutableMap("GECKO"),
+		globals:      mapConf.MustImmutableMap("GLOBALS"),
+		pipelines:    mapConf.MustImmutableMap("PIPELINES"),
+		interceptors: mapConf.MustImmutableMap("INTERCEPTORS"),
+		drivers:      mapConf.MustImmutableMap("DRIVERS"),
+		outputs:      mapConf.MustImmutableMap("OUTPUTS"),
+		inputs:       mapConf.MustImmutableMap("INPUTS"),
+		plugins:      mapConf.MustImmutableMap("PLUGINS"),
+		magicKV:      make(map[interface{}]interface{}),
 	}
 }
 
