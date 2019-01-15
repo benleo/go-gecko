@@ -38,7 +38,7 @@ func (du *NopUdpDriver) OnStop(ctx gecko.Context) {
 
 func (du *NopUdpDriver) Handle(session gecko.Session, selector gecko.ProtoPipelineSelector, ctx gecko.Context) error {
 	if pl, ok := selector("udp"); ok {
-		for _, dev := range pl.FindHardwareByGroupAddress("127.0.0.1") {
+		for _, dev := range pl.FindDeviceByGroupAddress("127.0.0.1") {
 			if iDev, ok := dev.(gecko.InteractiveDevice); ok {
 				if frame, err := iDev.Process(session.NewPacketFrame([]byte("HAHAHAHA")), ctx); nil != err {
 					du.withTag(log.Error).Err(err).Msg("驱动设备失败")
