@@ -25,18 +25,29 @@ type AbcUdpReaderDevice struct {
 	cancelCtx      context.Context
 	cancelFun      context.CancelFunc
 	onServeHandler func(bytes []byte, ctx gecko.Context, deliverer gecko.Deliverer) error
+	topic          string
 }
 
 func (ur *AbcUdpReaderDevice) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	config := conf.WrapImmutableMap(args)
 	ur.maxBufferSize = config.GetInt64OrDefault("bufferSizeKB", 1) * 1024
 	ur.readTimeout = config.GetDurationOrDefault("readTimeout", time.Second*10)
+	ur.topic = config.MustString("topic")
 }
 
 func (ur *AbcUdpReaderDevice) OnStart(ctx gecko.Context) {
 	address := ur.GetUnionAddress()
 	ur.withTag(log.Info).Msgf("使用UDP服务端模式，绑定地址： %s", address)
 	ur.cancelCtx, ur.cancelFun = context.WithCancel(context.Background())
+	if nil != ur.onServeHandler {
+		ur.withTag(log.Warn).Msg("使用默认数据处理接口")
+		if "" == ur.topic {
+			ur.withTag(log.Panic).Msg("使用默认接口必须设置topic参数")
+		}
+		ur.onServeHandler = func(bytes []byte, ctx gecko.Context, deliverer gecko.Deliverer) error {
+			return deliverer.DeliverPublish(ur.topic, gecko.PacketFrame(bytes))
+		}
+	}
 }
 
 func (ur *AbcUdpReaderDevice) OnStop(ctx gecko.Context) {
