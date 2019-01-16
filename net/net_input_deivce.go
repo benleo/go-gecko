@@ -31,47 +31,47 @@ type AbcNetInputDevice struct {
 	topic          string
 }
 
-func (ui *AbcNetInputDevice) OnInit(args map[string]interface{}, ctx gecko.Context) {
+func (d *AbcNetInputDevice) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	config := conf.WrapImmutableMap(args)
-	ui.maxBufferSize = config.GetInt64OrDefault("bufferSize", 512)
-	ui.readTimeout = config.GetDurationOrDefault("readTimeout", time.Second*3)
-	ui.topic = config.MustString("topic")
+	d.maxBufferSize = config.GetInt64OrDefault("bufferSize", 512)
+	d.readTimeout = config.GetDurationOrDefault("readTimeout", time.Second*3)
+	d.topic = config.MustString("topic")
 }
 
-func (ui *AbcNetInputDevice) OnStart(ctx gecko.Context) {
-	ui.cancelCtx, ui.cancelFun = context.WithCancel(context.Background())
-	if nil == ui.onServeHandler {
-		ui.withTag(log.Warn).Msg("使用默认数据处理接口")
-		if "" == ui.topic {
-			ui.withTag(log.Panic).Msg("使用默认接口必须设置topic参数")
+func (d *AbcNetInputDevice) OnStart(ctx gecko.Context) {
+	d.cancelCtx, d.cancelFun = context.WithCancel(context.Background())
+	if nil == d.onServeHandler {
+		d.withTag(log.Warn).Msg("使用默认数据处理接口")
+		if "" == d.topic {
+			d.withTag(log.Panic).Msg("使用默认接口必须设置topic参数")
 		}
-		ui.onServeHandler = func(bytes []byte, ctx gecko.Context, deliverer gecko.Deliverer) error {
-			return deliverer.Broadcast(ui.topic, gecko.PacketFrame(bytes))
+		d.onServeHandler = func(bytes []byte, ctx gecko.Context, deliverer gecko.Deliverer) error {
+			return deliverer.Broadcast(d.topic, gecko.PacketFrame(bytes))
 		}
 	}
 }
 
-func (ui *AbcNetInputDevice) OnStop(ctx gecko.Context) {
-	ui.cancelFun()
+func (d *AbcNetInputDevice) OnStop(ctx gecko.Context) {
+	d.cancelFun()
 }
 
-func (ui *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer) error {
-	if nil == ui.onServeHandler {
+func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer) error {
+	if nil == d.onServeHandler {
 		return errors.New("未设置onServeHandler接口")
 	}
-	address := ui.GetUnionAddress()
-	ui.withTag(log.Info).Msgf("使用%s服务端模式，监听端口: %s", ui.network, address)
-	if "udp" == ui.network {
+	address := d.GetUnionAddress()
+	d.withTag(log.Info).Msgf("使用%s服务端模式，监听端口: %s", d.network, address)
+	if "udp" == d.network {
 		if addr, err := net.ResolveUDPAddr("udp", address); err != nil {
 			return errors.New("无法创建UDP地址: " + address)
 		} else {
 			if conn, err := net.ListenUDP("udp", addr); nil != err {
 				return err
 			} else {
-				return ui.loop(conn, ctx, deliverer)
+				return d.loop(conn, ctx, deliverer)
 			}
 		}
-	} else if "tcp" == ui.network {
+	} else if "tcp" == d.network {
 		server, err := net.Listen("tcp", address)
 		if nil != err {
 			return err
@@ -79,22 +79,22 @@ func (ui *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer)
 		wg := new(sync.WaitGroup)
 		for {
 			select {
-			case <-ui.cancelCtx.Done():
+			case <-d.cancelCtx.Done():
 				server.Close()
 				return nil
 
 			default:
 				if conn, err := server.Accept(); nil != err {
-					if !ui.isNetTempErr(err) {
-						ui.withTag(log.Error).Err(err).Msg("TCP服务端网络错误")
+					if !d.isNetTempErr(err) {
+						d.withTag(log.Error).Err(err).Msg("TCP服务端网络错误")
 						return err
 					}
 				} else {
 					go func() {
 						defer wg.Done()
 						wg.Add(1)
-						if err := ui.loop(conn, ctx, deliverer); nil != err {
-							ui.withTag(log.Error).Err(err).Msg("TCP客户端发生错误")
+						if err := d.loop(conn, ctx, deliverer); nil != err {
+							d.withTag(log.Error).Err(err).Msg("TCP客户端发生错误")
 						}
 					}()
 				}
@@ -103,21 +103,28 @@ func (ui *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer)
 		wg.Wait()
 		return nil
 	} else {
-		return errors.New("未识别的网络连接模式: " + ui.network)
+		return errors.New("未识别的网络连接模式: " + d.network)
 	}
 }
 
-func (ui *AbcNetInputDevice) loop(conn net.Conn, ctx gecko.Context, deliverer gecko.Deliverer) error {
+// 由于不需要返回响应数据到NetInputDevice，Encoder编码器可以不做业务处理
+func (d *AbcNetInputDevice) GetEncoder() gecko.Encoder {
+	return func(data map[string]interface{}) ([]byte, error) {
+		return []byte{}, nil
+	}
+}
+
+func (d *AbcNetInputDevice) loop(conn net.Conn, ctx gecko.Context, deliverer gecko.Deliverer) error {
 	defer conn.Close()
-	buffer := make([]byte, ui.maxBufferSize)
+	buffer := make([]byte, d.maxBufferSize)
 	for {
 		select {
-		case <-ui.cancelCtx.Done():
+		case <-d.cancelCtx.Done():
 			return nil
 
 		default:
-			if err := conn.SetReadDeadline(time.Now().Add(ui.readTimeout)); nil != err {
-				if !ui.isNetTempErr(err) {
+			if err := conn.SetReadDeadline(time.Now().Add(d.readTimeout)); nil != err {
+				if !d.isNetTempErr(err) {
 					return err
 				} else {
 					continue
@@ -125,12 +132,12 @@ func (ui *AbcNetInputDevice) loop(conn net.Conn, ctx gecko.Context, deliverer ge
 			}
 
 			if n, err := conn.Read(buffer); nil != err {
-				if !ui.isNetTempErr(err) {
+				if !d.isNetTempErr(err) {
 					return err
 				}
 			} else if n > 0 {
 				frame := gecko.NewPackFrame(buffer[:n])
-				if err := ui.onServeHandler(frame, ctx, deliverer); nil != err {
+				if err := d.onServeHandler(frame, ctx, deliverer); nil != err {
 					return err
 				}
 			}
@@ -147,10 +154,10 @@ func (*AbcNetInputDevice) isNetTempErr(err error) bool {
 }
 
 // 设置Serve处理函数
-func (ui *AbcNetInputDevice) SetServeHandler(handler func([]byte, gecko.Context, gecko.Deliverer) error) {
-	ui.onServeHandler = handler
+func (d *AbcNetInputDevice) SetServeHandler(handler func([]byte, gecko.Context, gecko.Deliverer) error) {
+	d.onServeHandler = handler
 }
 
-func (ui *AbcNetInputDevice) withTag(f func() *zerolog.Event) *zerolog.Event {
+func (d *AbcNetInputDevice) withTag(f func() *zerolog.Event) *zerolog.Event {
 	return f().Str("tag", "AbcNetInputDevice")
 }
