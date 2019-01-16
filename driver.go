@@ -13,9 +13,8 @@ type Driver interface {
 	Handle(session Session, deliverer OutputDeliverer, ctx Context) error
 }
 
-////
+//// Driver抽象实现
 
-// Driver抽象实现
 type AbcDriver struct {
 	Driver
 	topics []*TopicExpr

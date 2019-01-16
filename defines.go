@@ -17,3 +17,11 @@ type BundleFactory func() interface{}
 
 // 编码解码工厂函数
 type CodecFactory func() interface{}
+
+// Plugin 用于隔离其它类型与 Bundle 的类型。
+type Plugin interface {
+	Bundle
+}
+
+// 生命周期Hook
+type HookFunc func(pipeline *Pipeline)

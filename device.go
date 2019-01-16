@@ -4,7 +4,8 @@ package gecko
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-// 硬件抽象，提供通讯地址和命名接口，以及支持的通讯协议
+// VirtualDevice是对硬件的抽象；
+// 提供通讯地址和命名接口，以及支持的通讯协议
 type VirtualDevice interface {
 	Bundle
 	// 属组地址
