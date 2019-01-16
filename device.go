@@ -41,6 +41,22 @@ type InputDevice interface {
 	Serve(ctx Context, deliverer Deliverer) error
 }
 
+// Deliverer，用于InputDevice发起输入事件，获取其返回的响应数据。
+type Deliverer func(topic string, frame PacketFrame) (PacketFrame, error)
+
+// 只发送事件通知，忽略响应结果
+func (d Deliverer) Broadcast(topic string, frame PacketFrame) error {
+	_, err := d(topic, frame)
+	return err
+}
+
+// 发送事件请求，并获取结果
+func (d Deliverer) Execute(topic string, frame PacketFrame) (PacketFrame, error) {
+	return d(topic, frame)
+}
+
+////
+
 // AbcInputDevice
 type AbcInputDevice struct {
 	InputDevice
@@ -106,6 +122,8 @@ type OutputDevice interface {
 	// 设备对象接收控制事件；经设备驱动处理后，返回处理结果事件；
 	Process(frame PacketFrame, ctx Context) (PacketFrame, error)
 }
+
+////
 
 // AbcOutputDevice
 type AbcOutputDevice struct {

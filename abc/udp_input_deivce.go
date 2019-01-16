@@ -51,7 +51,7 @@ func (ur *UdpInputDevice) OnStart(ctx gecko.Context) {
 			ur.withTag(log.Panic).Msg("使用默认接口必须设置topic参数")
 		}
 		ur.onServeHandler = func(bytes []byte, ctx gecko.Context, deliverer gecko.Deliverer) error {
-			return deliverer.DeliverPublish(ur.topic, gecko.PacketFrame(bytes))
+			return deliverer.Broadcast(ur.topic, gecko.PacketFrame(bytes))
 		}
 	}
 }

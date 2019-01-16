@@ -33,7 +33,7 @@ type Context interface {
 	// Globals中是否开启了 loggingVerbose 标记位
 	IsVerboseEnabled() bool
 
-	// 返回是否在Globals中配置了快速失败标记位
+	// 返回是否在Globals中配置了快速失败标记位 failFastEnabled 字段设置
 	IsFailFastEnabled() bool
 
 	// 如果Globals设置了Verbose标记，则调用此函数
@@ -42,8 +42,7 @@ type Context interface {
 	// 如果启用了FailFast标记则调用此函数
 	OnIfFailFast(fun func())
 
-	// 向Context添加Key-Value数据
-	// 添加的Key不可重复
+	// 向Context添加Key-Value数据。注意：添加的Key不可重复
 	PutMagic(key interface{}, value interface{})
 
 	// 读取Context的KeyValue数据
