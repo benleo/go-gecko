@@ -161,6 +161,12 @@ func (pl *Pipeline) Start() {
 	x.ForEach(pl.plugins, func(it interface{}) {
 		pl.checkDefTimeout("Plugin.Start", it.(Plugin).OnStart)
 	})
+	// Outputs
+	x.ForEach(pl.outputs, func(it interface{}) {
+		pl.ctx.CheckTimeout("Output.Start", DefaultLifeCycleTimeout, func() {
+			it.(OutputDevice).OnStart(pl.ctx)
+		})
+	})
 	// Drivers
 	x.ForEach(pl.drivers, func(it interface{}) {
 		pl.checkDefTimeout("Driver.Start", it.(Driver).OnStart)
@@ -199,13 +205,19 @@ func (pl *Pipeline) Stop() {
 	}()
 	// Inputs
 	x.ForEach(pl.inputs, func(it interface{}) {
-		pl.ctx.CheckTimeout("Trigger.Stop", DefaultLifeCycleTimeout, func() {
+		pl.ctx.CheckTimeout("Input.Stop", DefaultLifeCycleTimeout, func() {
 			it.(InputDevice).OnStop(pl.ctx)
 		})
 	})
 	// Drivers
 	x.ForEach(pl.drivers, func(it interface{}) {
 		pl.checkDefTimeout("Driver.Stop", it.(Driver).OnStop)
+	})
+	// Outputs
+	x.ForEach(pl.outputs, func(it interface{}) {
+		pl.ctx.CheckTimeout("Output.Stop", DefaultLifeCycleTimeout, func() {
+			it.(OutputDevice).OnStop(pl.ctx)
+		})
 	})
 	// Plugin
 	x.ForEach(pl.plugins, func(it interface{}) {
