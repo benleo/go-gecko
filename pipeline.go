@@ -269,7 +269,7 @@ func (pl *Pipeline) handleInterceptor(session Session) {
 			pl.withTag(log.Debug).Err(err).Msgf("拦截器中断事件： %s", err.Error())
 			session.Outbound().AddDataField("error", "InterceptorDropped")
 			// 终止，输出处理
-			session.AddAttribute("Escaped@Interceptor", session.Escaped())
+			session.AddAttribute("Since@Interceptor", session.Escaped())
 			pl.output(session)
 			return
 		} else {
@@ -277,7 +277,7 @@ func (pl *Pipeline) handleInterceptor(session Session) {
 		}
 	}
 	// 继续
-	session.AddAttribute("Escaped@Interceptor", session.Escaped())
+	session.AddAttribute("Since@Interceptor", session.Escaped())
 	pl.dispatcher.Lv1() <- session
 }
 
@@ -308,7 +308,7 @@ func (pl *Pipeline) handleDriver(session Session) {
 		}
 	}
 	// 输出处理
-	session.AddAttribute("Escaped@Driver", session.Escaped())
+	session.AddAttribute("Since@Driver", session.Escaped())
 	pl.output(session)
 }
 

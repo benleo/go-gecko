@@ -25,7 +25,7 @@ type Session interface {
 	Timestamp() time.Time
 
 	// 从创建起始，到当前时间的用时
-	Escaped() time.Duration
+	Since() time.Duration
 
 	// 当前事件的Topic
 	Topic() string
@@ -85,6 +85,6 @@ func (si *_GeckoSession) Outbound() *Outbound {
 	return si.outbound
 }
 
-func (si *_GeckoSession) Escaped() time.Duration {
-	return time.Now().Sub(si.Timestamp())
+func (si *_GeckoSession) Since() time.Duration {
+	return time.Since(si.Timestamp())
 }
