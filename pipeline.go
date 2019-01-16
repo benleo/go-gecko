@@ -102,6 +102,7 @@ func (pl *Pipeline) prepareEnv() {
 				if strings.HasPrefix(addr, groupAddr) {
 					if _, err := dev.Process(frame, pl.ctx); nil != err {
 						pl.withTag(log.Error).Err(err).Msgf("OutputDevice处理广播错误： %s", x.SimpleClassName(dev))
+						return nil, err
 					}
 				}
 			}
@@ -304,8 +305,6 @@ func (pl *Pipeline) handleDriver(session Session) {
 			if nil != err {
 				pl.failFastLogger().Err(err).Msgf("用户驱动发生错误： %s", err.Error())
 			}
-		} else {
-			continue
 		}
 	}
 	// 输出处理
