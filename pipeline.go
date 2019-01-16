@@ -341,6 +341,10 @@ func (pl *Pipeline) failFastLogger() *zerolog.Event {
 	}
 }
 
+func (pl *Pipeline) withTag(f func() *zerolog.Event) *zerolog.Event {
+	return f().Str("tag", "Pipeline")
+}
+
 func newGeckoContext(config map[string]interface{}) *_GeckoContext {
 	mapConf := conf.WrapImmutableMap(config)
 	return &_GeckoContext{
