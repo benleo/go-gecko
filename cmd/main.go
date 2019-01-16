@@ -20,6 +20,8 @@ func main() {
 
 		pipeline.RegisterBundleFactory(abc.UDPInputDeviceFactory())
 		pipeline.RegisterBundleFactory(abc.UDPOutputDeviceFactory())
+		pipeline.RegisterBundleFactory(abc.TCPInputDeviceFactory())
+		pipeline.RegisterBundleFactory(abc.TCPOutputDeviceFactory())
 
 		pipeline.RegisterBundleFactory(nop.NopDriverFactory())
 		pipeline.RegisterBundleFactory(nop.NopInterceptorFactor())

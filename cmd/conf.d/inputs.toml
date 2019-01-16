@@ -1,4 +1,4 @@
-# 网络服务触发器，可以接收TCP/UDP网络数据包
+# UDP服务端模式设备
 [INPUTS.UDPInputDevice]
   disable = false
   type = "UDPInputDevice"
@@ -11,3 +11,17 @@
   bufferSize = 64
   readTimeout = "3s"
   topic = "/demo/udp/input"
+
+# TCP服务端模式设备
+[INPUTS.TCPInputDevice]
+  disable = false
+  type = "TCPInputDevice"
+  displayName = "TCPInputDevice"
+  groupAddress = "0.0.0.0"
+  privateAddress = "5571"
+  encoder = "JSONDefaultEncoder"
+  decoder = "JSONDefaultDecoder"
+[INPUTS.TCPInputDevice.InitArgs]
+  bufferSize = 64
+  readTimeout = "3s"
+  topic = "/demo/tcp/input"

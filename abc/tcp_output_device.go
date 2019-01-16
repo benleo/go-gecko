@@ -12,15 +12,11 @@ func TCPOutputDeviceFactory() (string, gecko.BundleFactory) {
 
 func NewTCPOutputDevice() *TCPOutputDevice {
 	return &TCPOutputDevice{
-		NetOutputDevice: NewNetOutputDevice(),
+		NetOutputDevice: NewNetOutputDevice("tcp"),
 	}
 }
 
 // TCP客户端输出设备
 type TCPOutputDevice struct {
 	*NetOutputDevice
-}
-
-func (*TCPOutputDevice) Network() string {
-	return "tcp"
 }
