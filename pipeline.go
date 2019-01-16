@@ -239,9 +239,7 @@ func (pl *Pipeline) handleInterceptor(session Session) {
 	pl.ctx.OnIfLogV(func() {
 		pl.withTag(log.Debug).Msgf("Interceptor调度处理，Topic: %s", session.Topic())
 	})
-	session.AddAttribute("Interceptor.Start", time.Now())
 	defer func() {
-		session.AddAttribute("Interceptor.End", session.Escaped())
 		pl.checkRecover(recover(), "Interceptor-Goroutine内部错误")
 	}()
 	// 查找匹配的拦截器，按优先级排序并处理
@@ -270,6 +268,7 @@ func (pl *Pipeline) handleInterceptor(session Session) {
 			pl.withTag(log.Debug).Err(err).Msgf("拦截器中断事件： %s", err.Error())
 			session.Outbound().AddDataField("error", "InterceptorDropped")
 			// 终止，输出处理
+			session.AddAttribute("Escaped@Interceptor", session.Escaped())
 			pl.output(session)
 			return
 		} else {
@@ -277,6 +276,7 @@ func (pl *Pipeline) handleInterceptor(session Session) {
 		}
 	}
 	// 继续
+	session.AddAttribute("Escaped@Interceptor", session.Escaped())
 	pl.dispatcher.Lv1() <- session
 }
 
@@ -285,9 +285,7 @@ func (pl *Pipeline) handleDriver(session Session) {
 	pl.ctx.OnIfLogV(func() {
 		pl.withTag(log.Debug).Msgf("Driver调度处理，Topic: %s", session.Topic())
 	})
-	session.AddAttribute("Driver.Start", time.Now())
 	defer func() {
-		session.AddAttribute("Driver.End", session.Escaped())
 		pl.checkRecover(recover(), "Driver-Goroutine内部错误")
 	}()
 
@@ -311,6 +309,7 @@ func (pl *Pipeline) handleDriver(session Session) {
 		}
 	}
 	// 输出处理
+	session.AddAttribute("Escaped@Driver", session.Escaped())
 	pl.output(session)
 }
 
@@ -321,9 +320,7 @@ func (pl *Pipeline) output(session Session) {
 			pl.withTag(log.Debug).Msgf("SessionAttr: %s = %v", k, v)
 		})
 	})
-	session.AddAttribute("Output.Start", time.Now())
 	defer func() {
-		session.AddAttribute("Output.End", session.Escaped())
 		pl.checkRecover(recover(), "Output-Goroutine内部错误")
 	}()
 	session.(*_GeckoSession).onSessionCompleted(session.Outbound().Data)
