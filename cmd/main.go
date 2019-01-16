@@ -18,8 +18,8 @@ func main() {
 		pipeline.RegisterCodecFactory(gecko.JSONDefaultEncoderFactory())
 		pipeline.RegisterCodecFactory(gecko.JSONDefaultDecoderFactory())
 
-		pipeline.RegisterBundleFactory(abc.UdpInputDeviceFactory())
-		pipeline.RegisterBundleFactory(abc.UdpOutputDeviceFactory())
+		pipeline.RegisterBundleFactory(abc.UDPInputDeviceFactory())
+		pipeline.RegisterBundleFactory(abc.UDPOutputDeviceFactory())
 
 		pipeline.RegisterBundleFactory(nop.NopDriverFactory())
 		pipeline.RegisterBundleFactory(nop.NopInterceptorFactor())

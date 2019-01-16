@@ -1,11 +1,11 @@
-[OUTPUTS.UdpOutputDevice]
+[OUTPUTS.UDPOutputDevice]
   disable = false
-  type = "UdpOutputDevice"
-  displayName = "UdpOutputDevice"
+  type = "UDPOutputDevice"
+  displayName = "UDPOutputDevice"
   groupAddress = "127.0.0.1"
   privateAddress = 60000
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
-[OUTPUTS.UdpOutputDevice.InitArgs]
+[OUTPUTS.UDPOutputDevice.InitArgs]
   bufferSize = 64
   writeTimeout = "3s"
