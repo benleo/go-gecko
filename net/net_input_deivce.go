@@ -68,7 +68,7 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 			if conn, err := net.ListenUDP("udp", addr); nil != err {
 				return err
 			} else {
-				return d.loop(conn, ctx, deliverer)
+				return d.receiveLoop(conn, ctx, deliverer)
 			}
 		}
 	} else if "tcp" == d.network {
@@ -84,7 +84,7 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 				return nil
 
 			default:
-				if conn, err := server.Accept(); nil != err {
+				if client, err := server.Accept(); nil != err {
 					if !d.isNetTempErr(err) {
 						d.withTag(log.Error).Err(err).Msg("TCP服务端网络错误")
 						return err
@@ -93,13 +93,14 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 					go func() {
 						defer wg.Done()
 						wg.Add(1)
-						if err := d.loop(conn, ctx, deliverer); nil != err {
+						if err := d.receiveLoop(client, ctx, deliverer); nil != err {
 							d.withTag(log.Error).Err(err).Msg("TCP客户端发生错误")
 						}
 					}()
 				}
 			}
 		}
+		// 等待所有客户端中断完成后
 		wg.Wait()
 		return nil
 	} else {
@@ -118,7 +119,7 @@ func (d *AbcNetInputDevice) Topic() string {
 	return d.topic
 }
 
-func (d *AbcNetInputDevice) loop(conn net.Conn, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
+func (d *AbcNetInputDevice) receiveLoop(conn net.Conn, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 	defer conn.Close()
 	buffer := make([]byte, d.maxBufferSize)
 	for {
