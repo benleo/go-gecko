@@ -19,6 +19,10 @@ func NewPacketMap(m map[string]interface{}) PacketMap {
 	return PacketMap(m)
 }
 
+func NewPacketMapCapacity(capacity int) PacketMap {
+	return NewPacketMap(make(map[string]interface{}, capacity))
+}
+
 ////
 
 // 字节数据消息包
@@ -36,4 +40,8 @@ func (pf PacketFrame) Data() []byte {
 
 func NewPackFrame(frame []byte) PacketFrame {
 	return PacketFrame(frame)
+}
+
+func NewPackFrameSize(size int) PacketFrame {
+	return NewPackFrame(make([]byte, size))
 }
