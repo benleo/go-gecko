@@ -3,6 +3,7 @@ package gecko
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/parkingwang/go-conf"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -39,8 +40,8 @@ func SharedPipeline() *Pipeline {
 type Pipeline struct {
 	*Registration
 	ctx      Context
-	serve    func(device InputDevice) Deliverer
-	executor OutputExecutor
+	serve    func(device InputDevice) InputDeliverer
+	executor OutputDeliverer
 	// 事件派发
 	dispatcher *Dispatcher
 	// Pipeline关闭的信号控制
@@ -52,7 +53,7 @@ type Pipeline struct {
 func (pl *Pipeline) prepareEnv() {
 	pl.shutdownCtx, pl.shutdownFunc = context.WithCancel(context.Background())
 	// 创建输入调度的处理
-	pl.serve = func(device InputDevice) Deliverer {
+	pl.serve = func(device InputDevice) InputDeliverer {
 		return func(topic string, frame PacketFrame) (PacketFrame, error) {
 			// 解码
 			input, deErr := device.GetDecoder()(frame.Data())
@@ -61,7 +62,7 @@ func (pl *Pipeline) prepareEnv() {
 				return nil, deErr
 			}
 			// 处理
-			output := make(chan map[string]interface{}, 1)
+			ret := make(chan PacketMap, 1)
 			pl.dispatcher.Lv0() <- &_GeckoSession{
 				timestamp:  time.Now(),
 				attributes: make(map[string]interface{}),
@@ -75,12 +76,12 @@ func (pl *Pipeline) prepareEnv() {
 					Topic: topic,
 					Data:  make(map[string]interface{}),
 				},
-				onSessionCompleted: func(data map[string]interface{}) {
-					output <- data
+				onSessionCompleted: func(data PacketMap) {
+					ret <- data
 				},
 			}
 			// 编码
-			if bytes, err := device.GetEncoder()(<-output); nil != err {
+			if bytes, err := device.GetEncoder()(<-ret); nil != err {
 				pl.withTag(log.Error).Err(err).Msgf("InputDevice编码/Encode错误： %s", x.SimpleClassName(device))
 				return nil, err
 			} else {
@@ -89,20 +90,45 @@ func (pl *Pipeline) prepareEnv() {
 		}
 	}
 	// 搜索设备，并执行
-	pl.executor = OutputExecutor(func(unionOrGroupAddress string, isUnionAddress bool, frame PacketFrame) (PacketFrame, error) {
+	pl.executor = OutputDeliverer(func(unionOrGroupAddress string, isUnionAddress bool, data PacketMap) (PacketMap, error) {
 		if isUnionAddress {
 			if device, ok := pl.namedOutputs[unionOrGroupAddress]; ok {
-				return device.Process(frame, pl.ctx)
+				frame, dErr := device.GetEncoder().Encode(data)
+				if nil != dErr {
+					return nil, dErr
+				}
+				ret, pErr := device.Process(frame, pl.ctx)
+				if nil != pErr {
+					return nil, pErr
+				}
+				if pm, err := device.GetDecoder().Decode(ret); nil != err {
+					return nil, err
+				} else {
+					return pm, nil
+				}
 			} else {
 				return nil, errors.New("OutputDeviceNotFound:" + unionOrGroupAddress)
 			}
 		} else /*is Group Address*/ {
 			groupAddr := unionOrGroupAddress
-			for addr, dev := range pl.namedOutputs {
-				if strings.HasPrefix(addr, groupAddr) {
-					if _, err := dev.Process(frame, pl.ctx); nil != err {
-						pl.withTag(log.Error).Err(err).Msgf("OutputDevice处理广播错误： %s", x.SimpleClassName(dev))
-						return nil, err
+			for addr, device := range pl.namedOutputs {
+				// 忽略GroupAddress不匹配的设备
+				if !strings.HasPrefix(addr, groupAddr) {
+					continue
+				}
+				frame, dErr := device.GetEncoder().Encode(data)
+				if nil != dErr {
+					return nil, dErr
+				}
+				if ret, err := device.Process(frame, pl.ctx); nil != err {
+					pl.withTag(log.Error).Err(err).Msgf("OutputDevice[%s]处理广播事件发生错误", addr)
+					return nil, err
+				} else {
+					if nil != ret {
+						if pm, err := device.GetDecoder().Decode(ret); nil == err {
+							pl.withTag(log.Debug).Str("resp", fmt.Sprintf("%s", pm)).
+								Msgf("OutputDevice[%s]返回响应： %s", addr)
+						}
 					}
 				}
 			}

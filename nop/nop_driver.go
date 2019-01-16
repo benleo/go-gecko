@@ -35,8 +35,10 @@ func (du *NopDriver) OnStop(ctx gecko.Context) {
 	du.withTag(log.Debug).Msg("停止...")
 }
 
-func (du *NopDriver) Handle(session gecko.Session, executor gecko.OutputExecutor, ctx gecko.Context) error {
-	executor.Broadcast("127.0.0.1", gecko.PacketFrame([]byte("HAHAHAHA")))
+func (du *NopDriver) Handle(session gecko.Session, executor gecko.OutputDeliverer, ctx gecko.Context) error {
+	executor.Broadcast("127.0.0.1", gecko.PacketMap{
+		"A": "b",
+	})
 	//if pipeline, ok := selector("udp"); !ok {
 	//	return errors.New("无法查找到udp协议对应的Pipeline")
 	//} else {

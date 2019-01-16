@@ -27,7 +27,7 @@ type AbcNetInputDevice struct {
 	readTimeout    time.Duration
 	cancelCtx      context.Context
 	cancelFun      context.CancelFunc
-	onServeHandler func(bytes []byte, ctx gecko.Context, deliverer gecko.Deliverer) error
+	onServeHandler func(bytes []byte, ctx gecko.Context, deliverer gecko.InputDeliverer) error
 	topic          string
 }
 
@@ -45,7 +45,7 @@ func (d *AbcNetInputDevice) OnStart(ctx gecko.Context) {
 		if "" == d.topic {
 			d.withTag(log.Panic).Msg("使用默认接口必须设置topic参数")
 		}
-		d.onServeHandler = func(bytes []byte, ctx gecko.Context, deliverer gecko.Deliverer) error {
+		d.onServeHandler = func(bytes []byte, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 			return deliverer.Broadcast(d.topic, gecko.PacketFrame(bytes))
 		}
 	}
@@ -55,7 +55,7 @@ func (d *AbcNetInputDevice) OnStop(ctx gecko.Context) {
 	d.cancelFun()
 }
 
-func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer) error {
+func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 	if nil == d.onServeHandler {
 		return errors.New("未设置onServeHandler接口")
 	}
@@ -109,12 +109,12 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer) 
 
 // 由于不需要返回响应数据到NetInputDevice，Encoder编码器可以不做业务处理
 func (d *AbcNetInputDevice) GetEncoder() gecko.Encoder {
-	return func(data map[string]interface{}) ([]byte, error) {
-		return []byte{}, nil
+	return func(data gecko.PacketMap) (gecko.PacketFrame, error) {
+		return gecko.NewPackFrame([]byte{}), nil
 	}
 }
 
-func (d *AbcNetInputDevice) loop(conn net.Conn, ctx gecko.Context, deliverer gecko.Deliverer) error {
+func (d *AbcNetInputDevice) loop(conn net.Conn, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 	defer conn.Close()
 	buffer := make([]byte, d.maxBufferSize)
 	for {
@@ -154,7 +154,7 @@ func (*AbcNetInputDevice) isNetTempErr(err error) bool {
 }
 
 // 设置Serve处理函数
-func (d *AbcNetInputDevice) SetServeHandler(handler func([]byte, gecko.Context, gecko.Deliverer) error) {
+func (d *AbcNetInputDevice) SetServeHandler(handler func([]byte, gecko.Context, gecko.InputDeliverer) error) {
 	d.onServeHandler = handler
 }
 

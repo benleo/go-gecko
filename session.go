@@ -46,7 +46,7 @@ type _GeckoSession struct {
 	topic              string
 	inbound            *Inbound
 	outbound           *Outbound
-	onSessionCompleted func(data map[string]interface{})
+	onSessionCompleted func(PacketMap)
 }
 
 func (si *_GeckoSession) Attributes() *conf.ImmutableMap {

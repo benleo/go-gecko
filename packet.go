@@ -8,7 +8,20 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-// 消息包载体
+// JSON结构数据消息包
+type PacketMap map[string]interface{}
+
+func (pm PacketMap) Add(key string, value interface{}) {
+	pm[key] = value
+}
+
+func NewPacketMap(m map[string]interface{}) PacketMap {
+	return PacketMap(m)
+}
+
+////
+
+// 字节数据消息包
 type PacketFrame []byte
 
 // 返回一个Reader接口

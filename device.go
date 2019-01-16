@@ -38,21 +38,7 @@ func MakeUnionAddress(group, private string) string {
 type InputDevice interface {
 	VirtualDevice
 	// 监听设备的输入数据。如果设备发生错误，返回错误信息。
-	Serve(ctx Context, deliverer Deliverer) error
-}
-
-// Deliverer，用于InputDevice发起输入事件，获取其返回的响应数据。
-type Deliverer func(topic string, frame PacketFrame) (PacketFrame, error)
-
-// 只发送事件通知，忽略响应结果
-func (d Deliverer) Broadcast(topic string, frame PacketFrame) error {
-	_, err := d(topic, frame)
-	return err
-}
-
-// 发送事件请求，并获取结果
-func (d Deliverer) Execute(topic string, frame PacketFrame) (PacketFrame, error) {
-	return d(topic, frame)
+	Serve(ctx Context, deliverer InputDeliverer) error
 }
 
 ////
