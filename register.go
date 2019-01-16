@@ -242,7 +242,9 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 			}
 
 			if name := config.MustString("encoder"); "" == name {
-				re.withTag(log.Panic).Msgf("VirtualDevice[%s]配置项[encoder]是必填参数", bundleType)
+				if nil == device.GetEncoder() {
+					re.withTag(log.Panic).Msgf("未设置默认Encoder时，Device[%s]配置项[encoder]是必填参数", bundleType)
+				}
 			} else {
 				if encoder, ok := re.namedEncoders[name]; ok {
 					device.setEncoder(encoder)
@@ -252,7 +254,9 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 			}
 
 			if name := config.MustString("decoder"); "" == name {
-				re.withTag(log.Panic).Msgf("VirtualDevice[%s]配置项[decoder]是必填参数", bundleType)
+				if nil == device.GetDecoder() {
+					re.withTag(log.Panic).Msgf("未设置默认Decoder时，Device[%s]配置项[decoder]是必填参数", bundleType)
+				}
 			} else {
 				if decoder, ok := re.namedDecoders[name]; ok {
 					device.setDecoder(decoder)
