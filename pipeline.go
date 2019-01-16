@@ -97,8 +97,9 @@ func (pl *Pipeline) prepareEnv() {
 				return nil, errors.New("OutputDeviceNotFound:" + unionOrGroupAddress)
 			}
 		} else /*is Group Address*/ {
+			groupAddr := unionOrGroupAddress
 			for addr, dev := range pl.namedOutputs {
-				if strings.HasPrefix(addr, "/"+unionOrGroupAddress) {
+				if strings.HasPrefix(addr, groupAddr) {
 					if _, err := dev.Process(frame, pl.ctx); nil != err {
 						pl.withTag(log.Error).Err(err).Msgf("OutputDevice处理广播错误： %s", x.SimpleClassName(dev))
 					}
@@ -157,7 +158,7 @@ func (pl *Pipeline) Start() {
 		})
 		pl.withTag(log.Info).Msgf("Pipeline启动...OK")
 	}()
-	// Plugin
+	// Plugins
 	x.ForEach(pl.plugins, func(it interface{}) {
 		pl.checkDefTimeout("Plugin.Start", it.(Plugin).OnStart)
 	})
@@ -182,7 +183,7 @@ func (pl *Pipeline) Start() {
 		device := it.(InputDevice)
 		go func() {
 			if err := device.Serve(pl.ctx, pl.serve(device)); nil != err {
-				pl.withTag(log.Error).Err(err).Msgf("启动Input服务失败： %s", x.SimpleClassName(device))
+				pl.withTag(log.Error).Err(err).Msgf("InputDevice[%s]服务运行错误：", x.SimpleClassName(device))
 			}
 		}()
 	})
@@ -219,7 +220,7 @@ func (pl *Pipeline) Stop() {
 			it.(OutputDevice).OnStop(pl.ctx)
 		})
 	})
-	// Plugin
+	// Plugins
 	x.ForEach(pl.plugins, func(it interface{}) {
 		pl.checkDefTimeout("Plugin.Stop", it.(Plugin).OnStop)
 	})

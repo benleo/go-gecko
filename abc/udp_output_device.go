@@ -66,11 +66,6 @@ func (uo *UdpOutputDevice) Process(frame gecko.PacketFrame, ctx gecko.Context) (
 	}
 }
 
-// 改写Union地址的拼接方式
-func (uo *UdpOutputDevice) GetUnionAddress() string {
-	return uo.GetGroupAddress() + ":" + uo.GetPrivateAddress()
-}
-
 func (uo *UdpOutputDevice) withTag(f func() *zerolog.Event) *zerolog.Event {
 	return f().Str("tag", "UdpOutputDevice")
 }

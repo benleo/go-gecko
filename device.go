@@ -27,6 +27,11 @@ type VirtualDevice interface {
 	GetEncoder() Encoder
 }
 
+// 构建Union地址
+func MakeUnionAddress(group, private string) string {
+	return group + ":" + private
+}
+
 //// Input
 
 // Input设备是表示向系统输入数据的设备
@@ -86,7 +91,7 @@ func (dev *AbcInputDevice) GetPrivateAddress() string {
 }
 
 func (dev *AbcInputDevice) GetUnionAddress() string {
-	return "/" + dev.groupAddress + "/" + dev.privateAddress
+	return MakeUnionAddress(dev.groupAddress, dev.privateAddress)
 }
 
 func NewAbcInputDevice() *AbcInputDevice {
@@ -153,7 +158,7 @@ func (dev *AbcOutputDevice) GetPrivateAddress() string {
 }
 
 func (dev *AbcOutputDevice) GetUnionAddress() string {
-	return "/" + dev.groupAddress + "/" + dev.privateAddress
+	return MakeUnionAddress(dev.groupAddress, dev.privateAddress)
 }
 
 func NewAbcOutputDevice() *AbcOutputDevice {

@@ -110,11 +110,6 @@ func (ur *UdpInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer) er
 	return nil
 }
 
-// 改写Union地址的拼接方式
-func (ur *UdpInputDevice) GetUnionAddress() string {
-	return ur.GetGroupAddress() + ":" + ur.GetPrivateAddress()
-}
-
 // 设置Serve处理函数
 func (ur *UdpInputDevice) SetServeHandler(handler func([]byte, gecko.Context, gecko.Deliverer) error) {
 	ur.onServeHandler = handler
