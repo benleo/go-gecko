@@ -4,7 +4,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yoojia/go-gecko"
-	"github.com/yoojia/go-gecko/abc"
+	"github.com/yoojia/go-gecko/net"
 	"github.com/yoojia/go-gecko/nop"
 	"os"
 )
@@ -18,10 +18,10 @@ func main() {
 		pipeline.RegisterCodecFactory(gecko.JSONDefaultEncoderFactory())
 		pipeline.RegisterCodecFactory(gecko.JSONDefaultDecoderFactory())
 
-		pipeline.RegisterBundleFactory(abc.UDPInputDeviceFactory())
-		pipeline.RegisterBundleFactory(abc.UDPOutputDeviceFactory())
-		pipeline.RegisterBundleFactory(abc.TCPInputDeviceFactory())
-		pipeline.RegisterBundleFactory(abc.TCPOutputDeviceFactory())
+		pipeline.RegisterBundleFactory(net.UDPInputDeviceFactory())
+		pipeline.RegisterBundleFactory(net.UDPOutputDeviceFactory())
+		pipeline.RegisterBundleFactory(net.TCPInputDeviceFactory())
+		pipeline.RegisterBundleFactory(net.TCPOutputDeviceFactory())
 
 		pipeline.RegisterBundleFactory(nop.NopDriverFactory())
 		pipeline.RegisterBundleFactory(nop.NopInterceptorFactor())

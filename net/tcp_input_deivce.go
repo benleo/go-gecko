@@ -1,4 +1,4 @@
-package abc
+package net
 
 import (
 	"github.com/yoojia/go-gecko"
@@ -12,11 +12,11 @@ func TCPInputDeviceFactory() (string, gecko.BundleFactory) {
 
 func NewTCPInputDevice() *TCPInputDevice {
 	return &TCPInputDevice{
-		NetInputDevice: NewNetInputDevice("tcp"),
+		AbcNetInputDevice: NewAbcNetInputDevice("tcp"),
 	}
 }
 
 // TCP服务器读取设备
 type TCPInputDevice struct {
-	*NetInputDevice
+	*AbcNetInputDevice
 }

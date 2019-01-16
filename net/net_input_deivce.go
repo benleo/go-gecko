@@ -1,4 +1,4 @@
-package abc
+package net
 
 import (
 	"context"
@@ -12,15 +12,15 @@ import (
 	"time"
 )
 
-func NewNetInputDevice(network string) *NetInputDevice {
-	return &NetInputDevice{
+func NewAbcNetInputDevice(network string) *AbcNetInputDevice {
+	return &AbcNetInputDevice{
 		AbcInputDevice: gecko.NewAbcInputDevice(),
 		network:        network,
 	}
 }
 
 // UDP服务器读取设备
-type NetInputDevice struct {
+type AbcNetInputDevice struct {
 	*gecko.AbcInputDevice
 	network        string
 	maxBufferSize  int64
@@ -31,14 +31,14 @@ type NetInputDevice struct {
 	topic          string
 }
 
-func (ui *NetInputDevice) OnInit(args map[string]interface{}, ctx gecko.Context) {
+func (ui *AbcNetInputDevice) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	config := conf.WrapImmutableMap(args)
 	ui.maxBufferSize = config.GetInt64OrDefault("bufferSize", 512)
 	ui.readTimeout = config.GetDurationOrDefault("readTimeout", time.Second*3)
 	ui.topic = config.MustString("topic")
 }
 
-func (ui *NetInputDevice) OnStart(ctx gecko.Context) {
+func (ui *AbcNetInputDevice) OnStart(ctx gecko.Context) {
 	ui.cancelCtx, ui.cancelFun = context.WithCancel(context.Background())
 	if nil == ui.onServeHandler {
 		ui.withTag(log.Warn).Msg("使用默认数据处理接口")
@@ -51,11 +51,11 @@ func (ui *NetInputDevice) OnStart(ctx gecko.Context) {
 	}
 }
 
-func (ui *NetInputDevice) OnStop(ctx gecko.Context) {
+func (ui *AbcNetInputDevice) OnStop(ctx gecko.Context) {
 	ui.cancelFun()
 }
 
-func (ui *NetInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer) error {
+func (ui *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer) error {
 	if nil == ui.onServeHandler {
 		return errors.New("未设置onServeHandler接口")
 	}
@@ -107,7 +107,7 @@ func (ui *NetInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer) er
 	}
 }
 
-func (ui *NetInputDevice) loop(conn net.Conn, ctx gecko.Context, deliverer gecko.Deliverer) error {
+func (ui *AbcNetInputDevice) loop(conn net.Conn, ctx gecko.Context, deliverer gecko.Deliverer) error {
 	defer conn.Close()
 	buffer := make([]byte, ui.maxBufferSize)
 	for {
@@ -138,7 +138,7 @@ func (ui *NetInputDevice) loop(conn net.Conn, ctx gecko.Context, deliverer gecko
 	}
 }
 
-func (*NetInputDevice) isNetTempErr(err error) bool {
+func (*AbcNetInputDevice) isNetTempErr(err error) bool {
 	if nErr, ok := err.(net.Error); ok {
 		return nErr.Timeout() || nErr.Temporary()
 	} else {
@@ -147,10 +147,10 @@ func (*NetInputDevice) isNetTempErr(err error) bool {
 }
 
 // 设置Serve处理函数
-func (ui *NetInputDevice) SetServeHandler(handler func([]byte, gecko.Context, gecko.Deliverer) error) {
+func (ui *AbcNetInputDevice) SetServeHandler(handler func([]byte, gecko.Context, gecko.Deliverer) error) {
 	ui.onServeHandler = handler
 }
 
-func (ui *NetInputDevice) withTag(f func() *zerolog.Event) *zerolog.Event {
-	return f().Str("tag", "NetInputDevice")
+func (ui *AbcNetInputDevice) withTag(f func() *zerolog.Event) *zerolog.Event {
+	return f().Str("tag", "AbcNetInputDevice")
 }

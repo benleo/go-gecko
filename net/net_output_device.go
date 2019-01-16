@@ -1,4 +1,4 @@
-package abc
+package net
 
 import (
 	"github.com/parkingwang/go-conf"
@@ -9,15 +9,15 @@ import (
 	"time"
 )
 
-func NewNetOutputDevice(network string) *NetOutputDevice {
-	return &NetOutputDevice{
+func NewAbcNetOutputDevice(network string) *AbcNetOutputDevice {
+	return &AbcNetOutputDevice{
 		AbcOutputDevice: gecko.NewAbcOutputDevice(),
 		network:         network,
 	}
 }
 
 // UDP客户端输出设备
-type NetOutputDevice struct {
+type AbcNetOutputDevice struct {
 	*gecko.AbcOutputDevice
 	maxBufferSize int64
 	writeTimeout  time.Duration
@@ -25,13 +25,13 @@ type NetOutputDevice struct {
 	network       string
 }
 
-func (no *NetOutputDevice) OnInit(args map[string]interface{}, ctx gecko.Context) {
+func (no *AbcNetOutputDevice) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	config := conf.WrapImmutableMap(args)
 	no.maxBufferSize = config.GetInt64OrDefault("bufferSize", 512)
 	no.writeTimeout = config.GetDurationOrDefault("writeTimeout", time.Second*10)
 }
 
-func (no *NetOutputDevice) OnStart(ctx gecko.Context) {
+func (no *AbcNetOutputDevice) OnStart(ctx gecko.Context) {
 	address := no.GetUnionAddress()
 	no.withTag(log.Info).Msgf("使用%s客户端模式，远程地址： %s", no.network, address)
 	if "udp" == no.network {
@@ -55,13 +55,13 @@ func (no *NetOutputDevice) OnStart(ctx gecko.Context) {
 	}
 }
 
-func (no *NetOutputDevice) OnStop(ctx gecko.Context) {
+func (no *AbcNetOutputDevice) OnStop(ctx gecko.Context) {
 	if nil != no.netConn {
 		no.netConn.Close()
 	}
 }
 
-func (no *NetOutputDevice) Process(frame gecko.PacketFrame, ctx gecko.Context) (gecko.PacketFrame, error) {
+func (no *AbcNetOutputDevice) Process(frame gecko.PacketFrame, ctx gecko.Context) (gecko.PacketFrame, error) {
 	if err := no.netConn.SetWriteDeadline(time.Now().Add(no.writeTimeout)); nil != err {
 		return nil, err
 	}
@@ -72,6 +72,6 @@ func (no *NetOutputDevice) Process(frame gecko.PacketFrame, ctx gecko.Context) (
 	}
 }
 
-func (no *NetOutputDevice) withTag(f func() *zerolog.Event) *zerolog.Event {
-	return f().Str("tag", "NetOutputDevice")
+func (no *AbcNetOutputDevice) withTag(f func() *zerolog.Event) *zerolog.Event {
+	return f().Str("tag", "AbcNetOutputDevice")
 }

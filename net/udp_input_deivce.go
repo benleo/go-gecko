@@ -1,4 +1,4 @@
-package abc
+package net
 
 import (
 	"github.com/yoojia/go-gecko"
@@ -12,11 +12,11 @@ func UDPInputDeviceFactory() (string, gecko.BundleFactory) {
 
 func NewUDPInputDevice() *UDPInputDevice {
 	return &UDPInputDevice{
-		NetInputDevice: NewNetInputDevice("udp"),
+		AbcNetInputDevice: NewAbcNetInputDevice("udp"),
 	}
 }
 
 // UDP服务器读取设备
 type UDPInputDevice struct {
-	*NetInputDevice
+	*AbcNetInputDevice
 }
