@@ -69,8 +69,16 @@ func (ur *UdpInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer) er
 	if nil != cErr {
 		return cErr
 	}
-	ur.withTag(log.Info).Msgf("开始监听UDP服务端口： %s", address)
+	ur.withTag(log.Info).Msgf("监听UDP服务： %s", address)
 	defer conn.Close()
+
+	isNetTempErr := func(err error) bool {
+		if nErr, ok := err.(net.Error); ok {
+			return nErr.Timeout() || nErr.Temporary()
+		} else {
+			return false
+		}
+	}
 
 	buffer := make([]byte, ur.maxBufferSize)
 	for {
@@ -80,17 +88,22 @@ func (ur *UdpInputDevice) Serve(ctx gecko.Context, deliverer gecko.Deliverer) er
 
 		default:
 			if err := conn.SetReadDeadline(time.Now().Add(ur.readTimeout)); nil != err {
-				// FIXME timeout
-				return err
+				if !isNetTempErr(err) {
+					return err
+				} else {
+					continue
+				}
 			}
-			n, _, err := conn.ReadFrom(buffer)
-			if nil != err {
-				// FIXME timeout
-				return err
-			}
-			frame := gecko.NewPackFrame(buffer[:n])
-			if err := ur.onServeHandler(frame, ctx, deliverer); nil != err {
-				return err
+
+			if n, _, err := conn.ReadFrom(buffer); nil != err {
+				if !isNetTempErr(err) {
+					return err
+				}
+			} else if n > 0 {
+				frame := gecko.NewPackFrame(buffer[:n])
+				if err := ur.onServeHandler(frame, ctx, deliverer); nil != err {
+					return err
+				}
 			}
 		}
 	}
