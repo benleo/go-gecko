@@ -61,8 +61,9 @@ func (ur *UdpOutputDevice) Process(frame gecko.PacketFrame, ctx gecko.Context) (
 	}
 	if _, err := ur.udpConn.Write(frame); nil != err {
 		return nil, err
+	} else {
+		return gecko.PacketFrame([]byte{}), nil
 	}
-	return gecko.PacketFrame([]byte{}), nil
 }
 
 func (ur *UdpOutputDevice) withTag(f func() *zerolog.Event) *zerolog.Event {
