@@ -119,7 +119,7 @@ func (ci *_GeckoContext) IsVerboseEnabled() bool {
 }
 
 func (ci *_GeckoContext) IsFailFastEnabled() bool {
-	return ci.globals.GetBoolOrDefault("failFastEnabled", false)
+	return ci.globals.GetBoolOrDefault("failFastEnable", false)
 }
 
 func (ci *_GeckoContext) OnIfLogV(fun func()) {
