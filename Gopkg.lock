@@ -10,14 +10,6 @@
   version = "v1.1.5"
 
 [[projects]]
-  digest = "1:eb8e331384779e87648f6dd6551e5d7f72fb48ff5372193f7ecbd75d8675c4a0"
-  name = "github.com/kavu/go_reuseport"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "ffa96de2479e10ecd06aca8069bf9c55a86701b5"
-  version = "v1.4.0"
-
-[[projects]]
   digest = "1:33422d238f147d247752996a26574ac48dcf472976eda7f5134015f06bf16563"
   name = "github.com/modern-go/concurrent"
   packages = ["."]
@@ -70,17 +62,6 @@
   revision = "8747b7b3a51b5d08ee7ac50eaf4869edaf9f714a"
   version = "v1.11.0"
 
-[[projects]]
-  digest = "1:cb176e4b023e47d6255cfe046234bce8b64b0c170e7cc74451f02acd4c6eb221"
-  name = "github.com/tidwall/evio"
-  packages = [
-    ".",
-    "internal",
-  ]
-  pruneopts = "UT"
-  revision = "ea610eff86981249be649bbdcedbf409a2db2173"
-  version = "v1.0.1"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -90,7 +71,6 @@
     "github.com/pkg/errors",
     "github.com/rs/zerolog",
     "github.com/rs/zerolog/log",
-    "github.com/tidwall/evio",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

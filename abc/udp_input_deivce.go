@@ -2,12 +2,12 @@ package abc
 
 import (
 	"context"
+	"github.com/parkingwang/go-conf"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yoojia/go-gecko"
 	"net"
-	"parkingwang.com/go-conf"
 	"time"
 )
 
