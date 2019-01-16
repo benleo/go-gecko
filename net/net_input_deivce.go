@@ -114,6 +114,10 @@ func (d *AbcNetInputDevice) GetEncoder() gecko.Encoder {
 	}
 }
 
+func (d *AbcNetInputDevice) Topic() string {
+	return d.topic
+}
+
 func (d *AbcNetInputDevice) loop(conn net.Conn, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 	defer conn.Close()
 	buffer := make([]byte, d.maxBufferSize)
