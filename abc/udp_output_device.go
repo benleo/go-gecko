@@ -31,7 +31,7 @@ type UdpOutputDevice struct {
 
 func (uo *UdpOutputDevice) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	config := conf.WrapImmutableMap(args)
-	uo.maxBufferSize = config.GetInt64OrDefault("bufferSizeKB", 1) * 1024
+	uo.maxBufferSize = config.GetInt64OrDefault("bufferSize", 512)
 	uo.writeTimeout = config.GetDurationOrDefault("writeTimeout", time.Second*10)
 }
 

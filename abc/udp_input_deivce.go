@@ -36,8 +36,8 @@ type UdpInputDevice struct {
 
 func (ur *UdpInputDevice) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	config := conf.WrapImmutableMap(args)
-	ur.maxBufferSize = config.GetInt64OrDefault("bufferSizeKB", 1) * 1024
-	ur.readTimeout = config.GetDurationOrDefault("readTimeout", time.Second*10)
+	ur.maxBufferSize = config.GetInt64OrDefault("bufferSize", 512)
+	ur.readTimeout = config.GetDurationOrDefault("readTimeout", time.Second*3)
 	ur.topic = config.MustString("topic")
 }
 

@@ -8,6 +8,6 @@
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
 [INPUTS.UdpInputDevice.InitArgs]
-  buffSizeKB = 1
+  bufferSize = 64
   readTimeout = "3s"
   topic = "/demo/udp/input"
