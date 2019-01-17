@@ -4,29 +4,35 @@ package gecko
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-// InputDeliverer，用于InputDevice发起输入事件，获取其返回的响应数据。
+// InputDeliverer，用于为InputDevice发起输入事件的接口，并获取系统处理结果数据。
+// InputDeliverer负责传递的数据，是InputDeliverer的原始数据。
+// 当数据从Deliverer输入系统内部时，会由InputDevice的Decoder解析成PacketMap格式；
+// 当内部系统返回处理结果数据时，会由InputDevice的Encoder编码成原始数据格式；
 type InputDeliverer func(topic string, frame PacketFrame) (PacketFrame, error)
 
-// 只发送事件通知，忽略响应结果
+// 扩展函数1：发送事件请求，并获取处理结果；
+func (d InputDeliverer) Execute(topic string, frame PacketFrame) (PacketFrame, error) {
+	return d(topic, frame)
+}
+
+// 扩展函数2：发送事件通知，忽略处理结果；
 func (d InputDeliverer) Broadcast(topic string, frame PacketFrame) error {
 	_, err := d(topic, frame)
 	return err
 }
 
-// 发送事件请求，并获取结果
-func (d InputDeliverer) Execute(topic string, frame PacketFrame) (PacketFrame, error) {
-	return d(topic, frame)
-}
-
-// OutputDeliverer，用于OutputDevice输出事件，它负责向指定地址的设备，发送数据
+// OutputDeliverer，用于向OutputDevice输出控制事件的接口，并获取设备处理结果数据；
+// OutputDeliverer所传递的数据格式，是系统内部的统一数据PacketMap；
+// 当内部系统向OutputDevice输出数据时，由OutputDevice的Encoder编码成设备原始格式；
+// 当OutputDevice返回处理结果数据时，由其Decoder解码成内部系统格式；
 type OutputDeliverer func(unionOrGroupAddress string, isUnionAddress bool, data PacketMap) (PacketMap, error)
 
-// 执行指定Union地址的设备
+// 扩展函数1：指定Union地址的设备，获取处理结果；
 func (fun OutputDeliverer) Execute(deviceUnionAddress string, frame PacketMap) (PacketMap, error) {
 	return fun(deviceUnionAddress, true, frame)
 }
 
-// 广播给Group地址的全部设备
+// 扩展函数2：通过Group地址，广播给相同Group的设备列表，忽略设备处理结果；
 func (fun OutputDeliverer) Broadcast(deviceGroupAddress string, frame PacketMap) {
 	fun(deviceGroupAddress, false, frame)
 }
