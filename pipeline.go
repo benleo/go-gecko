@@ -138,8 +138,8 @@ func (pl *Pipeline) prepareEnv() {
 }
 
 // 初始化Pipeline
-func (pl *Pipeline) Init(args map[string]interface{}) {
-	geckoCtx := newGeckoContext(args)
+func (pl *Pipeline) Init(config *cfg.Config) {
+	geckoCtx := newGeckoContext(config)
 	pl.ctx = geckoCtx
 	gecko := pl.ctx.gecko()
 	capacity := gecko.GetInt64OrDefault("eventsCapacity", 8)
@@ -150,7 +150,7 @@ func (pl *Pipeline) Init(args map[string]interface{}) {
 	go pl.dispatcher.Serve(pl.shutdownCtx)
 
 	// 初始化组件：根据配置文件指定项目
-	itemInitWithContext := func(it Initialize, args map[string]interface{}) {
+	itemInitWithContext := func(it Initialize, args *cfg.Config) {
 		it.OnInit(args, pl.ctx)
 	}
 	if !pl.registerBundlesIfHit(geckoCtx.plugins, itemInitWithContext) {
@@ -380,16 +380,15 @@ func (pl *Pipeline) withTag(f func() *zerolog.Event) *zerolog.Event {
 	return f().Str("tag", "Pipeline")
 }
 
-func newGeckoContext(config map[string]interface{}) *_GeckoContext {
-	mapConf := conf.WrapImmutableMap(config)
+func newGeckoContext(config *cfg.Config) *_GeckoContext {
 	return &_GeckoContext{
-		geckos:       mapConf.MustImmutableMap("GECKO"),
-		globals:      mapConf.MustImmutableMap("GLOBALS"),
-		interceptors: mapConf.MustImmutableMap("INTERCEPTORS"),
-		drivers:      mapConf.MustImmutableMap("DRIVERS"),
-		outputs:      mapConf.MustImmutableMap("OUTPUTS"),
-		inputs:       mapConf.MustImmutableMap("INPUTS"),
-		plugins:      mapConf.MustImmutableMap("PLUGINS"),
+		geckos:       config.MustConfig("GECKO"),
+		globals:      config.MustConfig("GLOBALS"),
+		interceptors: config.MustConfig("INTERCEPTORS"),
+		drivers:      config.MustConfig("DRIVERS"),
+		outputs:      config.MustConfig("OUTPUTS"),
+		inputs:       config.MustConfig("INPUTS"),
+		plugins:      config.MustConfig("PLUGINS"),
 		magicKV:      make(map[interface{}]interface{}),
 	}
 }

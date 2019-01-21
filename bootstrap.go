@@ -8,11 +8,11 @@ import (
 
 // Bootstrap提供一个启动入口
 func Bootstrap(prepare func(pipeline *Pipeline)) {
-	config, err := conf.LoadConfig("conf.d")
+	config, err := cfg.LoadConfig("conf.d")
 	if nil != err {
 		_bootstrapTag(log.Panic).Err(err).Msg("加载配置文件出错")
 	}
-	if len(config) <= 0 {
+	if config.IsEmpty() {
 		_bootstrapTag(log.Panic).Msgf("没有任何配置信息")
 	}
 	pipeline := SharedPipeline()

@@ -28,7 +28,7 @@ type Context interface {
 	NodeId() string
 
 	// 返回Global配置项
-	GlobalConfig() *conf.ImmutableMap
+	GlobalConfig() *cfg.Config
 
 	// Globals中是否开启了 loggingVerbose 标记位
 	IsVerboseEnabled() bool
@@ -51,7 +51,7 @@ type Context interface {
 	////
 
 	// 返回Gecko的配置
-	gecko() *conf.ImmutableMap
+	gecko() *cfg.Config
 
 	// 返回分布式ID生成器的WorkerId
 	workerId() int64
@@ -60,17 +60,17 @@ type Context interface {
 ///
 
 type _GeckoContext struct {
-	geckos       *conf.ImmutableMap
-	globals      *conf.ImmutableMap
-	interceptors *conf.ImmutableMap
-	drivers      *conf.ImmutableMap
-	outputs      *conf.ImmutableMap
-	inputs       *conf.ImmutableMap
-	plugins      *conf.ImmutableMap
+	geckos       *cfg.Config
+	globals      *cfg.Config
+	interceptors *cfg.Config
+	drivers      *cfg.Config
+	outputs      *cfg.Config
+	inputs       *cfg.Config
+	plugins      *cfg.Config
 	magicKV      map[interface{}]interface{}
 }
 
-func (ci *_GeckoContext) gecko() *conf.ImmutableMap {
+func (ci *_GeckoContext) gecko() *cfg.Config {
 	return ci.geckos
 }
 
@@ -101,7 +101,7 @@ func (ci *_GeckoContext) CheckTimeout(msg string, timeout time.Duration, action 
 	action()
 }
 
-func (ci *_GeckoContext) GlobalConfig() *conf.ImmutableMap {
+func (ci *_GeckoContext) GlobalConfig() *cfg.Config {
 	return ci.globals
 }
 

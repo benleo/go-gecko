@@ -1,6 +1,7 @@
 package nop
 
 import (
+	"github.com/parkingwang/go-conf"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yoojia/go-gecko"
@@ -23,7 +24,7 @@ type NopDriver struct {
 	*gecko.AbcDriver
 }
 
-func (du *NopDriver) OnInit(args map[string]interface{}, ctx gecko.Context) {
+func (du *NopDriver) OnInit(config *cfg.Config, ctx gecko.Context) {
 	du.withTag(log.Debug).Msg("初始化...")
 }
 

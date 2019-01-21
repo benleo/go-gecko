@@ -184,8 +184,8 @@ func (re *Registration) findFactory(typeName string) (BundleFactory, bool) {
 }
 
 // 注册组件，如果注册失败，返回False
-func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
-	initAct func(bundle Initialize, args map[string]interface{})) bool {
+func (re *Registration) registerBundlesIfHit(configs *cfg.Config,
+	initAct func(bundle Initialize, args *cfg.Config)) bool {
 	if configs.IsEmpty() {
 		return false
 	}
@@ -194,7 +194,7 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 		if !ok {
 			re.withTag(log.Panic).Msgf("组件配置信息类型错误: %s", bundleType)
 		}
-		config := conf.MapToMap(asMap)
+		config := cfg.WrapConfig(asMap)
 		if config.MustBool("disable") {
 			re.withTag(log.Warn).Msgf("组件[%s]在配置中禁用", bundleType)
 			return
@@ -292,7 +292,7 @@ func (re *Registration) registerBundlesIfHit(configs *conf.ImmutableMap,
 
 		// 组件初始化。由外部函数处理，减少不必要的依赖
 		if init, ok := bundle.(Initialize); ok {
-			initAct(init, map[string]interface{}(config.MustMap("InitArgs")))
+			initAct(init, config.MustConfig("InitArgs"))
 		}
 	})
 	return true

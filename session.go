@@ -13,7 +13,7 @@ import (
 // Session 是每次请求生成的上下文对象，服务于事件请求的整个生命周期。
 type Session interface {
 	// 返回属性列表
-	Attributes() *conf.ImmutableMap
+	Attributes() *cfg.Config
 
 	// 添加属性
 	AddAttribute(key string, value interface{})
@@ -49,10 +49,10 @@ type _GeckoSession struct {
 	onSessionCompleted func(PacketMap)
 }
 
-func (si *_GeckoSession) Attributes() *conf.ImmutableMap {
+func (si *_GeckoSession) Attributes() *cfg.Config {
 	si.attrLock.RLock()
 	defer si.attrLock.RUnlock()
-	return conf.WrapImmutableMap(si.attributes)
+	return cfg.WrapConfig(si.attributes)
 }
 
 func (si *_GeckoSession) AddAttribute(name string, value interface{}) {

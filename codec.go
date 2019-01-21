@@ -1,6 +1,8 @@
 package gecko
 
-import "github.com/yoojia/go-gecko/x"
+import (
+	"encoding/json"
+)
 
 //
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
@@ -37,9 +39,9 @@ func JSONDefaultDecoderFactory() (string, CodecFactory) {
 
 // 默认JSON解码器，将Byte数据解析成PacketMap对象
 func JSONDefaultDecoder(bytes PacketFrame) (PacketMap, error) {
-	json := make(map[string]interface{})
-	err := x.UnmarshalJSON(bytes, &json)
-	return json, err
+	m := make(map[string]interface{})
+	err := json.Unmarshal(bytes, &m)
+	return m, err
 }
 
 func JSONDefaultEncoderFactory() (string, CodecFactory) {
@@ -50,5 +52,5 @@ func JSONDefaultEncoderFactory() (string, CodecFactory) {
 
 // 默认JSON编码器，负责将PacketMap对象解析成Byte数组
 func JSONDefaultEncoder(data PacketMap) (PacketFrame, error) {
-	return x.MarshalJSON(data)
+	return json.Marshal(data)
 }

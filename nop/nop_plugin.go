@@ -1,6 +1,9 @@
 package nop
 
-import "github.com/yoojia/go-gecko"
+import (
+	"github.com/parkingwang/go-conf"
+	"github.com/yoojia/go-gecko"
+)
 
 //
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
@@ -20,7 +23,7 @@ type NopPlugin struct {
 	gecko.Plugin
 }
 
-func (no *NopPlugin) OnInit(args map[string]interface{}, ctx gecko.Context) {
+func (no *NopPlugin) OnInit(config *cfg.Config, ctx gecko.Context) {
 
 }
 

@@ -31,8 +31,7 @@ type AbcNetInputDevice struct {
 	topic          string
 }
 
-func (d *AbcNetInputDevice) OnInit(args map[string]interface{}, ctx gecko.Context) {
-	config := conf.WrapImmutableMap(args)
+func (d *AbcNetInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 	d.maxBufferSize = config.GetInt64OrDefault("bufferSize", 512)
 	d.readTimeout = config.GetDurationOrDefault("readTimeout", time.Second*3)
 	d.topic = config.MustString("topic")
