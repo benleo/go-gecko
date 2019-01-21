@@ -2,8 +2,8 @@ package net
 
 import (
 	"context"
+	"errors"
 	"github.com/parkingwang/go-conf"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yoojia/go-gecko"
