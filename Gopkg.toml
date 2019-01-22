@@ -27,7 +27,7 @@
 
 [[constraint]]
   name = "github.com/parkingwang/go-conf"
-  version = "3.0.0"
+  version = "3.1.0"
 
 [[constraint]]
   name = "github.com/rs/zerolog"

@@ -2,8 +2,6 @@ package nop
 
 import (
 	"github.com/parkingwang/go-conf"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/yoojia/go-gecko"
 )
 
@@ -25,15 +23,15 @@ type NopDriver struct {
 }
 
 func (du *NopDriver) OnInit(config *cfg.Config, ctx gecko.Context) {
-	du.withTag(log.Debug).Msg("初始化...")
+	gecko.Zap().Debug("初始化...")
 }
 
 func (du *NopDriver) OnStart(ctx gecko.Context) {
-	du.withTag(log.Debug).Msg("启动...")
+	gecko.Zap().Debug("启动...")
 }
 
 func (du *NopDriver) OnStop(ctx gecko.Context) {
-	du.withTag(log.Debug).Msg("停止...")
+	gecko.Zap().Debug("停止...")
 }
 
 func (du *NopDriver) Handle(session gecko.Session, executor gecko.OutputDeliverer, ctx gecko.Context) error {
@@ -51,8 +49,4 @@ func (du *NopDriver) Handle(session gecko.Session, executor gecko.OutputDelivere
 	//}
 
 	return nil
-}
-
-func (du *NopDriver) withTag(fun func() *zerolog.Event) *zerolog.Event {
-	return fun().Str("tag", "NopDriver")
 }

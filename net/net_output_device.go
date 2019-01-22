@@ -2,8 +2,6 @@ package net
 
 import (
 	"github.com/parkingwang/go-conf"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/yoojia/go-gecko"
 	"net"
 	"time"
@@ -32,25 +30,26 @@ func (no *AbcNetOutputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 
 func (no *AbcNetOutputDevice) OnStart(ctx gecko.Context) {
 	address := no.GetUnionAddress()
-	no.withTag(log.Info).Msgf("使用%s客户端模式，远程地址： %s", no.network, address)
+	zap := gecko.Zap()
+	zap.Infof("使用%s客户端模式，远程地址： %s", no.network, address)
 	if "udp" == no.network {
 		if addr, err := net.ResolveUDPAddr("udp", address); err != nil {
-			no.withTag(log.Panic).Err(err).Msgf("无法创建UDP地址： %s", address)
+			zap.Panicw("无法创建UDP地址", "addr", address, "err", err)
 		} else {
 			if conn, err := net.DialUDP("udp", nil, addr); nil != err {
-				no.withTag(log.Panic).Err(err).Msgf("无法连接UDP服务端： %s", address)
+				zap.Panicw("无法连接UDP服务端", "addr", address, "err", err)
 			} else {
 				no.netConn = conn
 			}
 		}
 	} else if "tcp" == no.network {
 		if conn, err := net.Dial("tcp", address); nil != err {
-			no.withTag(log.Panic).Err(err).Msgf("无法连接TCP服务端： %s", address)
+			zap.Panicw("无法连接TCP服务端", "addr", address, "err", err)
 		} else {
 			no.netConn = conn
 		}
 	} else {
-		no.withTag(log.Panic).Msgf("未识别的网络连接模式： %s", no.network)
+		zap.Panicf("未识别的网络连接模式： %s", no.network)
 	}
 }
 
@@ -69,8 +68,4 @@ func (no *AbcNetOutputDevice) Process(frame gecko.PacketFrame, ctx gecko.Context
 	} else {
 		return gecko.PacketFrame([]byte{}), nil
 	}
-}
-
-func (no *AbcNetOutputDevice) withTag(f func() *zerolog.Event) *zerolog.Event {
-	return f().Str("tag", "AbcNetOutputDevice")
 }

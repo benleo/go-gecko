@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"github.com/parkingwang/go-conf"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/yoojia/go-gecko"
 	"net"
 	"sync"
@@ -39,10 +37,11 @@ func (d *AbcNetInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 
 func (d *AbcNetInputDevice) OnStart(ctx gecko.Context) {
 	d.cancelCtx, d.cancelFun = context.WithCancel(context.Background())
+	zap := gecko.Zap()
 	if nil == d.onServeHandler {
-		d.withTag(log.Warn).Msg("使用默认数据处理接口")
+		zap.Warn("使用默认数据处理接口")
 		if "" == d.topic {
-			d.withTag(log.Panic).Msg("使用默认接口必须设置topic参数")
+			zap.Panic("使用默认接口必须设置topic参数")
 		}
 		d.onServeHandler = func(bytes []byte, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 			return deliverer.Broadcast(d.topic, gecko.PacketFrame(bytes))
@@ -59,7 +58,8 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 		return errors.New("未设置onServeHandler接口")
 	}
 	address := d.GetUnionAddress()
-	d.withTag(log.Info).Msgf("使用%s服务端模式，监听端口: %s", d.network, address)
+	zap := gecko.Zap()
+	zap.Infof("使用%s服务端模式，监听端口: %s", d.network, address)
 	if "udp" == d.network {
 		if addr, err := net.ResolveUDPAddr("udp", address); err != nil {
 			return errors.New("无法创建UDP地址: " + address)
@@ -85,7 +85,7 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 			default:
 				if client, err := server.Accept(); nil != err {
 					if !d.isNetTempErr(err) {
-						d.withTag(log.Error).Err(err).Msg("TCP服务端网络错误")
+						zap.Errorw("TCP服务端网络错误", "error", err)
 						return err
 					}
 				} else {
@@ -93,7 +93,7 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 						defer wg.Done()
 						wg.Add(1)
 						if err := d.receiveLoop(client, ctx, deliverer); nil != err {
-							d.withTag(log.Error).Err(err).Msg("TCP客户端发生错误")
+							zap.Errorw("TCP客户端发生错误", "error", err)
 						}
 					}()
 				}
@@ -160,8 +160,4 @@ func (*AbcNetInputDevice) isNetTempErr(err error) bool {
 // 设置Serve处理函数
 func (d *AbcNetInputDevice) SetServeHandler(handler func([]byte, gecko.Context, gecko.InputDeliverer) error) {
 	d.onServeHandler = handler
-}
-
-func (d *AbcNetInputDevice) withTag(f func() *zerolog.Event) *zerolog.Event {
-	return f().Str("tag", "AbcNetInputDevice")
 }
