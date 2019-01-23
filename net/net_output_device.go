@@ -31,6 +31,7 @@ func (no *AbcNetOutputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 func (no *AbcNetOutputDevice) OnStart(ctx gecko.Context) {
 	address := no.GetUnionAddress()
 	zap := gecko.Zap()
+	defer zap.Sync()
 	zap.Infof("使用%s客户端模式，远程地址： %s", no.network, address)
 	if "udp" == no.network {
 		if addr, err := net.ResolveUDPAddr("udp", address); err != nil {
@@ -43,6 +44,7 @@ func (no *AbcNetOutputDevice) OnStart(ctx gecko.Context) {
 			}
 		}
 	} else if "tcp" == no.network {
+		// TODO 应当支持自动连接
 		if conn, err := net.Dial("tcp", address); nil != err {
 			zap.Panicw("无法连接TCP服务端", "addr", address, "err", err)
 		} else {

@@ -23,15 +23,15 @@ type NopDriver struct {
 }
 
 func (du *NopDriver) OnInit(config *cfg.Config, ctx gecko.Context) {
-	gecko.Zap().Debug("初始化...")
+	gecko.ZapDebug("初始化...")
 }
 
 func (du *NopDriver) OnStart(ctx gecko.Context) {
-	gecko.Zap().Debug("启动...")
+	gecko.ZapDebug("启动...")
 }
 
 func (du *NopDriver) OnStop(ctx gecko.Context) {
-	gecko.Zap().Debug("停止...")
+	gecko.ZapDebug("停止...")
 }
 
 func (du *NopDriver) Handle(session gecko.Session, executor gecko.OutputDeliverer, ctx gecko.Context) error {

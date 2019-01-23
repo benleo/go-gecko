@@ -82,7 +82,9 @@ func (ci *_GeckoContext) Version() string {
 
 func (ci *_GeckoContext) PutMagic(key interface{}, value interface{}) {
 	if _, ok := ci.magicKV[key]; ok {
-		Zap().Panicw("MagicKey不可重复，Key已存在", "key", key)
+		zap := Zap()
+		defer zap.Sync()
+		zap.Panicw("MagicKey不可重复，Key已存在", "key", key)
 	}
 	ci.magicKV[key] = value
 }
@@ -93,7 +95,9 @@ func (ci *_GeckoContext) GetMagic(key interface{}) interface{} {
 
 func (ci *_GeckoContext) CheckTimeout(msg string, timeout time.Duration, action func()) {
 	t := time.AfterFunc(timeout, func() {
-		Zap().Errorw("指令执行时间太长", "action", msg, "timeout", timeout.String())
+		zap := Zap()
+		defer zap.Sync()
+		zap.Errorw("指令执行时间太长", "action", msg, "timeout", timeout.String())
 	})
 	defer t.Stop()
 	action()

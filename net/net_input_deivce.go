@@ -38,6 +38,7 @@ func (d *AbcNetInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 func (d *AbcNetInputDevice) OnStart(ctx gecko.Context) {
 	d.cancelCtx, d.cancelFun = context.WithCancel(context.Background())
 	zap := gecko.Zap()
+	defer zap.Sync()
 	if nil == d.onServeHandler {
 		zap.Warn("使用默认数据处理接口")
 		if "" == d.topic {
@@ -59,6 +60,7 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 	}
 	address := d.GetUnionAddress()
 	zap := gecko.Zap()
+	defer zap.Sync()
 	zap.Infof("使用%s服务端模式，监听端口: %s", d.network, address)
 	if "udp" == d.network {
 		if addr, err := net.ResolveUDPAddr("udp", address); err != nil {
