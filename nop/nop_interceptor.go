@@ -18,7 +18,8 @@ func (ni *NopInterceptor) OnInit(config *cfg.Config, ctx gecko.Context) {
 }
 
 func (ni *NopInterceptor) Handle(session gecko.Session, ctx gecko.Context) error {
-	return nil
+	//return ni.Drop()
+	return ni.Next()
 }
 
 func NewNopInterceptor() gecko.Interceptor {

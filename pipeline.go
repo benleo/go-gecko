@@ -36,9 +36,9 @@ func SharedPipeline() *Pipeline {
 // Pipeline管理内部组件，处理事件。
 type Pipeline struct {
 	*Registration
-	ctx      Context
-	serve    func(device InputDevice) InputDeliverer
-	executor OutputDeliverer
+	ctx       Context
+	serve     func(device InputDevice) InputDeliverer
+	deliverer OutputDeliverer
 	// 事件派发
 	dispatcher *Dispatcher
 	// Pipeline关闭的信号控制
@@ -53,32 +53,35 @@ func (pl *Pipeline) prepareEnv() {
 	pl.serve = func(device InputDevice) InputDeliverer {
 		return func(topic string, frame PacketFrame) (PacketFrame, error) {
 			// 解码
-			input, deErr := device.GetDecoder()(frame.Data())
-			if nil != deErr {
+			decoder := device.GetDecoder()
+			data, err := decoder(frame.Data())
+			if nil != err {
 				pl.zap.Errorw("InputDevice解码/Decode错误", "class", x.SimpleClassName(device))
-				return nil, deErr
+				return nil, err
 			}
 			// 处理
-			ret := make(chan PacketMap, 1)
-			pl.dispatcher.Lv0() <- &_GeckoSession{
+			processed := make(chan PacketMap, 1)
+			pl.dispatcher.Channel00() <- &_GeckoSession{
 				timestamp:  time.Now(),
 				attributes: make(map[string]interface{}),
 				attrLock:   new(sync.RWMutex),
 				topic:      topic,
 				inbound: &Inbound{
 					Topic: topic,
-					Data:  input,
+					Data:  data,
 				},
 				outbound: &Outbound{
 					Topic: topic,
 					Data:  make(map[string]interface{}),
 				},
-				onSessionCompleted: func(data PacketMap) {
-					ret <- data
+				notifyCompletedFunc: func(data PacketMap) {
+					// 通过onSessionCompleted返回处理结果
+					processed <- data
 				},
 			}
 			// 编码
-			if bytes, err := device.GetEncoder()(<-ret); nil != err {
+			encoder := device.GetEncoder()
+			if bytes, err := encoder(<-processed); nil != err {
 				pl.zap.Errorw("InputDevice编码/Encode错误", "class", x.SimpleClassName(device))
 				return nil, err
 			} else {
@@ -87,7 +90,7 @@ func (pl *Pipeline) prepareEnv() {
 		}
 	}
 	// 搜索设备，并执行
-	pl.executor = OutputDeliverer(func(unionOrGroupAddress string, isUnionAddress bool, data PacketMap) (PacketMap, error) {
+	pl.deliverer = OutputDeliverer(func(unionOrGroupAddress string, isUnionAddress bool, data PacketMap) (PacketMap, error) {
 		if isUnionAddress {
 			if device, ok := pl.namedOutputs[unionOrGroupAddress]; ok {
 				frame, dErr := device.GetEncoder().Encode(data)
@@ -141,8 +144,8 @@ func (pl *Pipeline) Init(config *cfg.Config) {
 	capacity := gecko.GetInt64OrDefault("eventsCapacity", 8)
 	pl.zap.Infof("事件通道容量： %d", capacity)
 	pl.dispatcher = NewDispatcher(int(capacity))
-	pl.dispatcher.SetLv0Handler(pl.handleInterceptor)
-	pl.dispatcher.SetLv1Handler(pl.handleDriver)
+	pl.dispatcher.Set00Handler(pl.handleInterceptor)
+	pl.dispatcher.Set11Handler(pl.handleDriver)
 	go pl.dispatcher.Serve(pl.shutdownCtx)
 
 	// 初始化组件：根据配置文件指定项目
@@ -300,7 +303,7 @@ func (pl *Pipeline) handleInterceptor(session Session) {
 	}
 	// 继续
 	session.AddAttribute("Since@Interceptor", session.Since())
-	pl.dispatcher.Lv1() <- session
+	pl.dispatcher.Channel11() <- session
 }
 
 // 处理驱动执行过程
@@ -323,7 +326,7 @@ func (pl *Pipeline) handleDriver(session Session) {
 				strconv.FormatBool(match))
 		})
 		if match {
-			err := driver.Handle(session, pl.executor, pl.ctx)
+			err := driver.Handle(session, pl.deliverer, pl.ctx)
 			if nil != err {
 				pl.failFastLogger(err, "用户驱动发生错误")
 			}
@@ -344,7 +347,7 @@ func (pl *Pipeline) output(session Session) {
 	defer func() {
 		pl.checkRecover(recover(), "Output-Goroutine内部错误")
 	}()
-	session.(*_GeckoSession).onSessionCompleted(session.Outbound().Data)
+	session.(*_GeckoSession).notifyCompletedFunc(session.Outbound().Data)
 }
 
 func (pl *Pipeline) checkDefTimeout(msg string, act func(Context)) {

@@ -34,8 +34,8 @@ func (du *NopDriver) OnStop(ctx gecko.Context) {
 	gecko.ZapDebug("停止...")
 }
 
-func (du *NopDriver) Handle(session gecko.Session, executor gecko.OutputDeliverer, ctx gecko.Context) error {
-	executor.Broadcast("127.0.0.1", gecko.PacketMap{
+func (du *NopDriver) Handle(session gecko.Session, deliverer gecko.OutputDeliverer, ctx gecko.Context) error {
+	deliverer.Broadcast("127.0.0.1", gecko.PacketMap{
 		"A": "b",
 	})
 	//if pipeline, ok := selector("udp"); !ok {

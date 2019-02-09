@@ -46,8 +46,14 @@ func (ai *AbcInterceptor) GetTopicExpr() []*TopicExpr {
 	return ai.topics
 }
 
+// Interceptor发起Drop操作
 func (ai *AbcInterceptor) Drop() error {
 	return InterceptedDropError()
+}
+
+// Interceptor允许继续处理
+func (ai *AbcInterceptor) Next() error {
+	return nil
 }
 
 func NewAbcInterceptor() *AbcInterceptor {

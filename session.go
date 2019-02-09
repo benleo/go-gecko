@@ -40,13 +40,13 @@ type Session interface {
 ////
 
 type _GeckoSession struct {
-	timestamp          time.Time
-	attributes         map[string]interface{}
-	attrLock           *sync.RWMutex
-	topic              string
-	inbound            *Inbound
-	outbound           *Outbound
-	onSessionCompleted func(PacketMap)
+	timestamp           time.Time
+	attributes          map[string]interface{}
+	attrLock            *sync.RWMutex
+	topic               string
+	inbound             *Inbound
+	outbound            *Outbound
+	notifyCompletedFunc func(PacketMap)
 }
 
 func (si *_GeckoSession) Attributes() *cfg.Config {
