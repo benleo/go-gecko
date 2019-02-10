@@ -6,48 +6,48 @@ type SessionHandler func(session Session)
 
 // Events是一个三级Channel的事件处理器
 type Dispatcher struct {
-	chan00    chan Session
-	chan11    chan Session
-	handler00 SessionHandler
-	handler11 SessionHandler
+	startChan    chan Session
+	endChan      chan Session
+	startHandler SessionHandler
+	endHandler   SessionHandler
 }
 
 func NewDispatcher(capacity int) *Dispatcher {
 	return &Dispatcher{
-		chan00: make(chan Session, capacity),
-		chan11: make(chan Session, capacity),
+		startChan: make(chan Session, capacity),
+		endChan:   make(chan Session, capacity),
 	}
 }
 
-func (es *Dispatcher) Set00Handler(handler SessionHandler) {
-	es.handler00 = handler
+func (d *Dispatcher) SetStartHandler(handler SessionHandler) {
+	d.startHandler = handler
 }
 
-func (es *Dispatcher) Set11Handler(handler SessionHandler) {
-	es.handler11 = handler
+func (d *Dispatcher) SetEndHandler(handler SessionHandler) {
+	d.endHandler = handler
 }
 
-func (es *Dispatcher) Channel00() chan<- Session {
-	return es.chan00
+func (d *Dispatcher) StartC() chan<- Session {
+	return d.startChan
 }
 
-func (es *Dispatcher) Channel11() chan<- Session {
-	return es.chan11
+func (d *Dispatcher) EndC() chan<- Session {
+	return d.endChan
 }
 
-func (es *Dispatcher) Serve(shutdown context.Context) {
-	var c0 <-chan Session = es.chan00
-	var c1 <-chan Session = es.chan11
+func (d *Dispatcher) Serve(shutdown context.Context) {
+	var start <-chan Session = d.startChan
+	var end <-chan Session = d.endChan
 	for {
 		select {
 		case <-shutdown.Done():
 			return
 
-		case v := <-c0:
-			go es.handler00(v)
+		case v := <-start:
+			go d.startHandler(v)
 
-		case v := <-c1:
-			go es.handler11(v)
+		case v := <-end:
+			go d.endHandler(v)
 
 		}
 	}

@@ -61,7 +61,7 @@ func (pl *Pipeline) prepareEnv() {
 			}
 			awaitResult := make(chan PacketMap, 1)
 			// 处理
-			pl.dispatcher.Channel00() <- &_GeckoSession{
+			pl.dispatcher.StartC() <- &_GeckoSession{
 				timestamp:  time.Now(),
 				attributes: make(map[string]interface{}),
 				attrLock:   new(sync.RWMutex),
@@ -145,8 +145,8 @@ func (pl *Pipeline) Init(config *cfg.Config) {
 	capacity := gecko.GetInt64OrDefault("eventsCapacity", 8)
 	pl.zap.Infof("事件通道容量： %d", capacity)
 	pl.dispatcher = NewDispatcher(int(capacity))
-	pl.dispatcher.Set00Handler(pl.handleInterceptor)
-	pl.dispatcher.Set11Handler(pl.handleDriver)
+	pl.dispatcher.SetStartHandler(pl.handleInterceptor)
+	pl.dispatcher.SetEndHandler(pl.handleDriver)
 	go pl.dispatcher.Serve(pl.shutdownCtx)
 
 	// 初始化组件：根据配置文件指定项目
@@ -305,7 +305,7 @@ func (pl *Pipeline) handleInterceptor(session Session) {
 	}
 	// 继续
 	session.AddAttribute("Since@Interceptor", session.Since())
-	pl.dispatcher.Channel11() <- session
+	pl.dispatcher.EndC() <- session
 }
 
 // 处理驱动执行过程
