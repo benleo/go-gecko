@@ -9,7 +9,7 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-var GeckoVersion = "G1-0.2.0"
+var Version = "G1-0.4"
 
 // Context 提供一些全局性质的函数
 type Context interface {
@@ -40,11 +40,14 @@ type Context interface {
 	// 如果启用了FailFast标记则调用此函数
 	OnIfFailFast(fun func())
 
-	// 向Context添加Key-Value数据。注意：添加的Key不可重复
+	// Deprecated: Use PutScoped instead
 	PutMagic(key interface{}, value interface{})
-
-	// 读取Context的KeyValue数据
+	// 向Context添加Key-Value数据。注意：添加的Key不可重复
+	PutScoped(key interface{}, value interface{})
+	// Deprecated: Use GetScoped instead
 	GetMagic(key interface{}) interface{}
+	// 读取Context的KeyValue数据
+	GetScoped(key interface{}) interface{}
 
 	////
 
@@ -65,7 +68,7 @@ type _GeckoContext struct {
 	outputs      *cfg.Config
 	inputs       *cfg.Config
 	plugins      *cfg.Config
-	magicKV      map[interface{}]interface{}
+	scopedKV     map[interface{}]interface{}
 }
 
 func (ci *_GeckoContext) gecko() *cfg.Config {
@@ -77,20 +80,28 @@ func (ci *_GeckoContext) workerId() int64 {
 }
 
 func (ci *_GeckoContext) Version() string {
-	return GeckoVersion
+	return Version
 }
 
 func (ci *_GeckoContext) PutMagic(key interface{}, value interface{}) {
-	if _, ok := ci.magicKV[key]; ok {
+	ci.PutScoped(key, value)
+}
+
+func (ci *_GeckoContext) PutScoped(key interface{}, value interface{}) {
+	if _, ok := ci.scopedKV[key]; ok {
 		zap := Zap()
 		defer zap.Sync()
-		zap.Panicw("MagicKey不可重复，Key已存在", "key", key)
+		zap.Panicw("ScopedKey 不可重复，Key已存在", "key", key)
 	}
-	ci.magicKV[key] = value
+	ci.scopedKV[key] = value
 }
 
 func (ci *_GeckoContext) GetMagic(key interface{}) interface{} {
-	return ci.magicKV[key]
+	return ci.GetScoped(key)
+}
+
+func (ci *_GeckoContext) GetScoped(key interface{}) interface{} {
+	return ci.scopedKV[key]
 }
 
 func (ci *_GeckoContext) CheckTimeout(msg string, timeout time.Duration, action func()) {

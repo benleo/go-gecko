@@ -1,12 +1,12 @@
 # Binary name
 BINARY=go-gecko
-VERSION=G1-0.0.1
+VERSION=G1-0.4
 
 GITTAG=`git rev-parse --short HEAD`
 BUILD_TIME=`date +%FT%T%z`
 
 # Setup the -ldflags option for go build here, interpolate the variable values
-LDFLAGS=-ldflags "-X gecko.GeckoVersion=${VERSION}"
+LDFLAGS=-ldflags "-X gecko.Version=${VERSION}"
 BUFLAGS=CGO_ENABLED=0 GOOS=linux GOARCH=amd64
 
 # Release

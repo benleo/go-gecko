@@ -386,7 +386,7 @@ func newGeckoContext(config *cfg.Config) *_GeckoContext {
 		outputs:      config.MustConfig("OUTPUTS"),
 		inputs:       config.MustConfig("INPUTS"),
 		plugins:      config.MustConfig("PLUGINS"),
-		magicKV:      make(map[interface{}]interface{}),
+		scopedKV:     make(map[interface{}]interface{}),
 	}
 }
 
