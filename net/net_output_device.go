@@ -14,7 +14,7 @@ func NewAbcNetOutputDevice(network string) *AbcNetOutputDevice {
 	}
 }
 
-// UDP客户端输出设备
+// Socket客户端输出设备
 type AbcNetOutputDevice struct {
 	*gecko.AbcOutputDevice
 	maxBufferSize int64

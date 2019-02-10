@@ -17,7 +17,7 @@ func NewAbcNetInputDevice(network string) *AbcNetInputDevice {
 	}
 }
 
-// UDP服务器读取设备
+// Socket服务器读取设备
 type AbcNetInputDevice struct {
 	*gecko.AbcInputDevice
 	network        string
@@ -111,9 +111,7 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 
 // 由于不需要返回响应数据到NetInputDevice，Encoder编码器可以不做业务处理
 func (d *AbcNetInputDevice) GetEncoder() gecko.Encoder {
-	return func(data gecko.PacketMap) (gecko.PacketFrame, error) {
-		return gecko.NewPackFrame([]byte{}), nil
-	}
+	return gecko.NopEncoder
 }
 
 func (d *AbcNetInputDevice) Topic() string {

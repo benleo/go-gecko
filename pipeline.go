@@ -36,9 +36,9 @@ func SharedPipeline() *Pipeline {
 // Pipeline管理内部组件，处理事件。
 type Pipeline struct {
 	*Registration
-	ctx       Context
-	serve     func(device InputDevice) InputDeliverer
-	deliverer OutputDeliverer
+	ctx             Context
+	inputDeliverer  func(device InputDevice) InputDeliverer
+	outputDeliverer OutputDeliverer
 	// 事件派发
 	dispatcher *Dispatcher
 	// Pipeline关闭的信号控制
@@ -50,17 +50,17 @@ type Pipeline struct {
 func (pl *Pipeline) prepareEnv() {
 	pl.shutdownCtx, pl.shutdownFunc = context.WithCancel(context.Background())
 	// 创建输入调度的处理
-	pl.serve = func(device InputDevice) InputDeliverer {
-		return func(topic string, frame PacketFrame) (PacketFrame, error) {
+	pl.inputDeliverer = func(device InputDevice) InputDeliverer {
+		return InputDeliverer(func(topic string, frame PacketFrame) (PacketFrame, error) {
 			// 解码
 			decoder := device.GetDecoder()
-			data, err := decoder(frame.Data())
+			inData, err := decoder(frame.Data())
 			if nil != err {
 				pl.zap.Errorw("InputDevice解码/Decode错误", "class", x.SimpleClassName(device))
 				return nil, err
 			}
+			awaitResult := make(chan PacketMap, 1)
 			// 处理
-			processed := make(chan PacketMap, 1)
 			pl.dispatcher.Channel00() <- &_GeckoSession{
 				timestamp:  time.Now(),
 				attributes: make(map[string]interface{}),
@@ -68,29 +68,30 @@ func (pl *Pipeline) prepareEnv() {
 				topic:      topic,
 				inbound: &Inbound{
 					Topic: topic,
-					Data:  data,
+					Data:  inData,
 				},
 				outbound: &Outbound{
 					Topic: topic,
 					Data:  make(map[string]interface{}),
 				},
 				notifyCompletedFunc: func(data PacketMap) {
-					// 通过onSessionCompleted返回处理结果
-					processed <- data
+					// 通过 notifyCompletedFunc 返回处理结果
+					awaitResult <- data
 				},
 			}
 			// 编码
 			encoder := device.GetEncoder()
-			if bytes, err := encoder(<-processed); nil != err {
+			outData := <-awaitResult
+			if bytes, err := encoder(outData); nil != err {
 				pl.zap.Errorw("InputDevice编码/Encode错误", "class", x.SimpleClassName(device))
 				return nil, err
 			} else {
 				return NewPackFrame(bytes), nil
 			}
-		}
+		})
 	}
 	// 搜索设备，并执行
-	pl.deliverer = OutputDeliverer(func(unionOrGroupAddress string, isUnionAddress bool, data PacketMap) (PacketMap, error) {
+	pl.outputDeliverer = OutputDeliverer(func(unionOrGroupAddress string, isUnionAddress bool, data PacketMap) (PacketMap, error) {
 		if isUnionAddress {
 			if device, ok := pl.namedOutputs[unionOrGroupAddress]; ok {
 				frame, dErr := device.GetEncoder().Encode(data)
@@ -207,8 +208,9 @@ func (pl *Pipeline) Start() {
 	// Input Serve Last
 	x.ForEach(pl.inputs, func(it interface{}) {
 		device := it.(InputDevice)
+		deliverer := pl.inputDeliverer(device)
 		go func() {
-			if err := device.Serve(pl.ctx, pl.serve(device)); nil != err {
+			if err := device.Serve(pl.ctx, deliverer); nil != err {
 				pl.zap.Errorw("InputDevice服务运行错误：", "class", x.SimpleClassName(device))
 			}
 		}()
@@ -326,7 +328,7 @@ func (pl *Pipeline) handleDriver(session Session) {
 				strconv.FormatBool(match))
 		})
 		if match {
-			err := driver.Handle(session, pl.deliverer, pl.ctx)
+			err := driver.Handle(session, pl.outputDeliverer, pl.ctx)
 			if nil != err {
 				pl.failFastLogger(err, "用户驱动发生错误")
 			}

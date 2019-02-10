@@ -31,6 +31,14 @@ func (e Encoder) Encode(data PacketMap) (PacketFrame, error) {
 
 //// 系统默认实现的编码和解码接口
 
+func NopEncoder(_ PacketMap) (PacketFrame, error) {
+	return NewPackFrame([]byte{}), nil
+}
+
+func NopDecoder(_ PacketFrame) (PacketMap, error) {
+	return NewPacketMap(make(map[string]interface{}, 0)), nil
+}
+
 func JSONDefaultDecoderFactory() (string, CodecFactory) {
 	return "JSONDefaultDecoder", func() interface{} {
 		return Decoder(JSONDefaultDecoder)
