@@ -151,8 +151,18 @@ func (re *Registration) showBundles() {
 	})
 }
 
-// 注册组件工厂函数
+// Deprecated: Use AddBundleFactory instead.
 func (re *Registration) RegisterBundleFactory(typeName string, factory BundleFactory) {
+	re.AddBundleFactory(typeName, factory)
+}
+
+// Deprecated: Use AddCodecFactory instead.
+func (re *Registration) RegisterCodecFactory(typeName string, factory CodecFactory) {
+	re.AddCodecFactory(typeName, factory)
+}
+
+// 注册组件工厂函数
+func (re *Registration) AddBundleFactory(typeName string, factory BundleFactory) {
 	if _, ok := re.bundleFactories[typeName]; ok {
 		re.zap.Warnf("组件类型[%s]，旧的工厂函数将被覆盖为： %s", typeName, x.SimpleClassName(factory))
 	}
@@ -161,7 +171,7 @@ func (re *Registration) RegisterBundleFactory(typeName string, factory BundleFac
 }
 
 // 注册编码解码工厂函数
-func (re *Registration) RegisterCodecFactory(typeName string, factory CodecFactory) {
+func (re *Registration) AddCodecFactory(typeName string, factory CodecFactory) {
 	codec := factory()
 	switch codec.(type) {
 	case Decoder:
@@ -185,8 +195,7 @@ func (re *Registration) findFactory(typeName string) (BundleFactory, bool) {
 }
 
 // 注册组件，如果注册失败，返回False
-func (re *Registration) registerBundlesIfHit(configs *cfg.Config,
-	initAct func(bundle Initialize, args *cfg.Config)) bool {
+func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle Initialize, args *cfg.Config)) bool {
 	if configs.IsEmpty() {
 		return false
 	}
@@ -293,7 +302,7 @@ func (re *Registration) registerBundlesIfHit(configs *cfg.Config,
 
 		// 组件初始化。由外部函数处理，减少不必要的依赖
 		if init, ok := bundle.(Initialize); ok {
-			initAct(init, config.MustConfig("InitArgs"))
+			initFunc(init, config.MustConfig("InitArgs"))
 		}
 	})
 	return true

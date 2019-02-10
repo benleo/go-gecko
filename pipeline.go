@@ -150,22 +150,22 @@ func (pl *Pipeline) Init(config *cfg.Config) {
 	go pl.dispatcher.Serve(pl.shutdownCtx)
 
 	// 初始化组件：根据配置文件指定项目
-	itemInitWithContext := func(it Initialize, args *cfg.Config) {
+	initWithContext := func(it Initialize, args *cfg.Config) {
 		it.OnInit(args, pl.ctx)
 	}
-	if !pl.registerBundlesIfHit(geckoCtx.plugins, itemInitWithContext) {
+	if !pl.registerIfHit(geckoCtx.plugins, initWithContext) {
 		pl.zap.Warn("警告：未配置任何[Plugin]组件")
 	}
-	if !pl.registerBundlesIfHit(geckoCtx.outputs, itemInitWithContext) {
+	if !pl.registerIfHit(geckoCtx.outputs, initWithContext) {
 		pl.zap.Panic("严重：未配置任何[OutputDevice]组件")
 	}
-	if !pl.registerBundlesIfHit(geckoCtx.interceptors, itemInitWithContext) {
+	if !pl.registerIfHit(geckoCtx.interceptors, initWithContext) {
 		pl.zap.Warn("警告：未配置任何[Interceptor]组件")
 	}
-	if !pl.registerBundlesIfHit(geckoCtx.drivers, itemInitWithContext) {
+	if !pl.registerIfHit(geckoCtx.drivers, initWithContext) {
 		pl.zap.Warn("警告：未配置任何[Driver]组件")
 	}
-	if !pl.registerBundlesIfHit(geckoCtx.inputs, itemInitWithContext) {
+	if !pl.registerIfHit(geckoCtx.inputs, initWithContext) {
 		pl.zap.Panic("严重：未配置任何[InputDevice]组件")
 	}
 	// show
