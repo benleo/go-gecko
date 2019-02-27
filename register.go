@@ -73,7 +73,7 @@ func (re *Registration) AddDecoder(name string, decoder Decoder) {
 
 // 添加OutputDevice
 func (re *Registration) AddOutputDevice(device OutputDevice) {
-	addr := device.GetUnionAddress()
+	addr := device.GetAddress().GetUnionAddress()
 	if _, ok := re.namedOutputs[addr]; ok {
 		re.zap.Panicw("OutputDevice设备地址重复", "addr", addr)
 	} else {
@@ -84,7 +84,7 @@ func (re *Registration) AddOutputDevice(device OutputDevice) {
 
 // 添加InputDevice
 func (re *Registration) AddInputDevice(device InputDevice) {
-	addr := device.GetUnionAddress()
+	addr := device.GetAddress().GetUnionAddress()
 	if _, ok := re.namedInputs[addr]; ok {
 		re.zap.Panicw("InputDevice设备地址重复", "addr", addr)
 	} else {
@@ -239,17 +239,15 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 				device.setDisplayName(name)
 			}
 
-			if group := config.MustString("groupAddress"); "" == group {
-				re.zap.Panicf("VirtualDevice[%s]配置项[groupAddress]是必填参数", bundleType)
-			} else {
-				device.setGroupAddress(group)
+			address := DeviceAddress{
+				Group:    config.MustString("groupAddress"),
+				Private:  config.MustString("privateAddress"),
+				Internal: config.MustString("internalAddress"),
 			}
-
-			if private := config.MustString("privateAddress"); "" == private {
-				re.zap.Panicf("VirtualDevice[%s]配置项[privateAddress]是必填参数", bundleType)
-			} else {
-				device.setPrivateAddress(private)
+			if !address.IsValid() {
+				re.zap.Panicf("VirtualDevice[%s]配置项[groupAddress/privateAddress]是必填参数", bundleType)
 			}
+			device.setAddress(address)
 
 			if name := config.MustString("encoder"); "" == name {
 				if nil == device.GetEncoder() {

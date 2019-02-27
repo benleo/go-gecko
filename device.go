@@ -1,21 +1,47 @@
 package gecko
 
+import "fmt"
+
 //
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
+
+// 设备地址
+type DeviceAddress struct {
+	Group    string // 属组地址
+	Private  string // 设备私有地址
+	Internal string // 内部地址
+}
+
+// 获取Group/Private的联合地址
+func (da DeviceAddress) GetUnionAddress() string {
+	return MakeUnionAddress(da.Group, da.Private)
+}
+
+func (da DeviceAddress) String() string {
+	return fmt.Sprintf(`{"group": "%s", "private": "%s", "internal": "%s"}`, da.Group, da.Private, da.Internal)
+}
+
+func (da DeviceAddress) IsValid() bool {
+	return "" != da.Group && "" != da.Private
+}
+
+func (da DeviceAddress) Equals(to DeviceAddress) bool {
+	return da.Group == to.Group &&
+		da.Private == to.Private &&
+		da.Internal == to.Internal
+}
+
+/////
 
 // VirtualDevice是对硬件的抽象；
 // 提供通讯地址和命名接口，以及支持的通讯协议
 type VirtualDevice interface {
 	Bundle
-	// 属组地址
-	setGroupAddress(addr string)
-	GetGroupAddress() string
-	// 设置设备私有地址
-	setPrivateAddress(addr string)
-	GetPrivateAddress() string
-	// 获取设备地址，由 /{GroupAddress}/{PrivateAddress} 组成。
-	GetUnionAddress() string
+	// 设置设备地址
+	setAddress(addr DeviceAddress)
+	// 读取设备地址
+	GetAddress() DeviceAddress
 	// 设备名称
 	setDisplayName(name string)
 	GetDisplayName() string
@@ -47,11 +73,10 @@ type InputDevice interface {
 // AbcInputDevice
 type AbcInputDevice struct {
 	InputDevice
-	displayName    string
-	groupAddress   string
-	privateAddress string
-	decoder        Decoder
-	encoder        Encoder
+	displayName string
+	address     DeviceAddress
+	decoder     Decoder
+	encoder     Encoder
 }
 
 func (dev *AbcInputDevice) setDecoder(decoder Decoder) {
@@ -77,24 +102,12 @@ func (dev *AbcInputDevice) GetDisplayName() string {
 	return dev.displayName
 }
 
-func (dev *AbcInputDevice) setGroupAddress(addr string) {
-	dev.groupAddress = addr
+func (dev *AbcInputDevice) setAddress(addr DeviceAddress) {
+	dev.address = addr
 }
 
-func (dev *AbcInputDevice) GetGroupAddress() string {
-	return dev.groupAddress
-}
-
-func (dev *AbcInputDevice) setPrivateAddress(addr string) {
-	dev.privateAddress = addr
-}
-
-func (dev *AbcInputDevice) GetPrivateAddress() string {
-	return dev.privateAddress
-}
-
-func (dev *AbcInputDevice) GetUnionAddress() string {
-	return MakeUnionAddress(dev.groupAddress, dev.privateAddress)
+func (dev *AbcInputDevice) GetAddress() DeviceAddress {
+	return dev.address
 }
 
 func NewAbcInputDevice() *AbcInputDevice {
@@ -115,11 +128,10 @@ type OutputDevice interface {
 // AbcOutputDevice
 type AbcOutputDevice struct {
 	OutputDevice
-	displayName    string
-	groupAddress   string
-	privateAddress string
-	decoder        Decoder
-	encoder        Encoder
+	displayName string
+	address     DeviceAddress
+	decoder     Decoder
+	encoder     Encoder
 }
 
 func (dev *AbcOutputDevice) setDecoder(decoder Decoder) {
@@ -146,24 +158,12 @@ func (dev *AbcOutputDevice) GetDisplayName() string {
 	return dev.displayName
 }
 
-func (dev *AbcOutputDevice) setGroupAddress(addr string) {
-	dev.groupAddress = addr
+func (dev *AbcOutputDevice) setAddress(addr DeviceAddress) {
+	dev.address = addr
 }
 
-func (dev *AbcOutputDevice) GetGroupAddress() string {
-	return dev.groupAddress
-}
-
-func (dev *AbcOutputDevice) setPrivateAddress(addr string) {
-	dev.privateAddress = addr
-}
-
-func (dev *AbcOutputDevice) GetPrivateAddress() string {
-	return dev.privateAddress
-}
-
-func (dev *AbcOutputDevice) GetUnionAddress() string {
-	return MakeUnionAddress(dev.groupAddress, dev.privateAddress)
+func (dev *AbcOutputDevice) GetAddress() DeviceAddress {
+	return dev.address
 }
 
 func NewAbcOutputDevice() *AbcOutputDevice {

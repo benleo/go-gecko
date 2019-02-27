@@ -58,7 +58,7 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 	if nil == d.onServeHandler {
 		return errors.New("未设置onServeHandler接口")
 	}
-	address := d.GetUnionAddress()
+	address := d.GetAddress().GetUnionAddress()
 	zap := gecko.Zap()
 	defer zap.Sync()
 	zap.Infof("使用%s服务端模式，监听端口: %s", d.network, address)

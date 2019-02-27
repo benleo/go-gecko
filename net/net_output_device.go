@@ -29,7 +29,7 @@ func (no *AbcNetOutputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 }
 
 func (no *AbcNetOutputDevice) OnStart(ctx gecko.Context) {
-	address := no.GetUnionAddress()
+	address := no.GetAddress().GetUnionAddress()
 	zap := gecko.Zap()
 	defer zap.Sync()
 	zap.Infof("使用%s客户端模式，远程地址： %s", no.network, address)
