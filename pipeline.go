@@ -36,105 +36,12 @@ func SharedPipeline() *Pipeline {
 // Pipeline管理内部组件，处理事件。
 type Pipeline struct {
 	*Registration
-	ctx             Context
-	inputDeliverer  func(device InputDevice) InputDeliverer
-	outputDeliverer OutputDeliverer
+	ctx Context
 	// 事件派发
 	dispatcher *Dispatcher
 	// Pipeline关闭的信号控制
 	shutdownCtx  context.Context
 	shutdownFunc context.CancelFunc
-}
-
-// 准备运行环境，初始化相关组件
-func (pl *Pipeline) prepareEnv() {
-	pl.shutdownCtx, pl.shutdownFunc = context.WithCancel(context.Background())
-	// 创建输入调度的处理
-	pl.inputDeliverer = func(device InputDevice) InputDeliverer {
-		return InputDeliverer(func(topic string, frame PacketFrame) (PacketFrame, error) {
-			// 解码
-			decoder := device.GetDecoder()
-			inData, err := decoder(frame.Data())
-			if nil != err {
-				pl.zap.Errorw("InputDevice解码/Decode错误", "class", x.SimpleClassName(device))
-				return nil, err
-			}
-			awaitResult := make(chan PacketMap, 1)
-			// 处理
-			pl.dispatcher.StartC() <- &_GeckoSession{
-				timestamp:  time.Now(),
-				attributes: make(map[string]interface{}),
-				attrLock:   new(sync.RWMutex),
-				topic:      topic,
-				inbound: &Inbound{
-					Topic: topic,
-					Data:  inData,
-				},
-				outbound: &Outbound{
-					Topic: topic,
-					Data:  make(map[string]interface{}),
-				},
-				notifyCompletedFunc: func(data PacketMap) {
-					// 通过 notifyCompletedFunc 返回处理结果
-					awaitResult <- data
-				},
-			}
-			// 编码
-			encoder := device.GetEncoder()
-			outData := <-awaitResult
-			if bytes, err := encoder(outData); nil != err {
-				pl.zap.Errorw("InputDevice编码/Encode错误", "class", x.SimpleClassName(device))
-				return nil, err
-			} else {
-				return NewPackFrame(bytes), nil
-			}
-		})
-	}
-	// 搜索设备，并执行
-	pl.outputDeliverer = OutputDeliverer(func(unionOrGroupAddress string, isUnionAddress bool, data PacketMap) (PacketMap, error) {
-		if isUnionAddress {
-			if device, ok := pl.namedOutputs[unionOrGroupAddress]; ok {
-				frame, dErr := device.GetEncoder().Encode(data)
-				if nil != dErr {
-					return nil, dErr
-				}
-				ret, pErr := device.Process(frame, pl.ctx)
-				if nil != pErr {
-					return nil, pErr
-				}
-				if pm, err := device.GetDecoder().Decode(ret); nil != err {
-					return nil, err
-				} else {
-					return pm, nil
-				}
-			} else {
-				return nil, errors.New("OutputDeviceNotFound:" + unionOrGroupAddress)
-			}
-		} else /*is Group Address*/ {
-			groupAddr := unionOrGroupAddress
-			for addr, device := range pl.namedOutputs {
-				// 忽略GroupAddress不匹配的设备
-				if !strings.HasPrefix(addr, groupAddr) {
-					continue
-				}
-				frame, dErr := device.GetEncoder().Encode(data)
-				if nil != dErr {
-					return nil, dErr
-				}
-				if ret, err := device.Process(frame, pl.ctx); nil != err {
-					pl.zap.Errorw("OutputDevice处理广播事件发生错误", "addr", addr, "error", err)
-					return nil, err
-				} else {
-					if nil != ret {
-						if pm, err := device.GetDecoder().Decode(ret); nil == err {
-							pl.zap.Debugf("OutputDevice[%s]返回响应： %s", addr, pm)
-						}
-					}
-				}
-			}
-			return nil, nil
-		}
-	})
 }
 
 // 初始化Pipeline
@@ -208,7 +115,7 @@ func (pl *Pipeline) Start() {
 	// Input Serve Last
 	x.ForEach(pl.inputs, func(it interface{}) {
 		device := it.(InputDevice)
-		deliverer := pl.inputDeliverer(device)
+		deliverer := pl.newInputDeliverer(device)
 		go func() {
 			if err := device.Serve(pl.ctx, deliverer); nil != err {
 				pl.zap.Errorw("InputDevice服务运行错误：", "class", x.SimpleClassName(device))
@@ -260,6 +167,101 @@ func (pl *Pipeline) AwaitTermination() {
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	<-c
 	pl.zap.Warnf("接收到系统停止信号")
+}
+
+// 准备运行环境，初始化相关组件
+func (pl *Pipeline) prepareEnv() {
+	pl.shutdownCtx, pl.shutdownFunc = context.WithCancel(context.Background())
+}
+
+// 输出派发函数
+// 根据Driver指定的目标输出设备地址，查找并处理数据包
+func (pl *Pipeline) sendToOutput(address DeviceAddress, data PacketMap) (PacketMap, error) {
+	if address.IsValid() {
+		devAddr := address.GetUnionAddress()
+		if device, ok := pl.namedOutputs[devAddr]; ok {
+			frame, dErr := device.GetEncoder().Encode(data)
+			if nil != dErr {
+				return nil, dErr
+			}
+			ret, pErr := device.Process(frame, pl.ctx)
+			if nil != pErr {
+				return nil, pErr
+			}
+			if pm, err := device.GetDecoder().Decode(ret); nil != err {
+				return nil, err
+			} else {
+				return pm, nil
+			}
+		} else {
+			return nil, errors.New("指定地址的设备不存在:" + devAddr)
+		}
+	} else /*is Group Address*/ {
+		groupAddr := address.Group
+		for addr, device := range pl.namedOutputs {
+			// 忽略GroupAddress不匹配的设备
+			if !strings.HasPrefix(addr, groupAddr) {
+				continue
+			}
+			frame, dErr := device.GetEncoder().Encode(data)
+			if nil != dErr {
+				return nil, dErr
+			}
+			if ret, err := device.Process(frame, pl.ctx); nil != err {
+				pl.zap.Errorw("OutputDevice处理广播事件发生错误", "addr", addr, "error", err)
+				return nil, err
+			} else {
+				if nil != ret {
+					if pm, err := device.GetDecoder().Decode(ret); nil == err {
+						pl.zap.Debugf("OutputDevice[%s]返回响应： %s", addr, pm)
+					}
+				}
+			}
+		}
+		return nil, nil
+	}
+}
+
+// 创建InputDeliverer函数
+func (pl *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
+	return InputDeliverer(func(topic string, frame PacketFrame) (PacketFrame, error) {
+		// 解码
+		decoder := device.GetDecoder()
+		inData, err := decoder(frame.Data())
+		if nil != err {
+			pl.zap.Errorw("InputDevice解码/Decode错误", "class", x.SimpleClassName(device))
+			return nil, err
+		}
+		awaitResult := make(chan PacketMap, 1)
+		// 处理
+		pl.dispatcher.StartC() <- &_GeckoSession{
+			timestamp:  time.Now(),
+			attributes: make(map[string]interface{}),
+			attrLock:   new(sync.RWMutex),
+			topic:      topic,
+			inbound: &Inbound{
+				Topic: topic,
+				Data:  inData,
+			},
+			outbound: &Outbound{
+				Topic: topic,
+				Data:  make(map[string]interface{}),
+			},
+			notifyCompletedFunc: func(data PacketMap) {
+				// 通过 notifyCompletedFunc 返回处理结果
+				awaitResult <- data
+			},
+		}
+		// 编码
+		encoder := device.GetEncoder()
+		outData := <-awaitResult
+		if bytes, err := encoder(outData); nil != err {
+			pl.zap.Errorw("InputDevice编码/Encode错误", "class", x.SimpleClassName(device))
+			return nil, err
+		} else {
+			return NewPackFrame(bytes), nil
+		}
+	})
 }
 
 // 处理拦截器过程
@@ -328,7 +330,7 @@ func (pl *Pipeline) handleDriver(session Session) {
 				strconv.FormatBool(match))
 		})
 		if match {
-			err := driver.Handle(session, pl.outputDeliverer, pl.ctx)
+			err := driver.Handle(session, OutputDeliverer(pl.sendToOutput), pl.ctx)
 			if nil != err {
 				pl.failFastLogger(err, "用户驱动发生错误")
 			}

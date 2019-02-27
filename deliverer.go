@@ -1,5 +1,7 @@
 package gecko
 
+import "errors"
+
 //
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
@@ -25,14 +27,18 @@ func (d InputDeliverer) Broadcast(topic string, frame PacketFrame) error {
 // OutputDeliverer所传递的数据格式，是系统内部的统一数据PacketMap；
 // 当内部系统向OutputDevice输出数据时，由OutputDevice的Encoder编码成设备原始格式；
 // 当OutputDevice返回处理结果数据时，由其Decoder解码成内部系统格式；
-type OutputDeliverer func(unionOrGroupAddress string, isUnionAddress bool, data PacketMap) (PacketMap, error)
+type OutputDeliverer func(address DeviceAddress, data PacketMap) (PacketMap, error)
 
-// 扩展函数1：指定Union地址的设备，获取处理结果；
-func (fun OutputDeliverer) Execute(deviceUnionAddress string, frame PacketMap) (PacketMap, error) {
-	return fun(deviceUnionAddress, true, frame)
+// 扩展函数1：指定设备地址的设备，获取处理结果；
+func (fun OutputDeliverer) Execute(address DeviceAddress, frame PacketMap) (PacketMap, error) {
+	if !address.IsValid() {
+		return nil, errors.New("执行指定设备地址操作时，需要指定明确的设备地址")
+	}
+	return fun(address, frame)
 }
 
 // 扩展函数2：通过Group地址，广播给相同Group的设备列表，忽略设备处理结果；
-func (fun OutputDeliverer) Broadcast(deviceGroupAddress string, frame PacketMap) {
-	fun(deviceGroupAddress, false, frame)
+func (fun OutputDeliverer) Broadcast(groupAddr string, frame PacketMap) error {
+	_, err := fun(DeviceAddress{Group: groupAddr}, frame)
+	return err
 }
