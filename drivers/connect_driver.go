@@ -17,6 +17,12 @@ func ConnectDriverFactory() (string, gecko.BundleFactory) {
 	}
 }
 
+func NewConnectDriver() *ConnectDriver {
+	return &ConnectDriver{
+		AbcDriver: gecko.NewAbcDriver(),
+	}
+}
+
 // 触发设备数据包生产接口
 type TriggerPacketProducer func(session gecko.Session, trigger gecko.DeviceAddress) gecko.PacketMap
 
