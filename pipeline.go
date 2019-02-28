@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -176,31 +175,12 @@ func (pl *Pipeline) prepareEnv() {
 
 // 输出派发函数
 // 根据Driver指定的目标输出设备地址，查找并处理数据包
-func (pl *Pipeline) sendToOutput(address DeviceAddress, data PacketMap) (PacketMap, error) {
-	if address.IsValid() {
-		devAddr := address.GetUnionAddress()
-		if device, ok := pl.namedOutputs[devAddr]; ok {
-			frame, dErr := device.GetEncoder().Encode(data)
-			if nil != dErr {
-				return nil, dErr
-			}
-			ret, pErr := device.Process(frame, pl.ctx)
-			if nil != pErr {
-				return nil, pErr
-			}
-			if pm, err := device.GetDecoder().Decode(ret); nil != err {
-				return nil, err
-			} else {
-				return pm, nil
-			}
-		} else {
-			return nil, errors.New("指定地址的设备不存在:" + devAddr)
-		}
-	} else /*is Group Address*/ {
-		groupAddr := address.Group
-		for addr, device := range pl.namedOutputs {
+func (pl *Pipeline) deliverToOutput(address string, broadcast bool, data PacketMap) (PacketMap, error) {
+	// 广播给相同组地址的设备
+	if broadcast {
+		for addr, device := range pl.outputsMap {
 			// 忽略GroupAddress不匹配的设备
-			if !strings.HasPrefix(addr, groupAddr) {
+			if address != device.GetAddress().Group {
 				continue
 			}
 			frame, dErr := device.GetEncoder().Encode(data)
@@ -219,6 +199,25 @@ func (pl *Pipeline) sendToOutput(address DeviceAddress, data PacketMap) (PacketM
 			}
 		}
 		return nil, nil
+	} else {
+		// 发送给精确地址的设备
+		if device, ok := pl.outputsMap[address]; ok {
+			frame, dErr := device.GetEncoder().Encode(data)
+			if nil != dErr {
+				return nil, dErr
+			}
+			ret, pErr := device.Process(frame, pl.ctx)
+			if nil != pErr {
+				return nil, pErr
+			}
+			if pm, err := device.GetDecoder().Decode(ret); nil != err {
+				return nil, err
+			} else {
+				return pm, nil
+			}
+		} else {
+			return nil, errors.New("指定地址的Output设备不存在:" + address)
+		}
 	}
 }
 
@@ -330,7 +329,7 @@ func (pl *Pipeline) handleDriver(session Session) {
 				strconv.FormatBool(match))
 		})
 		if match {
-			err := driver.Handle(session, OutputDeliverer(pl.sendToOutput), pl.ctx)
+			err := driver.Handle(session, OutputDeliverer(pl.deliverToOutput), pl.ctx)
 			if nil != err {
 				pl.failFastLogger(err, "用户驱动发生错误")
 			}

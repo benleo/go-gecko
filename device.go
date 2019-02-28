@@ -11,28 +11,22 @@ import (
 
 // 设备地址
 type DeviceAddress struct {
+	UUID    string // 设备唯一ID
 	Group   string // 属组地址
 	Private string // 设备私有地址
-	Tag     string // 内部地址
-}
-
-// 获取Group/Private的联合地址
-func (da DeviceAddress) GetUnionAddress() string {
-	return MakeUnionAddress(da.Group, da.Private)
 }
 
 func (da DeviceAddress) String() string {
-	return fmt.Sprintf(`{"group": "%s", "private": "%s", "tag": "%s"}`, da.Group, da.Private, da.Tag)
+	return fmt.Sprintf(`{"uuid": "%s", group": "%s", "private": "%s"}`, da.UUID, da.Group, da.Private)
 }
 
 func (da DeviceAddress) IsValid() bool {
-	return "" != da.Group && "" != da.Private
+	return da.UUID != "" && "" != da.Group && "" != da.Private
 }
 
 func (da DeviceAddress) Equals(to DeviceAddress) bool {
 	return da.Group == to.Group &&
-		da.Private == to.Private &&
-		da.Tag == to.Tag
+		da.Private == to.Private
 }
 
 /////
@@ -41,23 +35,16 @@ func (da DeviceAddress) Equals(to DeviceAddress) bool {
 // 提供通讯地址和命名接口，以及支持的通讯协议
 type VirtualDevice interface {
 	Bundle
-	// 设置设备地址
+	// 内部函数
 	setAddress(addr DeviceAddress)
-	// 读取设备地址
-	GetAddress() DeviceAddress
-	// 设备名称
-	setDisplayName(name string)
-	GetDisplayName() string
-	// 编码/解码
+	setName(name string)
 	setDecoder(decoder Decoder)
-	GetDecoder() Decoder
 	setEncoder(encoder Encoder)
+	// 公开可访问函数
+	GetAddress() DeviceAddress
+	GetName() string
+	GetDecoder() Decoder
 	GetEncoder() Encoder
-}
-
-// 构建Union地址
-func MakeUnionAddress(group, private string) string {
-	return group + ":" + private
 }
 
 //// Input
@@ -74,12 +61,12 @@ type InputDevice interface {
 // AbcInputDevice
 type AbcInputDevice struct {
 	InputDevice
-	args        *cfg.Config
-	ctx         Context
-	displayName string
-	address     DeviceAddress
-	decoder     Decoder
-	encoder     Encoder
+	args    *cfg.Config
+	ctx     Context
+	name    string
+	address DeviceAddress
+	decoder Decoder
+	encoder Encoder
 }
 
 func (dev *AbcInputDevice) OnInit(args *cfg.Config, ctx Context) {
@@ -110,12 +97,13 @@ func (dev *AbcInputDevice) setEncoder(encoder Encoder) {
 func (dev *AbcInputDevice) GetEncoder() Encoder {
 	return dev.encoder
 }
-func (dev *AbcInputDevice) setDisplayName(name string) {
-	dev.displayName = name
+
+func (dev *AbcInputDevice) setName(name string) {
+	dev.name = name
 }
 
-func (dev *AbcInputDevice) GetDisplayName() string {
-	return dev.displayName
+func (dev *AbcInputDevice) GetName() string {
+	return dev.name
 }
 
 func (dev *AbcInputDevice) setAddress(addr DeviceAddress) {
@@ -181,11 +169,11 @@ func (dev *AbcOutputDevice) GetEncoder() Encoder {
 	return dev.encoder
 }
 
-func (dev *AbcOutputDevice) setDisplayName(name string) {
+func (dev *AbcOutputDevice) setName(name string) {
 	dev.displayName = name
 }
 
-func (dev *AbcOutputDevice) GetDisplayName() string {
+func (dev *AbcOutputDevice) GetName() string {
 	return dev.displayName
 }
 

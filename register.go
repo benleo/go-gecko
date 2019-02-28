@@ -14,31 +14,31 @@ import (
 // 负责对Engine组件的注册管理
 type Registration struct {
 	// 组件管理
-	namedOutputs  map[string]OutputDevice
-	namedInputs   map[string]InputDevice
-	namedDecoders map[string]Decoder
-	namedEncoders map[string]Encoder
-	plugins       *list.List
-	interceptors  *list.List
-	drivers       *list.List
-	outputs       *list.List
-	inputs        *list.List
+	outputsMap   map[string]OutputDevice
+	inputsMap    map[string]InputDevice
+	decodersMap  map[string]Decoder
+	encodersMap  map[string]Encoder
+	plugins      *list.List
+	interceptors *list.List
+	drivers      *list.List
+	outputs      *list.List
+	inputs       *list.List
 	// Hooks
 	startBeforeHooks *list.List
 	startAfterHooks  *list.List
 	stopBeforeHooks  *list.List
 	stopAfterHooks   *list.List
 	// 组件创建工厂函数
-	bundleFactories map[string]BundleFactory
-	zap             *zap.SugaredLogger
+	factories map[string]BundleFactory
+	zap       *zap.SugaredLogger
 }
 
 func prepare() *Registration {
 	re := new(Registration)
-	re.namedOutputs = make(map[string]OutputDevice)
-	re.namedInputs = make(map[string]InputDevice)
-	re.namedDecoders = make(map[string]Decoder)
-	re.namedEncoders = make(map[string]Encoder)
+	re.outputsMap = make(map[string]OutputDevice)
+	re.inputsMap = make(map[string]InputDevice)
+	re.decodersMap = make(map[string]Decoder)
+	re.encodersMap = make(map[string]Encoder)
 	re.plugins = list.New()
 	re.interceptors = list.New()
 	re.drivers = list.New()
@@ -48,49 +48,41 @@ func prepare() *Registration {
 	re.startAfterHooks = list.New()
 	re.stopBeforeHooks = list.New()
 	re.stopAfterHooks = list.New()
-	re.bundleFactories = make(map[string]BundleFactory)
+	re.factories = make(map[string]BundleFactory)
 	re.zap = Zap()
 	return re
 }
 
 // 添加Encoder
 func (re *Registration) AddEncoder(name string, encoder Encoder) {
-	if _, ok := re.namedEncoders[name]; ok {
+	if _, ok := re.encodersMap[name]; ok {
 		re.zap.Panicw("Encoder类型重复", "type", name)
 	} else {
-		re.namedEncoders[name] = encoder
+		re.encodersMap[name] = encoder
 	}
 }
 
 // 添加Decoder
 func (re *Registration) AddDecoder(name string, decoder Decoder) {
-	if _, ok := re.namedDecoders[name]; ok {
+	if _, ok := re.decodersMap[name]; ok {
 		re.zap.Panicw("Decoder类型重复", "type", name)
 	} else {
-		re.namedDecoders[name] = decoder
+		re.decodersMap[name] = decoder
 	}
 }
 
 // 添加OutputDevice
 func (re *Registration) AddOutputDevice(device OutputDevice) {
-	addr := device.GetAddress().GetUnionAddress()
-	if _, ok := re.namedOutputs[addr]; ok {
-		re.zap.Panicw("OutputDevice设备地址重复", "addr", addr)
-	} else {
-		re.namedOutputs[addr] = device
-		re.outputs.PushBack(device)
-	}
+	uuid := re.ensureUniqueUUID(device.GetAddress().UUID)
+	re.outputsMap[uuid] = device
+	re.outputs.PushBack(device)
 }
 
 // 添加InputDevice
 func (re *Registration) AddInputDevice(device InputDevice) {
-	addr := device.GetAddress().GetUnionAddress()
-	if _, ok := re.namedInputs[addr]; ok {
-		re.zap.Panicw("InputDevice设备地址重复", "addr", addr)
-	} else {
-		re.namedInputs[addr] = device
-		re.inputs.PushBack(device)
-	}
+	uuid := re.ensureUniqueUUID(device.GetAddress().UUID)
+	re.inputsMap[uuid] = device
+	re.inputs.PushBack(device)
 }
 
 // 添加Plugin
@@ -163,11 +155,11 @@ func (re *Registration) RegisterCodecFactory(typeName string, factory CodecFacto
 
 // 注册组件工厂函数
 func (re *Registration) AddBundleFactory(typeName string, factory BundleFactory) {
-	if _, ok := re.bundleFactories[typeName]; ok {
+	if _, ok := re.factories[typeName]; ok {
 		re.zap.Warnf("组件类型[%s]，旧的工厂函数将被覆盖为： %s", typeName, x.SimpleClassName(factory))
 	}
 	re.zap.Infof("正在注册组件工厂函数： %s", typeName)
-	re.bundleFactories[typeName] = factory
+	re.factories[typeName] = factory
 }
 
 // 注册编码解码工厂函数
@@ -187,11 +179,20 @@ func (re *Registration) AddCodecFactory(typeName string, factory CodecFactory) {
 
 // 查找指定类型的
 func (re *Registration) findFactory(typeName string) (BundleFactory, bool) {
-	if f, ok := re.bundleFactories[typeName]; ok {
+	if f, ok := re.factories[typeName]; ok {
 		return f, true
 	} else {
 		return nil, false
 	}
+}
+
+func (re *Registration) ensureUniqueUUID(uuid string) string {
+	if _, ok := re.inputsMap[uuid]; ok {
+		re.zap.Panicf("设备UUID重复[Input]：%s", uuid)
+	} else if _, ok := re.outputsMap[uuid]; ok {
+		re.zap.Panicf("设备UUID重复[Output]：%s", uuid)
+	}
+	return uuid
 }
 
 // 注册组件，如果注册失败，返回False
@@ -233,19 +234,19 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 
 		case VirtualDevice:
 			device := bundle.(VirtualDevice)
-			if name := config.MustString("displayName"); "" == name {
-				re.zap.Panicf("VirtualDevice[%s]配置项[displayName]是必填参数", bundleType)
+			if name := config.MustString("name"); "" == name {
+				re.zap.Panicf("VirtualDevice[%s]配置项[name]是必填参数", bundleType)
 			} else {
-				device.setDisplayName(name)
+				device.setName(name)
 			}
 
 			address := DeviceAddress{
-				Group:   config.MustString("deviceGroup"),
-				Private: config.MustString("devicePrivate"),
-				Tag:     config.MustString("deviceTag"),
+				UUID:    config.MustString("uuid"),
+				Group:   config.MustString("group"),
+				Private: config.MustString("private"),
 			}
 			if !address.IsValid() {
-				re.zap.Panicf("VirtualDevice[%s]配置项[deviceGroup/devicePrivate]是必填参数", bundleType)
+				re.zap.Panicf("VirtualDevice[%s]配置项[uuid/group/private]是必填参数", bundleType)
 			}
 			device.setAddress(address)
 
@@ -254,7 +255,7 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 					re.zap.Panicf("未设置默认Encoder时，Device[%s]配置项[encoder]是必填参数", bundleType)
 				}
 			} else {
-				if encoder, ok := re.namedEncoders[name]; ok {
+				if encoder, ok := re.encodersMap[name]; ok {
 					device.setEncoder(encoder)
 				} else {
 					re.zap.Panicf("Encoder[%s]未注册", name)
@@ -266,7 +267,7 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 					re.zap.Panicf("未设置默认Decoder时，Device[%s]配置项[decoder]是必填参数", bundleType)
 				}
 			} else {
-				if decoder, ok := re.namedDecoders[name]; ok {
+				if decoder, ok := re.decodersMap[name]; ok {
 					device.setDecoder(decoder)
 				} else {
 					re.zap.Panicf("Decoder[%s]未注册", name)

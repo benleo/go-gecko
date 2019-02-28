@@ -2,13 +2,14 @@
 [OUTPUTS.UDPOutputDevice]
   disable = false
   type = "UDPOutputDevice"
-  displayName = "UDPOutputDevice"
-  deviceGroup = "sample-output"
-  devicePrivate = "001"
-  networkAddress = "127.0.0.1:60000"
+  name = "UDP客户端模式输出类型设备"
+  uuid = "udp@(0755002001)"
+  group = "tcp:localhost"
+  private = "port:6000"
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
 [OUTPUTS.UDPOutputDevice.InitArgs]
+  networkAddress = "127.0.0.1:60000"
   bufferSize = 64
   writeTimeout = "3s"
 
@@ -16,12 +17,13 @@
 [OUTPUTS.TCPOutputDevice]
   disable = false
   type = "TCPOutputDevice"
-  displayName = "TCPOutputDevice"
-  deviceGroup = "sample-output"
-  devicePrivate = "002"
-  networkAddress = "127.0.0.1:50000"
+  name = "TCP客户端模式输出类型设备"
+  uuid = "tcp@(0755002001)"
+  group = "tcp:localhost"
+  private = "port:50000"
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
 [OUTPUTS.TCPOutputDevice.InitArgs]
+  networkAddress = "127.0.0.1:50000"
   bufferSize = 64
   writeTimeout = "3s"

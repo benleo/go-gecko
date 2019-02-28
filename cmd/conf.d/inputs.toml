@@ -2,28 +2,30 @@
 [INPUTS.UDPInputDevice]
   disable = false
   type = "UDPInputDevice"
-  displayName = "UDPInputDevice"
-  deviceGroup = "sample-input"
-  devicePrivate = "0001"
-  networkAddress = "0.0.0.0:5572"
+  name = "UDP客户端网络输入类型设备"
+  uuid = "udp@(0755001001)"
+  group = "location:localhost"
+  private = "port:5572"
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
 [INPUTS.UDPInputDevice.InitArgs]
+  topic = "/demo/udp/input"
+  networkAddress = "0.0.0.0:5572"
   bufferSize = 64
   readTimeout = "3s"
-  topic = "/demo/udp/input"
 
 # TCP服务端模式设备
 [INPUTS.TCPInputDevice]
   disable = false
   type = "TCPInputDevice"
-  displayName = "TCPInputDevice"
-  deviceGroup = "sample-input"
-  devicePrivate = "0002"
-  networkAddress = "0.0.0.0:5573"
+  name = "TCP客户端网络输入类型设备"
+  uuid = "tcp@(0755001001)"
+  group = "location:localhost"
+  private = "port:5573"
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
 [INPUTS.TCPInputDevice.InitArgs]
+  topic = "/demo/tcp/input"
+  networkAddress = "0.0.0.0:5573"
   bufferSize = 64
   readTimeout = "3s"
-  topic = "/demo/tcp/input"
