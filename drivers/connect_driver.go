@@ -106,7 +106,7 @@ func (cd *ConnectDriver) Handle(session gecko.Session, deliverer gecko.OutputDel
 		zap.Debugw("联动设备", cd.targetAddress.String())
 
 		pack := cd.triggerPacketProducer(session, cd.triggerAddress)
-		if ret, err := deliverer.Execute(cd.targetAddress.GetUnionAddress(), pack); nil != err {
+		if ret, err := deliverer.Execute(cd.targetAddress, pack); nil != err {
 			zap.Error("联动设备发生错误", err)
 		} else {
 			zap.Debug("联动设备返回结果", ret)
