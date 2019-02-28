@@ -48,8 +48,6 @@ type VirtualDevice interface {
 	// 设备名称
 	setDisplayName(name string)
 	GetDisplayName() string
-	// 返回当前设备支持的通讯协议名称
-	GetProtoName() string
 	// 编码/解码
 	setDecoder(decoder Decoder)
 	GetDecoder() Decoder
