@@ -76,9 +76,9 @@ func (cd *ConnectDriver) OnInit(config *cfg.Config, ctx gecko.Context) {
 	cd.SetTriggerPacketProducer(func(session gecko.Session, trigger gecko.DeviceAddress) gecko.PacketMap {
 		return gecko.PacketMap{
 			"state":         "on",
-			"targetGroup":   trigger.Group,
-			"targetPrivate": trigger.Private,
-			"targetTag":     trigger.Tag,
+			"targetDeviceGroup":   trigger.Group,
+			"targetDevicePrivate": trigger.Private,
+			"targetDeviceTag":     trigger.Tag,
 		}
 	})
 }
@@ -105,7 +105,7 @@ func (cd *ConnectDriver) Handle(session gecko.Session, deliverer gecko.OutputDel
 		zap := gecko.Zap()
 		defer zap.Sync()
 
-		zap.Debugw("联动设备", cd.targetAddress.String())
+		zap.Debugw("联动设备", "address", cd.targetAddress.String())
 
 		pack := cd.triggerPacketProducer(session, cd.triggerAddress)
 		if ret, err := deliverer.Execute(cd.targetAddress, pack); nil != err {
