@@ -14,21 +14,32 @@ func NewAbcNetOutputDevice(network string) *AbcNetOutputDevice {
 	}
 }
 
+// 输出设备读取响应的外置处理函数
+type OutputReceiver func(conn net.Conn) (gecko.PacketFrame, error)
+
 // Socket客户端输出设备
 type AbcNetOutputDevice struct {
 	*gecko.AbcOutputDevice
 	maxBufferSize  int64
 	writeTimeout   time.Duration
+	readTimeout    time.Duration
 	netConn        net.Conn
 	networkType    string
 	networkAddress string
+	outputReceiver OutputReceiver
 }
 
 func (d *AbcNetOutputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 	d.AbcOutputDevice.OnInit(config, ctx)
 	d.maxBufferSize = config.GetInt64OrDefault("bufferSize", 512)
-	d.writeTimeout = config.GetDurationOrDefault("writeTimeout", time.Second*10)
+	d.writeTimeout = config.GetDurationOrDefault("writeTimeout", time.Second*5)
+	d.readTimeout = config.GetDurationOrDefault("readTimeout", time.Second*5)
 	d.networkAddress = config.MustString("networkAddress")
+
+	// 输出默认不读取响应结果
+	d.SetOutputReceiver(func(conn net.Conn) (gecko.PacketFrame, error) {
+		return gecko.NewPackFrame([]byte{}), nil
+	})
 }
 
 func (d *AbcNetOutputDevice) OnStart(ctx gecko.Context) {
@@ -67,12 +78,20 @@ func (d *AbcNetOutputDevice) OnStop(ctx gecko.Context) {
 }
 
 func (d *AbcNetOutputDevice) Process(frame gecko.PacketFrame, ctx gecko.Context) (gecko.PacketFrame, error) {
+	// 写
 	if err := d.netConn.SetWriteDeadline(time.Now().Add(d.writeTimeout)); nil != err {
 		return nil, err
 	}
 	if _, err := d.netConn.Write(frame); nil != err {
 		return nil, err
-	} else {
-		return gecko.PacketFrame([]byte{}), nil
 	}
+	// 读
+	if err := d.netConn.SetReadDeadline(time.Now().Add(d.writeTimeout)); nil != err {
+		return nil, err
+	}
+	return d.outputReceiver(d.netConn)
+}
+
+func (d *AbcNetOutputDevice) SetOutputReceiver(receiver OutputReceiver) {
+	d.outputReceiver = receiver
 }
