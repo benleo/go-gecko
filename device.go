@@ -1,6 +1,9 @@
 package gecko
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/parkingwang/go-conf"
+)
 
 //
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
@@ -73,10 +76,25 @@ type InputDevice interface {
 // AbcInputDevice
 type AbcInputDevice struct {
 	InputDevice
+	args        *cfg.Config
+	ctx         Context
 	displayName string
 	address     DeviceAddress
 	decoder     Decoder
 	encoder     Encoder
+}
+
+func (dev *AbcInputDevice) OnInit(args *cfg.Config, ctx Context) {
+	dev.args = args
+	dev.ctx = ctx
+}
+
+func (dev *AbcInputDevice) GetInitArgs() *cfg.Config {
+	return dev.args
+}
+
+func (dev *AbcInputDevice) GetInitContext() Context {
+	return dev.ctx
 }
 
 func (dev *AbcInputDevice) setDecoder(decoder Decoder) {
@@ -128,10 +146,25 @@ type OutputDevice interface {
 // AbcOutputDevice
 type AbcOutputDevice struct {
 	OutputDevice
+	args        *cfg.Config
+	ctx         Context
 	displayName string
 	address     DeviceAddress
 	decoder     Decoder
 	encoder     Encoder
+}
+
+func (dev *AbcOutputDevice) OnInit(args *cfg.Config, ctx Context) {
+	dev.args = args
+	dev.ctx = ctx
+}
+
+func (dev *AbcOutputDevice) GetInitArgs() *cfg.Config {
+	return dev.args
+}
+
+func (dev *AbcOutputDevice) GetInitContext() Context {
+	return dev.ctx
 }
 
 func (dev *AbcOutputDevice) setDecoder(decoder Decoder) {

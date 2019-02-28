@@ -30,6 +30,7 @@ type AbcNetInputDevice struct {
 }
 
 func (d *AbcNetInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
+	d.AbcInputDevice.OnInit(config, ctx)
 	d.maxBufferSize = config.GetInt64OrDefault("bufferSize", 512)
 	d.readTimeout = config.GetDurationOrDefault("readTimeout", time.Second*3)
 	d.topic = config.MustString("topic")

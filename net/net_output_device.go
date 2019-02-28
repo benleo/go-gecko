@@ -24,6 +24,7 @@ type AbcNetOutputDevice struct {
 }
 
 func (no *AbcNetOutputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
+	no.AbcOutputDevice.OnInit(config, ctx)
 	no.maxBufferSize = config.GetInt64OrDefault("bufferSize", 512)
 	no.writeTimeout = config.GetDurationOrDefault("writeTimeout", time.Second*10)
 }
