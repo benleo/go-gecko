@@ -11,9 +11,9 @@ import (
 
 // 设备地址
 type DeviceAddress struct {
-	Group    string // 属组地址
-	Private  string // 设备私有地址
-	Internal string // 内部地址
+	Group   string // 属组地址
+	Private string // 设备私有地址
+	Tag     string // 内部地址
 }
 
 // 获取Group/Private的联合地址
@@ -22,7 +22,7 @@ func (da DeviceAddress) GetUnionAddress() string {
 }
 
 func (da DeviceAddress) String() string {
-	return fmt.Sprintf(`{"group": "%s", "private": "%s", "internal": "%s"}`, da.Group, da.Private, da.Internal)
+	return fmt.Sprintf(`{"group": "%s", "private": "%s", "internal": "%s"}`, da.Group, da.Private, da.Tag)
 }
 
 func (da DeviceAddress) IsValid() bool {
@@ -32,7 +32,7 @@ func (da DeviceAddress) IsValid() bool {
 func (da DeviceAddress) Equals(to DeviceAddress) bool {
 	return da.Group == to.Group &&
 		da.Private == to.Private &&
-		da.Internal == to.Internal
+		da.Tag == to.Tag
 }
 
 /////

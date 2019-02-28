@@ -13,14 +13,15 @@ import (
 func NewAbcNetInputDevice(network string) *AbcNetInputDevice {
 	return &AbcNetInputDevice{
 		AbcInputDevice: gecko.NewAbcInputDevice(),
-		network:        network,
+		networkType:    network,
 	}
 }
 
 // Socket服务器读取设备
 type AbcNetInputDevice struct {
 	*gecko.AbcInputDevice
-	network        string
+	networkType    string
+	networkAddress string
 	maxBufferSize  int64
 	readTimeout    time.Duration
 	cancelCtx      context.Context
@@ -34,12 +35,16 @@ func (d *AbcNetInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 	d.maxBufferSize = config.GetInt64OrDefault("bufferSize", 512)
 	d.readTimeout = config.GetDurationOrDefault("readTimeout", time.Second*3)
 	d.topic = config.MustString("topic")
+	d.networkAddress = config.MustString("networkAddress")
 }
 
 func (d *AbcNetInputDevice) OnStart(ctx gecko.Context) {
 	d.cancelCtx, d.cancelFun = context.WithCancel(context.Background())
 	zap := gecko.Zap()
 	defer zap.Sync()
+	if d.networkAddress == "" || d.networkType == "" {
+		zap.Panicw("未设置网络通讯地址和网络类型", "address", d.networkAddress, "type", d.networkType)
+	}
 	if nil == d.onServeHandler {
 		zap.Warn("使用默认数据处理接口")
 		if "" == d.topic {
@@ -59,13 +64,12 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 	if nil == d.onServeHandler {
 		return errors.New("未设置onServeHandler接口")
 	}
-	address := d.GetAddress().GetUnionAddress()
 	zap := gecko.Zap()
 	defer zap.Sync()
-	zap.Infof("使用%s服务端模式，监听端口: %s", d.network, address)
-	if "udp" == d.network {
-		if addr, err := net.ResolveUDPAddr("udp", address); err != nil {
-			return errors.New("无法创建UDP地址: " + address)
+	zap.Infof("使用%s服务端模式，监听端口: %s", d.networkType, d.networkAddress)
+	if "udp" == d.networkType {
+		if addr, err := net.ResolveUDPAddr("udp", d.networkAddress); err != nil {
+			return errors.New("无法创建UDP地址: " + d.networkAddress)
 		} else {
 			if conn, err := net.ListenUDP("udp", addr); nil != err {
 				return err
@@ -73,8 +77,8 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 				return d.receiveLoop(conn, ctx, deliverer)
 			}
 		}
-	} else if "tcp" == d.network {
-		server, err := net.Listen("tcp", address)
+	} else if "tcp" == d.networkType {
+		server, err := net.Listen("tcp", d.networkAddress)
 		if nil != err {
 			return err
 		}
@@ -106,7 +110,7 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 		wg.Wait()
 		return nil
 	} else {
-		return errors.New("未识别的网络连接模式: " + d.network)
+		return errors.New("未识别的网络连接模式: " + d.networkType)
 	}
 }
 

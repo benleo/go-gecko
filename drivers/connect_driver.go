@@ -32,7 +32,7 @@ type ConnectDriver struct {
 
 	targetAddress         gecko.DeviceAddress // 目标设备地址
 	triggerAddress        gecko.DeviceAddress // 触发源设备地址
-	eventAddressKeys      addressKey          // 当前事件读取触发源地址的字段Key
+	eventAddressKeys      AddressKeys         // 当前事件读取触发源地址的字段Key
 	triggerPacketProducer TriggerPacketProducer
 }
 
@@ -44,9 +44,9 @@ func (cd *ConnectDriver) OnInit(config *cfg.Config, ctx gecko.Context) {
 
 	// 目标设备的地址信息
 	cd.targetAddress = gecko.DeviceAddress{
-		Group:    config.MustString("targetGroupAddress"),
-		Private:  config.MustString("targetPrivateAddress"),
-		Internal: config.MustString("targetInternalAddress"),
+		Group:   config.MustString("targetDeviceGroup"),
+		Private: config.MustString("targetDevicePrivate"),
+		Tag:     config.MustString("targetDeviceTag"),
 	}
 
 	if !cd.targetAddress.IsValid() {
@@ -56,9 +56,9 @@ func (cd *ConnectDriver) OnInit(config *cfg.Config, ctx gecko.Context) {
 
 	// 触发源设备的地址信息
 	cd.triggerAddress = gecko.DeviceAddress{
-		Group:    config.MustString("triggerGroupAddress"),
-		Private:  config.MustString("triggerPrivateAddress"),
-		Internal: config.MustString("triggerInternalAddress"),
+		Group:   config.MustString("triggerDeviceGroup"),
+		Private: config.MustString("triggerDevicePrivate"),
+		Tag:     config.MustString("triggerDeviceTag"),
 	}
 	if !cd.triggerAddress.IsValid() {
 		zap.Panic("未配置联动触发源设备的地址")
@@ -66,17 +66,19 @@ func (cd *ConnectDriver) OnInit(config *cfg.Config, ctx gecko.Context) {
 	zap.Debugf("联动触发源设备: %s", cd.triggerAddress.String())
 
 	// 读取当前事件的地址数据字段的Key
-	cd.eventAddressKeys = addressKey{
-		GroupKey:    config.GetStringOrDefault("eventGroupAddressKey", "groupAddress"),
-		PrivateKey:  config.GetStringOrDefault("eventPrivateAddressKey", "privateAddress"),
-		InternalKey: config.GetStringOrDefault("eventInternalAddressKey", "internalAddress"),
+	cd.eventAddressKeys = AddressKeys{
+		GroupKey:   config.GetStringOrDefault("eventDeviceGroupKey", "deviceGroup"),
+		PrivateKey: config.GetStringOrDefault("eventDevicePrivateKey", "devicePrivate"),
+		TagKey:     config.GetStringOrDefault("eventDeviceTagKey", "deviceTag"),
 	}
 
 	// 默认事件生产接口
 	cd.SetTriggerPacketProducer(func(session gecko.Session, trigger gecko.DeviceAddress) gecko.PacketMap {
 		return gecko.PacketMap{
-			"state": "triggered",
-			"addr":  trigger.Internal,
+			"state":         "on",
+			"targetGroup":   trigger.Group,
+			"targetPrivate": trigger.Private,
+			"targetTag":     trigger.Tag,
 		}
 	})
 }
@@ -92,13 +94,13 @@ func (cd *ConnectDriver) OnStop(ctx gecko.Context) {
 func (cd *ConnectDriver) Handle(session gecko.Session, deliverer gecko.OutputDeliverer, ctx gecko.Context) error {
 	data := cfg.WrapConfig(session.Inbound().Data)
 	// 读取当前事件的数据，判断是否满足触发联动的条件
-	sessionAddress := gecko.DeviceAddress{
-		Group:    data.MustString(cd.eventAddressKeys.GroupKey),
-		Private:  data.MustString(cd.eventAddressKeys.PrivateKey),
-		Internal: data.MustString(cd.eventAddressKeys.InternalKey),
+	eventAddress := gecko.DeviceAddress{
+		Group:   data.MustString(cd.eventAddressKeys.GroupKey),
+		Private: data.MustString(cd.eventAddressKeys.PrivateKey),
+		Tag:     data.MustString(cd.eventAddressKeys.TagKey),
 	}
 
-	if cd.triggerAddress.Equals(sessionAddress) {
+	if cd.triggerAddress.Equals(eventAddress) {
 		// 满足条件即触发目标设备
 		zap := gecko.Zap()
 		defer zap.Sync()
@@ -122,8 +124,8 @@ func (cd *ConnectDriver) SetTriggerPacketProducer(producer TriggerPacketProducer
 
 ////
 
-type addressKey struct {
-	GroupKey    string
-	PrivateKey  string
-	InternalKey string
+type AddressKeys struct {
+	GroupKey   string
+	PrivateKey string
+	TagKey     string
 }

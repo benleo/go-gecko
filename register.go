@@ -240,12 +240,12 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 			}
 
 			address := DeviceAddress{
-				Group:    config.MustString("groupAddress"),
-				Private:  config.MustString("privateAddress"),
-				Internal: config.MustString("internalAddress"),
+				Group:   config.MustString("deviceGroup"),
+				Private: config.MustString("devicePrivate"),
+				Tag:     config.MustString("deviceTag"),
 			}
 			if !address.IsValid() {
-				re.zap.Panicf("VirtualDevice[%s]配置项[groupAddress/privateAddress]是必填参数", bundleType)
+				re.zap.Panicf("VirtualDevice[%s]配置项[deviceGroup/devicePrivate]是必填参数", bundleType)
 			}
 			device.setAddress(address)
 

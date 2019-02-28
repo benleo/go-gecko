@@ -3,8 +3,9 @@
   disable = false
   type = "UDPInputDevice"
   displayName = "UDPInputDevice"
-  groupAddress = "0.0.0.0"
-  privateAddress = "5572"
+  deviceGroup = "sample-input"
+  devicePrivate = "0001"
+  networkAddress = "0.0.0.0:5572"
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
 [INPUTS.UDPInputDevice.InitArgs]
@@ -17,8 +18,9 @@
   disable = false
   type = "TCPInputDevice"
   displayName = "TCPInputDevice"
-  groupAddress = "0.0.0.0"
-  privateAddress = "5571"
+  deviceGroup = "sample-input"
+  devicePrivate = "0002"
+  networkAddress = "0.0.0.0:5573"
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
 [INPUTS.TCPInputDevice.InitArgs]

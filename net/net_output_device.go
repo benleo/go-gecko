@@ -10,63 +10,68 @@ import (
 func NewAbcNetOutputDevice(network string) *AbcNetOutputDevice {
 	return &AbcNetOutputDevice{
 		AbcOutputDevice: gecko.NewAbcOutputDevice(),
-		network:         network,
+		networkType:     network,
 	}
 }
 
 // Socket客户端输出设备
 type AbcNetOutputDevice struct {
 	*gecko.AbcOutputDevice
-	maxBufferSize int64
-	writeTimeout  time.Duration
-	netConn       net.Conn
-	network       string
+	maxBufferSize  int64
+	writeTimeout   time.Duration
+	netConn        net.Conn
+	networkType    string
+	networkAddress string
 }
 
-func (no *AbcNetOutputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
-	no.AbcOutputDevice.OnInit(config, ctx)
-	no.maxBufferSize = config.GetInt64OrDefault("bufferSize", 512)
-	no.writeTimeout = config.GetDurationOrDefault("writeTimeout", time.Second*10)
+func (d *AbcNetOutputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
+	d.AbcOutputDevice.OnInit(config, ctx)
+	d.maxBufferSize = config.GetInt64OrDefault("bufferSize", 512)
+	d.writeTimeout = config.GetDurationOrDefault("writeTimeout", time.Second*10)
+	d.networkAddress = config.MustString("networkAddress")
 }
 
-func (no *AbcNetOutputDevice) OnStart(ctx gecko.Context) {
-	address := no.GetAddress().GetUnionAddress()
+func (d *AbcNetOutputDevice) OnStart(ctx gecko.Context) {
+	address := d.GetAddress().GetUnionAddress()
 	zap := gecko.Zap()
 	defer zap.Sync()
-	zap.Infof("使用%s客户端模式，远程地址： %s", no.network, address)
-	if "udp" == no.network {
+	if d.networkAddress == "" || d.networkType == "" {
+		zap.Panicw("未设置网络通讯地址和网络类型", "address", d.networkAddress, "type", d.networkType)
+	}
+	zap.Infof("使用%s客户端模式，远程地址： %s", d.networkType, address)
+	if "udp" == d.networkType {
 		if addr, err := net.ResolveUDPAddr("udp", address); err != nil {
 			zap.Panicw("无法创建UDP地址", "addr", address, "err", err)
 		} else {
 			if conn, err := net.DialUDP("udp", nil, addr); nil != err {
 				zap.Panicw("无法连接UDP服务端", "addr", address, "err", err)
 			} else {
-				no.netConn = conn
+				d.netConn = conn
 			}
 		}
-	} else if "tcp" == no.network {
+	} else if "tcp" == d.networkType {
 		// TODO 应当支持自动连接
 		if conn, err := net.Dial("tcp", address); nil != err {
 			zap.Panicw("无法连接TCP服务端", "addr", address, "err", err)
 		} else {
-			no.netConn = conn
+			d.netConn = conn
 		}
 	} else {
-		zap.Panicf("未识别的网络连接模式： %s", no.network)
+		zap.Panicf("未识别的网络连接模式： %s", d.networkType)
 	}
 }
 
-func (no *AbcNetOutputDevice) OnStop(ctx gecko.Context) {
-	if nil != no.netConn {
-		no.netConn.Close()
+func (d *AbcNetOutputDevice) OnStop(ctx gecko.Context) {
+	if nil != d.netConn {
+		d.netConn.Close()
 	}
 }
 
-func (no *AbcNetOutputDevice) Process(frame gecko.PacketFrame, ctx gecko.Context) (gecko.PacketFrame, error) {
-	if err := no.netConn.SetWriteDeadline(time.Now().Add(no.writeTimeout)); nil != err {
+func (d *AbcNetOutputDevice) Process(frame gecko.PacketFrame, ctx gecko.Context) (gecko.PacketFrame, error) {
+	if err := d.netConn.SetWriteDeadline(time.Now().Add(d.writeTimeout)); nil != err {
 		return nil, err
 	}
-	if _, err := no.netConn.Write(frame); nil != err {
+	if _, err := d.netConn.Write(frame); nil != err {
 		return nil, err
 	} else {
 		return gecko.PacketFrame([]byte{}), nil

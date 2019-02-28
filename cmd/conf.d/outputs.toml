@@ -3,8 +3,9 @@
   disable = false
   type = "UDPOutputDevice"
   displayName = "UDPOutputDevice"
-  groupAddress = "127.0.0.1"
-  privateAddress = 60000
+  deviceGroup = "sample-output"
+  devicePrivate = "001"
+  networkAddress = "127.0.0.1:60000"
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
 [OUTPUTS.UDPOutputDevice.InitArgs]
@@ -16,8 +17,9 @@
   disable = false
   type = "TCPOutputDevice"
   displayName = "TCPOutputDevice"
-  groupAddress = "127.0.0.1"
-  privateAddress = 50000
+  deviceGroup = "sample-output"
+  devicePrivate = "002"
+  networkAddress = "127.0.0.1:50000"
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
 [OUTPUTS.TCPOutputDevice.InitArgs]
