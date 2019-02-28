@@ -22,7 +22,7 @@ func (da DeviceAddress) GetUnionAddress() string {
 }
 
 func (da DeviceAddress) String() string {
-	return fmt.Sprintf(`{"group": "%s", "private": "%s", "internal": "%s"}`, da.Group, da.Private, da.Tag)
+	return fmt.Sprintf(`{"group": "%s", "private": "%s", "tag": "%s"}`, da.Group, da.Private, da.Tag)
 }
 
 func (da DeviceAddress) IsValid() bool {
