@@ -15,7 +15,7 @@ func NewAbcNetOutputDevice(network string) *AbcNetOutputDevice {
 }
 
 // 输出设备读取响应的外置处理函数
-type OutputReceiver func(conn net.Conn) (gecko.PacketFrame, error)
+type OutputReceiver func(conn net.Conn) (gecko.FramePacket, error)
 
 // Socket客户端输出设备
 type AbcNetOutputDevice struct {
@@ -37,8 +37,8 @@ func (d *AbcNetOutputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 	d.networkAddress = config.MustString("networkAddress")
 
 	// 输出默认不读取响应结果
-	d.SetOutputReceiver(func(conn net.Conn) (gecko.PacketFrame, error) {
-		return gecko.NewPackFrame([]byte{}), nil
+	d.SetOutputReceiver(func(conn net.Conn) (gecko.FramePacket, error) {
+		return gecko.NewFramePacket([]byte{}), nil
 	})
 }
 
@@ -77,7 +77,7 @@ func (d *AbcNetOutputDevice) OnStop(ctx gecko.Context) {
 	}
 }
 
-func (d *AbcNetOutputDevice) Process(frame gecko.PacketFrame, ctx gecko.Context) (gecko.PacketFrame, error) {
+func (d *AbcNetOutputDevice) Process(frame gecko.FramePacket, ctx gecko.Context) (gecko.FramePacket, error) {
 	// 写
 	if err := d.netConn.SetWriteDeadline(time.Now().Add(d.writeTimeout)); nil != err {
 		return nil, err

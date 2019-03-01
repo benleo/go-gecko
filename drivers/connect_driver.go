@@ -24,7 +24,7 @@ func NewConnectDriver() *ConnectDriver {
 }
 
 // 触发设备数据包生产接口
-type TriggerPacketProducer func(session gecko.Session, trigger gecko.DeviceAddress) gecko.PacketMap
+type TriggerPacketProducer func(session gecko.Session, trigger gecko.DeviceAddress) gecko.JSONPacket
 
 // 设备直接连接联动Driver
 type ConnectDriver struct {
@@ -46,7 +46,6 @@ func (cd *ConnectDriver) OnInit(config *cfg.Config, ctx gecko.Context) {
 	cd.targetAddress = gecko.DeviceAddress{
 		Group:   config.MustString("targetDeviceGroup"),
 		Private: config.MustString("targetDevicePrivate"),
-		Tag:     config.MustString("targetDeviceTag"),
 	}
 
 	if !cd.targetAddress.IsValid() {
@@ -58,7 +57,6 @@ func (cd *ConnectDriver) OnInit(config *cfg.Config, ctx gecko.Context) {
 	cd.triggerAddress = gecko.DeviceAddress{
 		Group:   config.MustString("triggerDeviceGroup"),
 		Private: config.MustString("triggerDevicePrivate"),
-		Tag:     config.MustString("triggerDeviceTag"),
 	}
 	if !cd.triggerAddress.IsValid() {
 		zap.Panic("未配置联动触发源设备的地址")
@@ -73,12 +71,11 @@ func (cd *ConnectDriver) OnInit(config *cfg.Config, ctx gecko.Context) {
 	}
 
 	// 默认事件生产接口
-	cd.SetTriggerPacketProducer(func(session gecko.Session, trigger gecko.DeviceAddress) gecko.PacketMap {
-		return gecko.PacketMap{
-			"state":         "on",
+	cd.SetTriggerPacketProducer(func(session gecko.Session, trigger gecko.DeviceAddress) gecko.JSONPacket {
+		return gecko.JSONPacket{
+			"state":               "on",
 			"targetDeviceGroup":   trigger.Group,
 			"targetDevicePrivate": trigger.Private,
-			"targetDeviceTag":     trigger.Tag,
 		}
 	})
 }
@@ -97,7 +94,6 @@ func (cd *ConnectDriver) Handle(session gecko.Session, deliverer gecko.OutputDel
 	eventAddress := gecko.DeviceAddress{
 		Group:   data.MustString(cd.eventAddressKeys.GroupKey),
 		Private: data.MustString(cd.eventAddressKeys.PrivateKey),
-		Tag:     data.MustString(cd.eventAddressKeys.TagKey),
 	}
 
 	if cd.triggerAddress.Equals(eventAddress) {
@@ -108,7 +104,7 @@ func (cd *ConnectDriver) Handle(session gecko.Session, deliverer gecko.OutputDel
 		zap.Debugw("联动设备", "address", cd.targetAddress.String())
 
 		pack := cd.triggerPacketProducer(session, cd.triggerAddress)
-		if ret, err := deliverer.Execute(cd.targetAddress, pack); nil != err {
+		if ret, err := deliverer.Execute(cd.targetAddress.UUID, pack); nil != err {
 			zap.Error("联动设备发生错误", err)
 		} else {
 			zap.Debug("联动设备返回结果", ret)

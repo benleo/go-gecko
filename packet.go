@@ -9,39 +9,39 @@ import (
 //
 
 // JSON结构数据消息包
-type PacketMap map[string]interface{}
+type JSONPacket map[string]interface{}
 
-func (pm PacketMap) Add(key string, value interface{}) {
+func (pm JSONPacket) Add(key string, value interface{}) {
 	pm[key] = value
 }
 
-func NewPacketMap(m map[string]interface{}) PacketMap {
-	return PacketMap(m)
+func NewJSONPacket(m map[string]interface{}) JSONPacket {
+	return JSONPacket(m)
 }
 
-func NewPacketMapCapacity(capacity int) PacketMap {
-	return NewPacketMap(make(map[string]interface{}, capacity))
+func NewJSONPacketCapacity(capacity int) JSONPacket {
+	return NewJSONPacket(make(map[string]interface{}, capacity))
 }
 
 ////
 
 // 字节数据消息包
-type PacketFrame []byte
+type FramePacket []byte
 
 // 返回一个Reader接口
-func (pf PacketFrame) DataReader() *bytes.Reader {
-	return bytes.NewReader(pf)
+func (p FramePacket) DataReader() *bytes.Reader {
+	return bytes.NewReader(p)
 }
 
 // 返回Data数据
-func (pf PacketFrame) Data() []byte {
-	return pf
+func (p FramePacket) Data() []byte {
+	return p
 }
 
-func NewPackFrame(frame []byte) PacketFrame {
-	return PacketFrame(frame)
+func NewFramePacket(frame []byte) FramePacket {
+	return FramePacket(frame)
 }
 
-func NewPackFrameSize(size int) PacketFrame {
-	return NewPackFrame(make([]byte, size))
+func NewFramePacketSize(size int) FramePacket {
+	return NewFramePacket(make([]byte, size))
 }

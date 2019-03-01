@@ -46,7 +46,7 @@ type _GeckoSession struct {
 	topic               string
 	inbound             *Inbound
 	outbound            *Outbound
-	notifyCompletedFunc func(PacketMap)
+	notifyCompletedFunc func(JSONPacket)
 }
 
 func (si *_GeckoSession) Attributes() *cfg.Config {

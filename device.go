@@ -124,7 +124,7 @@ func NewAbcInputDevice() *AbcInputDevice {
 type OutputDevice interface {
 	VirtualDevice
 	// 设备对象接收控制事件；经设备驱动处理后，返回处理结果事件；
-	Process(frame PacketFrame, ctx Context) (PacketFrame, error)
+	Process(frame FramePacket, ctx Context) (FramePacket, error)
 }
 
 ////

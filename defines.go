@@ -1,7 +1,15 @@
 package gecko
 
+import "github.com/parkingwang/go-conf"
+
 //
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
+
+// 初始化接口提供一个初始化组件的Interface。Gecko内部的组件
+type Initialize interface {
+	// 指定参数初始化组件
+	OnInit(config *cfg.Config, context Context)
+}
 
 // Bundle 是一个具有生命周期管理的接口
 type Bundle interface {

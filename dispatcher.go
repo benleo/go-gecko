@@ -4,7 +4,7 @@ import "context"
 
 type SessionHandler func(session Session)
 
-// Events是一个三级Channel的事件处理器
+// Events是一个二级Channel的事件处理器
 type Dispatcher struct {
 	startChan    chan Session
 	endChan      chan Session

@@ -175,7 +175,7 @@ func (pl *Pipeline) prepareEnv() {
 
 // 输出派发函数
 // 根据Driver指定的目标输出设备地址，查找并处理数据包
-func (pl *Pipeline) deliverToOutput(address string, broadcast bool, data PacketMap) (PacketMap, error) {
+func (pl *Pipeline) deliverToOutput(address string, broadcast bool, data JSONPacket) (JSONPacket, error) {
 	// 广播给相同组地址的设备
 	if broadcast {
 		for addr, device := range pl.outputsMap {
@@ -223,7 +223,7 @@ func (pl *Pipeline) deliverToOutput(address string, broadcast bool, data PacketM
 
 // 创建InputDeliverer函数
 func (pl *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
-	return InputDeliverer(func(topic string, frame PacketFrame) (PacketFrame, error) {
+	return InputDeliverer(func(topic string, frame FramePacket) (FramePacket, error) {
 		// 解码
 		decoder := device.GetDecoder()
 		inData, err := decoder(frame.Data())
@@ -231,7 +231,7 @@ func (pl *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
 			pl.zap.Errorw("InputDevice解码/Decode错误", "class", x.SimpleClassName(device))
 			return nil, err
 		}
-		awaitResult := make(chan PacketMap, 1)
+		awaitResult := make(chan JSONPacket, 1)
 		// 处理
 		pl.dispatcher.StartC() <- &_GeckoSession{
 			timestamp:  time.Now(),
@@ -246,7 +246,7 @@ func (pl *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
 				Topic: topic,
 				Data:  make(map[string]interface{}),
 			},
-			notifyCompletedFunc: func(data PacketMap) {
+			notifyCompletedFunc: func(data JSONPacket) {
 				// 通过 notifyCompletedFunc 返回处理结果
 				awaitResult <- data
 			},
@@ -258,7 +258,7 @@ func (pl *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
 			pl.zap.Errorw("InputDevice编码/Encode错误", "class", x.SimpleClassName(device))
 			return nil, err
 		} else {
-			return NewPackFrame(bytes), nil
+			return NewFramePacket(bytes), nil
 		}
 	})
 }

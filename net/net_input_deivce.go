@@ -51,7 +51,7 @@ func (d *AbcNetInputDevice) OnStart(ctx gecko.Context) {
 			zap.Panic("使用默认接口必须设置topic参数")
 		}
 		d.onServeHandler = func(bytes []byte, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
-			return deliverer.Broadcast(d.topic, gecko.PacketFrame(bytes))
+			return deliverer.Broadcast(d.topic, gecko.FramePacket(bytes))
 		}
 	}
 }
@@ -145,7 +145,7 @@ func (d *AbcNetInputDevice) receiveLoop(conn net.Conn, ctx gecko.Context, delive
 					return err
 				}
 			} else if n > 0 {
-				frame := gecko.NewPackFrame(buffer[:n])
+				frame := gecko.NewFramePacket(buffer[:n])
 				if err := d.onServeHandler(frame, ctx, deliverer); nil != err {
 					return err
 				}

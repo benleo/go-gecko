@@ -14,29 +14,29 @@ import (
 // 同样，OutputDevice在消息的传递过程中，也需要Encoder和Decoder来转换数据格式；
 
 // 解码器，负责将字节数组转换成PacketMap对象
-type Decoder func(bytes PacketFrame) (PacketMap, error)
+type Decoder func(bytes FramePacket) (JSONPacket, error)
 
 // 扩展Decoder的函数
-func (d Decoder) Decode(bytes PacketFrame) (PacketMap, error) {
-	return d(bytes)
+func (d Decoder) Decode(frame FramePacket) (JSONPacket, error) {
+	return d(frame)
 }
 
 // 编码器，负责将PacketMap对象转换成字节数组
-type Encoder func(data PacketMap) (PacketFrame, error)
+type Encoder func(data JSONPacket) (FramePacket, error)
 
 // 扩展Encoder的函数
-func (e Encoder) Encode(data PacketMap) (PacketFrame, error) {
+func (e Encoder) Encode(data JSONPacket) (FramePacket, error) {
 	return e(data)
 }
 
 //// 系统默认实现的编码和解码接口
 
-func NopEncoder(_ PacketMap) (PacketFrame, error) {
-	return NewPackFrame([]byte{}), nil
+func NopEncoder(_ JSONPacket) (FramePacket, error) {
+	return NewFramePacket([]byte{}), nil
 }
 
-func NopDecoder(_ PacketFrame) (PacketMap, error) {
-	return NewPacketMap(make(map[string]interface{}, 0)), nil
+func NopDecoder(_ FramePacket) (JSONPacket, error) {
+	return NewJSONPacket(make(map[string]interface{}, 0)), nil
 }
 
 func JSONDefaultDecoderFactory() (string, CodecFactory) {
@@ -46,7 +46,7 @@ func JSONDefaultDecoderFactory() (string, CodecFactory) {
 }
 
 // 默认JSON解码器，将Byte数据解析成PacketMap对象
-func JSONDefaultDecoder(bytes PacketFrame) (PacketMap, error) {
+func JSONDefaultDecoder(bytes FramePacket) (JSONPacket, error) {
 	m := make(map[string]interface{})
 	err := json.Unmarshal(bytes, &m)
 	return m, err
@@ -59,6 +59,6 @@ func JSONDefaultEncoderFactory() (string, CodecFactory) {
 }
 
 // 默认JSON编码器，负责将PacketMap对象解析成Byte数组
-func JSONDefaultEncoder(data PacketMap) (PacketFrame, error) {
+func JSONDefaultEncoder(data JSONPacket) (FramePacket, error) {
 	return json.Marshal(data)
 }

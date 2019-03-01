@@ -35,7 +35,7 @@ func (du *NopDriver) OnStop(ctx gecko.Context) {
 }
 
 func (du *NopDriver) Handle(session gecko.Session, deliverer gecko.OutputDeliverer, ctx gecko.Context) error {
-	deliverer.Broadcast("127.0.0.1", gecko.PacketMap{
+	deliverer.Broadcast("127.0.0.1", gecko.JSONPacket{
 		"A": "b",
 	})
 	//if pipeline, ok := selector("udp"); !ok {
@@ -44,7 +44,7 @@ func (du *NopDriver) Handle(session gecko.Session, deliverer gecko.OutputDeliver
 	//	// 通过Pipeline，向特定设备发送消息：
 	//	//groupAddress := "目标设备的GroupAddress"
 	//	//privateAddress := "目标设备的PrivateAddress"
-	//	//resp, err := pipeline.ExecuteDevice(groupAddress, privateAddress, gecko.NewPackFrame([]byte{0}))
+	//	//resp, err := pipeline.ExecuteDevice(groupAddress, privateAddress, gecko.NewFramePacket([]byte{0}))
 	//
 	//}
 
