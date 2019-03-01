@@ -52,7 +52,7 @@ type _GeckoEventContext struct {
 func (si *_GeckoEventContext) Attributes() *cfg.Config {
 	si.attrLock.RLock()
 	defer si.attrLock.RUnlock()
-	return cfg.WrapConfig(si.attributes)
+	return cfg.Wrap(si.attributes)
 }
 
 func (si *_GeckoEventContext) AddAttribute(name string, value interface{}) {

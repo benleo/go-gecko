@@ -205,7 +205,7 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 		if !ok {
 			re.zap.Panicf("组件配置信息类型错误: %s", bundleType)
 		}
-		config := cfg.WrapConfig(asMap)
+		config := cfg.Wrap(asMap)
 		if config.MustBool("disable") {
 			re.zap.Warnf("组件[%s]在配置中禁用", bundleType)
 			return
