@@ -3,6 +3,7 @@ package x
 import (
 	"bytes"
 	"encoding/binary"
+	"github.com/yoojia/go-gecko"
 )
 
 //
@@ -39,13 +40,15 @@ func (r *ByteReader) GetByte() byte {
 	return b
 }
 
-func (r *ByteReader) GetBytes(out []byte) {
-	r.buffer.Read(out)
+func (r *ByteReader) LoadBytes(out []byte) (n int, err error) {
+	return r.buffer.Read(out)
 }
 
 func (r *ByteReader) GetBytesSize(size int) []byte {
 	out := make([]byte, size)
-	r.GetBytes(out)
+	if _, err := r.LoadBytes(out); nil != err {
+		gecko.ZapSugarLogger().Errorf("GetBytesSize发生错误", err)
+	}
 	return out
 }
 
