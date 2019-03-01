@@ -23,7 +23,7 @@ type ConnectedDevice struct {
 }
 
 // 驱动触发策略
-type DriveStrategy func(event map[string]interface{}) ConnectedDevice
+type DriveStrategy func(event map[string]interface{}) *ConnectedDevice
 
 // 策略驱动Driver
 type StrategyDriver struct {
@@ -53,13 +53,17 @@ func (d *StrategyDriver) Handle(session gecko.EventSession, deliverer gecko.Outp
 	message := session.Inbound()
 	for _, strategy := range d.strategies {
 		target := strategy(message.Data)
-		if ret, err := deliverer.Execute(target.DeviceUUID, target.Payload); nil != err {
-			responses[target.DeviceUUID] = gecko.JSONPacket{
+		if nil == target {
+			continue
+		}
+		address := target.DeviceUUID
+		if ret, err := deliverer.Execute(address, target.Payload); nil != err {
+			responses[address] = gecko.JSONPacket{
 				"status":  "error",
 				"message": err.Error(),
 			}
 		} else {
-			responses[target.DeviceUUID] = gecko.JSONPacket{
+			responses[address] = gecko.JSONPacket{
 				"status": "success",
 				"data":   ret,
 			}
