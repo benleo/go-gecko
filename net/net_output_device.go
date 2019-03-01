@@ -43,18 +43,18 @@ func (d *AbcNetOutputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 }
 
 func (d *AbcNetOutputDevice) OnStart(ctx gecko.Context) {
-	zap := gecko.Zap()
-	defer zap.Sync()
+	zlog := gecko.ZapSugarLogger()
+
 	if d.networkAddress == "" || d.networkType == "" {
-		zap.Panicw("未设置网络通讯地址和网络类型", "address", d.networkAddress, "type", d.networkType)
+		zlog.Panicw("未设置网络通讯地址和网络类型", "address", d.networkAddress, "type", d.networkType)
 	}
-	zap.Infof("使用%s客户端模式，远程地址： %s", d.networkType, d.networkAddress)
+	zlog.Infof("使用%s客户端模式，远程地址： %s", d.networkType, d.networkAddress)
 	if "udp" == d.networkType {
 		if addr, err := net.ResolveUDPAddr("udp", d.networkAddress); err != nil {
-			zap.Panicw("无法创建UDP地址", "addr", d.networkAddress, "err", err)
+			zlog.Panicw("无法创建UDP地址", "addr", d.networkAddress, "err", err)
 		} else {
 			if conn, err := net.DialUDP("udp", nil, addr); nil != err {
-				zap.Panicw("无法连接UDP服务端", "addr", d.networkAddress, "err", err)
+				zlog.Panicw("无法连接UDP服务端", "addr", d.networkAddress, "err", err)
 			} else {
 				d.netConn = conn
 			}
@@ -62,12 +62,12 @@ func (d *AbcNetOutputDevice) OnStart(ctx gecko.Context) {
 	} else if "tcp" == d.networkType {
 		// TODO 应当支持自动连接
 		if conn, err := net.Dial("tcp", d.networkAddress); nil != err {
-			zap.Panicw("无法连接TCP服务端", "addr", d.networkAddress, "err", err)
+			zlog.Panicw("无法连接TCP服务端", "addr", d.networkAddress, "err", err)
 		} else {
 			d.netConn = conn
 		}
 	} else {
-		zap.Panicf("未识别的网络连接模式： %s", d.networkType)
+		zlog.Panicf("未识别的网络连接模式： %s", d.networkType)
 	}
 }
 

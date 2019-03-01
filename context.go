@@ -40,12 +40,8 @@ type Context interface {
 	// 如果启用了FailFast标记则调用此函数
 	OnIfFailFast(fun func())
 
-	// Deprecated: Use PutScoped instead
-	PutMagic(key interface{}, value interface{})
 	// 向Context添加Key-Value数据。注意：添加的Key不可重复
 	PutScoped(key interface{}, value interface{})
-	// Deprecated: Use GetScoped instead
-	GetMagic(key interface{}) interface{}
 	// 读取Context的KeyValue数据
 	GetScoped(key interface{}) interface{}
 
@@ -89,7 +85,7 @@ func (ci *_GeckoContext) PutMagic(key interface{}, value interface{}) {
 
 func (ci *_GeckoContext) PutScoped(key interface{}, value interface{}) {
 	if _, ok := ci.scopedKV[key]; ok {
-		zap := Zap()
+		zap := ZapSugarLogger()
 		defer zap.Sync()
 		zap.Panicw("ScopedKey 不可重复，Key已存在", "key", key)
 	}
@@ -106,7 +102,7 @@ func (ci *_GeckoContext) GetScoped(key interface{}) interface{} {
 
 func (ci *_GeckoContext) CheckTimeout(msg string, timeout time.Duration, action func()) {
 	t := time.AfterFunc(timeout, func() {
-		zap := Zap()
+		zap := ZapSugarLogger()
 		defer zap.Sync()
 		zap.Errorw("指令执行时间太长", "action", msg, "timeout", timeout.String())
 	})

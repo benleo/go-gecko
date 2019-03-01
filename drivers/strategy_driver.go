@@ -51,23 +51,22 @@ func (d *StrategyDriver) OnInit(args *cfg.Config, ctx gecko.Context) {
 	d.initArgs = args
 
 	strategies := args.MustConfig("strategies")
-	zap := gecko.Zap()
-	defer zap.Sync()
+	log := gecko.ZapSugarLogger()
 
 	strategies.ForEach(func(name string, value interface{}) {
 		rule := cfg.Wrap(value.(map[string]interface{}))
 		matchFields, err := rule.GetStringMapOrDefault("matchEventFields", make(map[string]string, 0))
 		if err != nil {
-			zap.Panicf("matchEventFields字段格式错误[TABLE]", err)
+			log.Panicf("matchEventFields字段格式错误[TABLE]", err)
 		}
 		targetUUID := rule.MustString("targetUUID")
 		targetCommand := rule.MustConfig("targetCommand")
 
 		if 0 == len(matchFields) || "" == targetUUID || targetCommand.IsEmpty() {
-			zap.Panicf("未正确配置匹配规则： matchFields= %s, targetUUID= %s, targetCommand=%s",
+			log.Panicf("未正确配置匹配规则： matchFields= %s, targetUUID= %s, targetCommand=%s",
 				matchFields, targetUUID, targetCommand.RefMap())
 		} else {
-			zap.Debugf("联动配置规则： matchFields= %s, targetUUID= %s, targetCommand=%s",
+			log.Debugf("联动配置规则： matchFields= %s, targetUUID= %s, targetCommand=%s",
 				matchFields, targetUUID, targetCommand.RefMap())
 		}
 
@@ -94,9 +93,6 @@ func (d *StrategyDriver) OnInit(args *cfg.Config, ctx gecko.Context) {
 }
 
 func (d *StrategyDriver) Handle(session gecko.EventSession, deliverer gecko.OutputDeliverer, ctx gecko.Context) error {
-	zap := gecko.Zap()
-	defer zap.Sync()
-
 	responses := make(map[string]gecko.JSONPacket, 0)
 	message := session.Inbound()
 	for _, strategy := range d.strategies {

@@ -5,7 +5,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var _ZapConfig = zap.Config{
+var _ZapLoggerConfig = zap.Config{
 	Level:       zap.NewAtomicLevelAt(zap.DebugLevel),
 	Development: true,
 	Encoding:    "console",
@@ -27,27 +27,17 @@ var _ZapConfig = zap.Config{
 	ErrorOutputPaths: []string{"stderr"},
 }
 
-func ZapConfig() zap.Config {
-	return _ZapConfig
+var ZapLogger = NewZapLogger()
+
+func ZapLoggerConfig() zap.Config {
+	return _ZapLoggerConfig
 }
 
-func ZapLogger() *zap.Logger {
-	logger, _ := _ZapConfig.Build()
+func NewZapLogger() *zap.Logger {
+	logger, _ := _ZapLoggerConfig.Build()
 	return logger
 }
 
-func Zap() *zap.SugaredLogger {
-	return ZapLogger().Sugar()
-}
-
-func ZapDebug(msg string) {
-	Zapf(func(zap *zap.Logger) {
-		zap.Debug(msg)
-	})
-}
-
-func Zapf(f func(zap *zap.Logger)) {
-	logger := ZapLogger()
-	defer logger.Sync()
-	f(logger)
+func ZapSugarLogger() *zap.SugaredLogger {
+	return ZapLogger.Sugar()
 }

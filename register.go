@@ -4,7 +4,6 @@ import (
 	"container/list"
 	"github.com/parkingwang/go-conf"
 	"github.com/yoojia/go-gecko/x"
-	"go.uber.org/zap"
 )
 
 //
@@ -30,7 +29,6 @@ type Registration struct {
 	stopAfterHooks   *list.List
 	// 组件创建工厂函数
 	factories map[string]BundleFactory
-	zap       *zap.SugaredLogger
 }
 
 func prepare() *Registration {
@@ -49,14 +47,13 @@ func prepare() *Registration {
 	re.stopBeforeHooks = list.New()
 	re.stopAfterHooks = list.New()
 	re.factories = make(map[string]BundleFactory)
-	re.zap = Zap()
 	return re
 }
 
 // 添加Encoder
 func (re *Registration) AddEncoder(name string, encoder Encoder) {
 	if _, ok := re.encodersMap[name]; ok {
-		re.zap.Panicw("Encoder类型重复", "type", name)
+		ZapSugarLogger().Panicw("Encoder类型重复", "type", name)
 	} else {
 		re.encodersMap[name] = encoder
 	}
@@ -65,7 +62,7 @@ func (re *Registration) AddEncoder(name string, encoder Encoder) {
 // 添加Decoder
 func (re *Registration) AddDecoder(name string, decoder Decoder) {
 	if _, ok := re.decodersMap[name]; ok {
-		re.zap.Panicw("Decoder类型重复", "type", name)
+		ZapSugarLogger().Panicw("Decoder类型重复", "type", name)
 	} else {
 		re.decodersMap[name] = decoder
 	}
@@ -117,29 +114,30 @@ func (re *Registration) AddStopAfterHook(hook HookFunc) {
 }
 
 func (re *Registration) showBundles() {
-	re.zap.Infof("已加载 Interceptors: %d", re.interceptors.Len())
+	zlog := ZapSugarLogger()
+	zlog.Infof("已加载 Interceptors: %d", re.interceptors.Len())
 	x.ForEach(re.interceptors, func(it interface{}) {
-		re.zap.Info("  - Interceptor: " + x.SimpleClassName(it))
+		zlog.Info("  - Interceptor: " + x.SimpleClassName(it))
 	})
 
-	re.zap.Infof("已加载 InputDevices: %d", re.inputs.Len())
+	zlog.Infof("已加载 InputDevices: %d", re.inputs.Len())
 	x.ForEach(re.inputs, func(it interface{}) {
-		re.zap.Info("  - InputDevice: " + x.SimpleClassName(it))
+		zlog.Info("  - InputDevice: " + x.SimpleClassName(it))
 	})
 
-	re.zap.Infof("已加载OutputDevices: %d", re.outputs.Len())
+	zlog.Infof("已加载OutputDevices: %d", re.outputs.Len())
 	x.ForEach(re.outputs, func(it interface{}) {
-		re.zap.Info("  - OutputDevice: " + x.SimpleClassName(it))
+		zlog.Info("  - OutputDevice: " + x.SimpleClassName(it))
 	})
 
-	re.zap.Infof("已加载 Drivers: %d", re.drivers.Len())
+	zlog.Infof("已加载 Drivers: %d", re.drivers.Len())
 	x.ForEach(re.drivers, func(it interface{}) {
-		re.zap.Info("  - Driver: " + x.SimpleClassName(it))
+		zlog.Info("  - Driver: " + x.SimpleClassName(it))
 	})
 
-	re.zap.Infof("已加载 Plugins: %d", re.plugins.Len())
+	zlog.Infof("已加载 Plugins: %d", re.plugins.Len())
 	x.ForEach(re.plugins, func(it interface{}) {
-		re.zap.Info("  - Plugin: " + x.SimpleClassName(it))
+		zlog.Info("  - Plugin: " + x.SimpleClassName(it))
 	})
 }
 
@@ -155,10 +153,11 @@ func (re *Registration) RegisterCodecFactory(typeName string, factory CodecFacto
 
 // 注册组件工厂函数
 func (re *Registration) AddBundleFactory(typeName string, factory BundleFactory) {
+	zlog := ZapSugarLogger()
 	if _, ok := re.factories[typeName]; ok {
-		re.zap.Warnf("组件类型[%s]，旧的工厂函数将被覆盖为： %s", typeName, x.SimpleClassName(factory))
+		zlog.Warnf("组件类型[%s]，旧的工厂函数将被覆盖为： %s", typeName, x.SimpleClassName(factory))
 	}
-	re.zap.Infof("正在注册组件工厂函数： %s", typeName)
+	zlog.Infof("正在注册组件工厂函数： %s", typeName)
 	re.factories[typeName] = factory
 }
 
@@ -173,7 +172,7 @@ func (re *Registration) AddCodecFactory(typeName string, factory CodecFactory) {
 		re.AddEncoder(typeName, codec.(Encoder))
 
 	default:
-		re.zap.Panicf("未知的编/解码类型[%s]，工厂函数： %s", typeName, x.SimpleClassName(factory))
+		ZapSugarLogger().Panicf("未知的编/解码类型[%s]，工厂函数： %s", typeName, x.SimpleClassName(factory))
 	}
 }
 
@@ -187,10 +186,11 @@ func (re *Registration) findFactory(typeName string) (BundleFactory, bool) {
 }
 
 func (re *Registration) ensureUniqueUUID(uuid string) string {
+	zlog := ZapSugarLogger()
 	if _, ok := re.inputsMap[uuid]; ok {
-		re.zap.Panicf("设备UUID重复[Input]：%s", uuid)
+		zlog.Panicf("设备UUID重复[Input]：%s", uuid)
 	} else if _, ok := re.outputsMap[uuid]; ok {
-		re.zap.Panicf("设备UUID重复[Output]：%s", uuid)
+		zlog.Panicf("设备UUID重复[Output]：%s", uuid)
 	}
 	return uuid
 }
@@ -200,14 +200,15 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 	if configs.IsEmpty() {
 		return false
 	}
+	zlog := ZapSugarLogger()
 	configs.ForEach(func(bundleType string, item interface{}) {
 		asMap, ok := item.(map[string]interface{})
 		if !ok {
-			re.zap.Panicf("组件配置信息类型错误: %s", bundleType)
+			zlog.Panicf("组件配置信息类型错误: %s", bundleType)
 		}
 		config := cfg.Wrap(asMap)
 		if config.MustBool("disable") {
-			re.zap.Warnf("组件[%s]在配置中禁用", bundleType)
+			zlog.Infof("组件[%s]在配置中禁用", bundleType)
 			return
 		}
 
@@ -218,7 +219,7 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 
 		factory, ok := re.findFactory(bundleType)
 		if !ok {
-			re.zap.Panicf("组件类型[%s]，没有注册对应的工厂函数", bundleType)
+			zlog.Panicf("组件类型[%s]，没有注册对应的工厂函数", bundleType)
 		}
 		// 根据类型注册
 		bundle := factory()
@@ -235,7 +236,7 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 		case VirtualDevice:
 			device := bundle.(VirtualDevice)
 			if name := config.MustString("name"); "" == name {
-				re.zap.Panicf("VirtualDevice[%s]配置项[name]是必填参数", bundleType)
+				zlog.Panicf("VirtualDevice[%s]配置项[name]是必填参数", bundleType)
 			} else {
 				device.setName(name)
 			}
@@ -246,31 +247,31 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 				Private: config.MustString("private"),
 			}
 			if !address.IsValid() {
-				re.zap.Panicf("VirtualDevice[%s]配置项[uuid/group/private]是必填参数", bundleType)
+				zlog.Panicf("VirtualDevice[%s]配置项[uuid/group/private]是必填参数", bundleType)
 			}
 			device.setAddress(address)
 
 			if name := config.MustString("encoder"); "" == name {
 				if nil == device.GetEncoder() {
-					re.zap.Panicf("未设置默认Encoder时，Device[%s]配置项[encoder]是必填参数", bundleType)
+					zlog.Panicf("未设置默认Encoder时，Device[%s]配置项[encoder]是必填参数", bundleType)
 				}
 			} else {
 				if encoder, ok := re.encodersMap[name]; ok {
 					device.setEncoder(encoder)
 				} else {
-					re.zap.Panicf("Encoder[%s]未注册", name)
+					zlog.Panicf("Encoder[%s]未注册", name)
 				}
 			}
 
 			if name := config.MustString("decoder"); "" == name {
 				if nil == device.GetDecoder() {
-					re.zap.Panicf("未设置默认Decoder时，Device[%s]配置项[decoder]是必填参数", bundleType)
+					zlog.Panicf("未设置默认Decoder时，Device[%s]配置项[decoder]是必填参数", bundleType)
 				}
 			} else {
 				if decoder, ok := re.decodersMap[name]; ok {
 					device.setDecoder(decoder)
 				} else {
-					re.zap.Panicf("Decoder[%s]未注册", name)
+					zlog.Panicf("Decoder[%s]未注册", name)
 				}
 			}
 
@@ -279,21 +280,21 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 			} else if outputDevice, ok := device.(OutputDevice); ok {
 				re.AddOutputDevice(outputDevice)
 			} else {
-				re.zap.Panicf("未知VirtualDevice类型： %s", x.SimpleClassName(device))
+				zlog.Panicf("未知VirtualDevice类型： %s", x.SimpleClassName(device))
 			}
 
 		default:
 			if plg, ok := bundle.(Plugin); ok {
 				re.AddPlugin(plg)
 			} else {
-				re.zap.Panicf("未支持的组件类型：%s. 你是否没有实现某个函数接口？", bundleType)
+				zlog.Panicf("未支持的组件类型：%s. 你是否没有实现某个函数接口？", bundleType)
 			}
 		}
 
 		// 需要Topic过滤
 		if tf, ok := bundle.(NeedTopicFilter); ok {
 			if topics, err := config.MustStringArray("topics"); nil != err || 0 == len(topics) {
-				re.zap.Panicw("配置项中[topics]必须是字符串数组", "type", bundleType, "error", err)
+				zlog.Panicw("配置项中[topics]必须是字符串数组", "type", bundleType, "error", err)
 			} else {
 				tf.setTopics(topics)
 			}

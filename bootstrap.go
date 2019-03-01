@@ -6,14 +6,13 @@ import (
 
 // Bootstrap提供一个启动入口
 func Bootstrap(prepare func(pipeline *Pipeline)) {
-	zap := Zap()
-	defer zap.Sync()
+	log := ZapSugarLogger()
 	config, err := cfg.LoadConfig("conf.d")
 	if nil != err {
-		zap.Panicw("加载配置文件出错", "err", err)
+		log.Panicw("加载配置文件出错", "err", err)
 	}
 	if config.IsEmpty() {
-		zap.Panic("没有任何配置信息")
+		log.Panic("没有任何配置信息")
 	}
 	pipeline := SharedPipeline()
 	prepare(pipeline)

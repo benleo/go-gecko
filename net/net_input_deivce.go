@@ -40,15 +40,15 @@ func (d *AbcNetInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 
 func (d *AbcNetInputDevice) OnStart(ctx gecko.Context) {
 	d.cancelCtx, d.cancelFun = context.WithCancel(context.Background())
-	zap := gecko.Zap()
-	defer zap.Sync()
+	log := gecko.ZapSugarLogger()
+
 	if d.networkAddress == "" || d.networkType == "" {
-		zap.Panicw("未设置网络通讯地址和网络类型", "address", d.networkAddress, "type", d.networkType)
+		log.Panicw("未设置网络通讯地址和网络类型", "address", d.networkAddress, "type", d.networkType)
 	}
 	if nil == d.onServeHandler {
-		zap.Warn("使用默认数据处理接口")
+		log.Warn("使用默认数据处理接口")
 		if "" == d.topic {
-			zap.Panic("使用默认接口必须设置topic参数")
+			log.Panic("使用默认接口必须设置topic参数")
 		}
 		d.onServeHandler = func(bytes []byte, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 			return deliverer.Broadcast(d.topic, gecko.FramePacket(bytes))
@@ -64,9 +64,9 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 	if nil == d.onServeHandler {
 		return errors.New("未设置onServeHandler接口")
 	}
-	zap := gecko.Zap()
-	defer zap.Sync()
-	zap.Infof("使用%s服务端模式，监听端口: %s", d.networkType, d.networkAddress)
+	log := gecko.ZapSugarLogger()
+
+	log.Infof("使用%s服务端模式，监听端口: %s", d.networkType, d.networkAddress)
 	if "udp" == d.networkType {
 		if addr, err := net.ResolveUDPAddr("udp", d.networkAddress); err != nil {
 			return errors.New("无法创建UDP地址: " + d.networkAddress)
@@ -86,13 +86,15 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 		for {
 			select {
 			case <-d.cancelCtx.Done():
-				server.Close()
-				return nil
+				if err := server.Close(); nil != err {
+					log.Errorf("关闭%s服务器发生错误", d.networkType, err)
+				}
+				break
 
 			default:
 				if client, err := server.Accept(); nil != err {
 					if !d.isNetTempErr(err) {
-						zap.Errorw("TCP服务端网络错误", "error", err)
+						log.Errorw("TCP服务端网络错误", "error", err)
 						return err
 					}
 				} else {
@@ -100,7 +102,7 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 						defer wg.Done()
 						wg.Add(1)
 						if err := d.receiveLoop(client, ctx, deliverer); nil != err {
-							zap.Errorw("TCP客户端发生错误", "error", err)
+							log.Errorw("TCP客户端发生错误", "error", err)
 						}
 					}()
 				}
