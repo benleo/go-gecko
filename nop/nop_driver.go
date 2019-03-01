@@ -34,7 +34,7 @@ func (du *NopDriver) OnStop(ctx gecko.Context) {
 	gecko.ZapDebug("停止...")
 }
 
-func (du *NopDriver) Handle(session gecko.Session, deliverer gecko.OutputDeliverer, ctx gecko.Context) error {
+func (du *NopDriver) Handle(session gecko.EventSession, deliverer gecko.OutputDeliverer, ctx gecko.Context) error {
 	deliverer.Broadcast("127.0.0.1", gecko.JSONPacket{
 		"A": "b",
 	})

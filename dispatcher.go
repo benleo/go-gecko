@@ -2,20 +2,20 @@ package gecko
 
 import "context"
 
-type SessionHandler func(session Session)
+type SessionHandler func(session EventSession)
 
 // Events是一个二级Channel的事件处理器
 type Dispatcher struct {
-	startChan    chan Session
-	endChan      chan Session
+	startChan    chan EventSession
+	endChan      chan EventSession
 	startHandler SessionHandler
 	endHandler   SessionHandler
 }
 
 func NewDispatcher(capacity int) *Dispatcher {
 	return &Dispatcher{
-		startChan: make(chan Session, capacity),
-		endChan:   make(chan Session, capacity),
+		startChan: make(chan EventSession, capacity),
+		endChan:   make(chan EventSession, capacity),
 	}
 }
 
@@ -27,17 +27,17 @@ func (d *Dispatcher) SetEndHandler(handler SessionHandler) {
 	d.endHandler = handler
 }
 
-func (d *Dispatcher) StartC() chan<- Session {
+func (d *Dispatcher) StartC() chan<- EventSession {
 	return d.startChan
 }
 
-func (d *Dispatcher) EndC() chan<- Session {
+func (d *Dispatcher) EndC() chan<- EventSession {
 	return d.endChan
 }
 
 func (d *Dispatcher) Serve(shutdown context.Context) {
-	var start <-chan Session = d.startChan
-	var end <-chan Session = d.endChan
+	var start <-chan EventSession = d.startChan
+	var end <-chan EventSession = d.endChan
 	for {
 		select {
 		case <-shutdown.Done():

@@ -10,8 +10,8 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-// Session 是每次请求生成的上下文对象，服务于事件请求的整个生命周期。
-type Session interface {
+// EventSession 是每次请求生成的上下文对象，服务于事件请求的整个生命周期。
+type EventSession interface {
 	// 返回属性列表
 	Attributes() *cfg.Config
 
@@ -21,7 +21,7 @@ type Session interface {
 	// 添加多个属性。相同Key的属性将被覆盖。
 	AddAttributes(attributes map[string]interface{})
 
-	// Context创建的时间戳
+	// 创建的时间戳
 	Timestamp() time.Time
 
 	// 从创建起始，到当前时间的用时
@@ -30,38 +30,38 @@ type Session interface {
 	// 当前事件的Topic
 	Topic() string
 
-	// 返回Inbound对象
-	Inbound() *Inbound
+	// 返回输入端消息对象
+	Inbound() *Message
 
 	// 返回Outbound对象
-	Outbound() *Outbound
+	Outbound() *Message
 }
 
 ////
 
-type _GeckoSession struct {
-	timestamp           time.Time
-	attributes          map[string]interface{}
-	attrLock            *sync.RWMutex
-	topic               string
-	inbound             *Inbound
-	outbound            *Outbound
-	notifyCompletedFunc func(JSONPacket)
+type _GeckoEventContext struct {
+	timestamp         time.Time
+	attributes        map[string]interface{}
+	attrLock          *sync.RWMutex
+	topic             string
+	inbound           *Message
+	outbound          *Message
+	completedNotifier chan <- JSONPacket
 }
 
-func (si *_GeckoSession) Attributes() *cfg.Config {
+func (si *_GeckoEventContext) Attributes() *cfg.Config {
 	si.attrLock.RLock()
 	defer si.attrLock.RUnlock()
 	return cfg.WrapConfig(si.attributes)
 }
 
-func (si *_GeckoSession) AddAttribute(name string, value interface{}) {
+func (si *_GeckoEventContext) AddAttribute(name string, value interface{}) {
 	si.attrLock.Lock()
 	defer si.attrLock.Unlock()
 	si.attributes[name] = value
 }
 
-func (si *_GeckoSession) AddAttributes(attributes map[string]interface{}) {
+func (si *_GeckoEventContext) AddAttributes(attributes map[string]interface{}) {
 	si.attrLock.Lock()
 	defer si.attrLock.Unlock()
 	for k, v := range attributes {
@@ -69,22 +69,22 @@ func (si *_GeckoSession) AddAttributes(attributes map[string]interface{}) {
 	}
 }
 
-func (si *_GeckoSession) Timestamp() time.Time {
+func (si *_GeckoEventContext) Timestamp() time.Time {
 	return si.timestamp
 }
 
-func (si *_GeckoSession) Topic() string {
+func (si *_GeckoEventContext) Topic() string {
 	return si.topic
 }
 
-func (si *_GeckoSession) Inbound() *Inbound {
+func (si *_GeckoEventContext) Inbound() *Message {
 	return si.inbound
 }
 
-func (si *_GeckoSession) Outbound() *Outbound {
+func (si *_GeckoEventContext) Outbound() *Message {
 	return si.outbound
 }
 
-func (si *_GeckoSession) Since() time.Duration {
+func (si *_GeckoEventContext) Since() time.Duration {
 	return time.Since(si.Timestamp())
 }

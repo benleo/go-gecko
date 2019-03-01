@@ -24,7 +24,7 @@ func NewConnectDriver() *ConnectDriver {
 }
 
 // 触发设备数据包生产接口
-type TriggerPacketProducer func(session gecko.Session, trigger gecko.DeviceAddress) gecko.JSONPacket
+type TriggerPacketProducer func(session gecko.EventSession, trigger gecko.DeviceAddress) gecko.JSONPacket
 
 // 设备直接连接联动Driver
 type ConnectDriver struct {
@@ -71,7 +71,7 @@ func (cd *ConnectDriver) OnInit(config *cfg.Config, ctx gecko.Context) {
 	}
 
 	// 默认事件生产接口
-	cd.SetTriggerPacketProducer(func(session gecko.Session, trigger gecko.DeviceAddress) gecko.JSONPacket {
+	cd.SetTriggerPacketProducer(func(session gecko.EventSession, trigger gecko.DeviceAddress) gecko.JSONPacket {
 		return gecko.JSONPacket{
 			"state":               "on",
 			"targetDeviceGroup":   trigger.Group,
@@ -88,7 +88,7 @@ func (cd *ConnectDriver) OnStop(ctx gecko.Context) {
 	gecko.ZapDebug("停止...")
 }
 
-func (cd *ConnectDriver) Handle(session gecko.Session, deliverer gecko.OutputDeliverer, ctx gecko.Context) error {
+func (cd *ConnectDriver) Handle(session gecko.EventSession, deliverer gecko.OutputDeliverer, ctx gecko.Context) error {
 	data := cfg.WrapConfig(session.Inbound().Data)
 	// 读取当前事件的数据，判断是否满足触发联动的条件
 	eventAddress := gecko.DeviceAddress{

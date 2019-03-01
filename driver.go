@@ -12,7 +12,7 @@ type Driver interface {
 	NeedTopicFilter
 	// 处理外部请求，返回响应结果。
 	// 在Driver内部，可以通过 OutputDeliverer 来控制其它设备。
-	Handle(session Session, deliverer OutputDeliverer, ctx Context) error
+	Handle(session EventSession, deliverer OutputDeliverer, ctx Context) error
 }
 
 //// Driver抽象实现

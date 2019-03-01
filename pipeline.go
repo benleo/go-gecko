@@ -224,37 +224,33 @@ func (pl *Pipeline) deliverToOutput(address string, broadcast bool, data JSONPac
 // 创建InputDeliverer函数
 func (pl *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
 	return InputDeliverer(func(topic string, frame FramePacket) (FramePacket, error) {
-		// 解码
+		// 从Input设备中读取解码数据
 		decoder := device.GetDecoder()
-		inData, err := decoder(frame.Data())
+		input, err := decoder(frame.Data())
 		if nil != err {
 			pl.zap.Errorw("InputDevice解码/Decode错误", "class", x.SimpleClassName(device))
 			return nil, err
 		}
-		awaitResult := make(chan JSONPacket, 1)
-		// 处理
-		pl.dispatcher.StartC() <- &_GeckoSession{
+		output := make(chan JSONPacket, 1)
+		// 发送到Dispatcher调度处理
+		pl.dispatcher.StartC() <- &_GeckoEventContext{
 			timestamp:  time.Now(),
 			attributes: make(map[string]interface{}),
 			attrLock:   new(sync.RWMutex),
 			topic:      topic,
-			inbound: &Inbound{
+			inbound: &Message{
 				Topic: topic,
-				Data:  inData,
+				Data:  input,
 			},
-			outbound: &Outbound{
+			outbound: &Message{
 				Topic: topic,
 				Data:  make(map[string]interface{}),
 			},
-			notifyCompletedFunc: func(data JSONPacket) {
-				// 通过 notifyCompletedFunc 返回处理结果
-				awaitResult <- data
-			},
+			completedNotifier: output,
 		}
-		// 编码
+		// 编码返回到Input设备
 		encoder := device.GetEncoder()
-		outData := <-awaitResult
-		if bytes, err := encoder(outData); nil != err {
+		if bytes, err := encoder(<-output); nil != err {
 			pl.zap.Errorw("InputDevice编码/Encode错误", "class", x.SimpleClassName(device))
 			return nil, err
 		} else {
@@ -264,7 +260,7 @@ func (pl *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
 }
 
 // 处理拦截器过程
-func (pl *Pipeline) handleInterceptor(session Session) {
+func (pl *Pipeline) handleInterceptor(session EventSession) {
 	pl.ctx.OnIfLogV(func() {
 		pl.zap.Debugf("Interceptor调度处理，Topic: %s", session.Topic())
 	})
@@ -310,7 +306,7 @@ func (pl *Pipeline) handleInterceptor(session Session) {
 }
 
 // 处理驱动执行过程
-func (pl *Pipeline) handleDriver(session Session) {
+func (pl *Pipeline) handleDriver(session EventSession) {
 	pl.ctx.OnIfLogV(func() {
 		pl.zap.Debugf("Driver调度处理，Topic: %s", session.Topic())
 	})
@@ -340,17 +336,17 @@ func (pl *Pipeline) handleDriver(session Session) {
 	pl.output(session)
 }
 
-func (pl *Pipeline) output(session Session) {
+func (pl *Pipeline) output(event EventSession) {
 	pl.ctx.OnIfLogV(func() {
-		pl.zap.Debugf("Output调度处理，Topic: %s", session.Topic())
-		session.Attributes().ForEach(func(k string, v interface{}) {
+		pl.zap.Debugf("Output调度处理，Topic: %s", event.Topic())
+		event.Attributes().ForEach(func(k string, v interface{}) {
 			pl.zap.Debugf("SessionAttr: %s = %v", k, v)
 		})
 	})
 	defer func() {
 		pl.checkRecover(recover(), "Output-Goroutine内部错误")
 	}()
-	session.(*_GeckoSession).notifyCompletedFunc(session.Outbound().Data)
+	event.(*_GeckoEventContext).completedNotifier <- event.Outbound().Data
 }
 
 func (pl *Pipeline) checkDefTimeout(msg string, act func(Context)) {

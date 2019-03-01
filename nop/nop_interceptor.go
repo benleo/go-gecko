@@ -17,7 +17,7 @@ func (ni *NopInterceptor) OnInit(config *cfg.Config, ctx gecko.Context) {
 
 }
 
-func (ni *NopInterceptor) Handle(session gecko.Session, ctx gecko.Context) error {
+func (ni *NopInterceptor) Handle(session gecko.EventSession, ctx gecko.Context) error {
 	//return ni.Drop()
 	return ni.Next()
 }
