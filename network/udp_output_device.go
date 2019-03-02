@@ -12,11 +12,11 @@ func UDPOutputDeviceFactory() (string, gecko.BundleFactory) {
 
 func NewUDPOutputDevice() *UDPOutputDevice {
 	return &UDPOutputDevice{
-		AbcNetOutputDevice: NewAbcNetOutputDevice("udp"),
+		AbcNetworkOutputDevice: NewAbcNetworkOutputDevice("udp"),
 	}
 }
 
 // UDP客户端输出设备
 type UDPOutputDevice struct {
-	*AbcNetOutputDevice
+	*AbcNetworkOutputDevice
 }

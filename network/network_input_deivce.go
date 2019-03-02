@@ -9,15 +9,15 @@ import (
 	"time"
 )
 
-func NewAbcNetInputDevice(network string) *AbcNetInputDevice {
-	return &AbcNetInputDevice{
+func NewAbcNetworkInputDevice(network string) *AbcNetworkInputDevice {
+	return &AbcNetworkInputDevice{
 		AbcInputDevice: gecko.NewAbcInputDevice(),
 		networkType:    network,
 	}
 }
 
 // Socket服务器读取设备
-type AbcNetInputDevice struct {
+type AbcNetworkInputDevice struct {
 	*gecko.AbcInputDevice
 	networkType        string
 	networkAddress     string
@@ -29,7 +29,7 @@ type AbcNetInputDevice struct {
 	topic              string
 }
 
-func (d *AbcNetInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
+func (d *AbcNetworkInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 	d.AbcInputDevice.OnInit(config, ctx)
 	d.maxBufferSize = config.GetInt64OrDefault("bufferSize", 512)
 	d.readTimeout = config.GetDurationOrDefault("readTimeout", time.Second*3)
@@ -37,7 +37,7 @@ func (d *AbcNetInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 	d.networkAddress = config.MustString("networkAddress")
 }
 
-func (d *AbcNetInputDevice) OnStart(ctx gecko.Context) {
+func (d *AbcNetworkInputDevice) OnStart(ctx gecko.Context) {
 	d.serverCancelCtx, d.serverCancelFn = context.WithCancel(context.Background())
 	zlog := gecko.ZapSugarLogger
 	if d.networkAddress == "" || d.networkType == "" {
@@ -54,11 +54,11 @@ func (d *AbcNetInputDevice) OnStart(ctx gecko.Context) {
 	}
 }
 
-func (d *AbcNetInputDevice) OnStop(ctx gecko.Context) {
+func (d *AbcNetworkInputDevice) OnStop(ctx gecko.Context) {
 	d.serverCancelFn()
 }
 
-func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
+func (d *AbcNetworkInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 	if nil == d.serverServeHandler {
 		return errors.New("未设置onServeHandler接口")
 	}
@@ -72,7 +72,7 @@ func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelive
 	}
 }
 
-func (d *AbcNetInputDevice) udpServe(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
+func (d *AbcNetworkInputDevice) udpServe(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 	if addr, err := net.ResolveUDPAddr("udp", d.networkAddress); err != nil {
 		return errors.New("无法创建UDP地址: " + d.networkAddress)
 	} else {
@@ -84,7 +84,7 @@ func (d *AbcNetInputDevice) udpServe(ctx gecko.Context, deliverer gecko.InputDel
 	}
 }
 
-func (d *AbcNetInputDevice) tcpServe(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
+func (d *AbcNetworkInputDevice) tcpServe(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 	zlog := gecko.ZapSugarLogger
 	serverConn, err := net.Listen("tcp", d.networkAddress)
 	if nil != err {
@@ -116,15 +116,15 @@ func (d *AbcNetInputDevice) tcpServe(ctx gecko.Context, deliverer gecko.InputDel
 }
 
 // 由于不需要返回响应数据到NetInputDevice，Encoder编码器可以不做业务处理
-func (d *AbcNetInputDevice) GetEncoder() gecko.Encoder {
+func (d *AbcNetworkInputDevice) GetEncoder() gecko.Encoder {
 	return gecko.NopEncoder
 }
 
-func (d *AbcNetInputDevice) Topic() string {
+func (d *AbcNetworkInputDevice) Topic() string {
 	return d.topic
 }
 
-func (d *AbcNetInputDevice) receiveConn(conn net.Conn, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
+func (d *AbcNetworkInputDevice) receiveConn(conn net.Conn, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 	defer func() {
 		if err := conn.Close(); nil != err {
 			gecko.ZapSugarLogger.Errorf("NetworkInputDevice Closed with errors: %s", err.Error())
@@ -159,7 +159,7 @@ func (d *AbcNetInputDevice) receiveConn(conn net.Conn, ctx gecko.Context, delive
 	}
 }
 
-func (*AbcNetInputDevice) isNetTempErr(err error) bool {
+func (*AbcNetworkInputDevice) isNetTempErr(err error) bool {
 	if nErr, ok := err.(net.Error); ok {
 		return nErr.Timeout() || nErr.Temporary()
 	} else {
@@ -168,6 +168,6 @@ func (*AbcNetInputDevice) isNetTempErr(err error) bool {
 }
 
 // 设置Serve处理函数
-func (d *AbcNetInputDevice) SetServeHandler(handler func([]byte, gecko.Context, gecko.InputDeliverer) error) {
+func (d *AbcNetworkInputDevice) SetServeHandler(handler func([]byte, gecko.Context, gecko.InputDeliverer) error) {
 	d.serverServeHandler = handler
 }

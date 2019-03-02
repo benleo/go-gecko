@@ -12,11 +12,11 @@ func UDPInputDeviceFactory() (string, gecko.BundleFactory) {
 
 func NewUDPInputDevice() *UDPInputDevice {
 	return &UDPInputDevice{
-		AbcNetInputDevice: NewAbcNetInputDevice("udp"),
+		AbcNetworkInputDevice: NewAbcNetworkInputDevice("udp"),
 	}
 }
 
 // UDP服务器读取设备
 type UDPInputDevice struct {
-	*AbcNetInputDevice
+	*AbcNetworkInputDevice
 }

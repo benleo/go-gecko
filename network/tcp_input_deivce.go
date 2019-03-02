@@ -12,11 +12,11 @@ func TCPInputDeviceFactory() (string, gecko.BundleFactory) {
 
 func NewTCPInputDevice() *TCPInputDevice {
 	return &TCPInputDevice{
-		AbcNetInputDevice: NewAbcNetInputDevice("tcp"),
+		AbcNetworkInputDevice: NewAbcNetworkInputDevice("tcp"),
 	}
 }
 
 // TCP服务器读取设备
 type TCPInputDevice struct {
-	*AbcNetInputDevice
+	*AbcNetworkInputDevice
 }
