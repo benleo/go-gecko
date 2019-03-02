@@ -2,6 +2,7 @@ package gecko
 
 import (
 	"encoding/json"
+	"github.com/pkg/errors"
 )
 
 //
@@ -49,7 +50,7 @@ func JSONDefaultDecoderFactory() (string, CodecFactory) {
 func JSONDefaultDecoder(bytes FramePacket) (JSONPacket, error) {
 	m := make(map[string]interface{})
 	err := json.Unmarshal(bytes, &m)
-	return m, err
+	return m, errors.Wrap(err, "json default decode failed")
 }
 
 func JSONDefaultEncoderFactory() (string, CodecFactory) {

@@ -1,5 +1,7 @@
 package gecko
 
+import "github.com/pkg/errors"
+
 //
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
@@ -18,7 +20,7 @@ func (d InputDeliverer) Execute(topic string, frame FramePacket) (FramePacket, e
 // 扩展函数2：发送事件通知，忽略处理结果；
 func (d InputDeliverer) Broadcast(topic string, frame FramePacket) error {
 	_, err := d(topic, frame)
-	return err
+	return errors.WithMessage(err, "Input device broadcast failed, topic: "+topic)
 }
 
 // OutputDeliverer，用于向OutputDevice输出控制事件的接口，并获取设备处理结果数据；
@@ -35,5 +37,5 @@ func (fun OutputDeliverer) Execute(address string, frame JSONPacket) (JSONPacket
 // 扩展函数2：通过Group地址，广播给相同Group的设备列表，忽略设备处理结果；
 func (fun OutputDeliverer) Broadcast(group string, frame JSONPacket) error {
 	_, err := fun(group, true, frame)
-	return err
+	return errors.WithMessage(err, "Output device broadcast failed, group: "+group)
 }

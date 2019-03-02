@@ -43,7 +43,7 @@ func (d *AbcNetOutputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 }
 
 func (d *AbcNetOutputDevice) OnStart(ctx gecko.Context) {
-	zlog := gecko.ZapSugarLogger()
+	zlog := gecko.ZapSugarLogger
 
 	if d.networkAddress == "" || d.networkType == "" {
 		zlog.Panicw("未设置网络通讯地址和网络类型", "address", d.networkAddress, "type", d.networkType)

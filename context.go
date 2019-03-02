@@ -85,9 +85,7 @@ func (ci *_GeckoContext) PutMagic(key interface{}, value interface{}) {
 
 func (ci *_GeckoContext) PutScoped(key interface{}, value interface{}) {
 	if _, ok := ci.scopedKV[key]; ok {
-		zap := ZapSugarLogger()
-		defer zap.Sync()
-		zap.Panicw("ScopedKey 不可重复，Key已存在", "key", key)
+		ZapSugarLogger.Panicw("ScopedKey 不可重复，Key已存在", "key", key)
 	}
 	ci.scopedKV[key] = value
 }
@@ -102,9 +100,7 @@ func (ci *_GeckoContext) GetScoped(key interface{}) interface{} {
 
 func (ci *_GeckoContext) CheckTimeout(msg string, timeout time.Duration, action func()) {
 	t := time.AfterFunc(timeout, func() {
-		zap := ZapSugarLogger()
-		defer zap.Sync()
-		zap.Errorw("指令执行时间太长", "action", msg, "timeout", timeout.String())
+		ZapSugarLogger.Errorw("指令执行时间太长", "action", msg, "timeout", timeout.String())
 	})
 	defer t.Stop()
 	action()

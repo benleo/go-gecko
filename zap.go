@@ -28,6 +28,7 @@ var _ZapLoggerConfig = zap.Config{
 }
 
 var ZapLogger = NewZapLogger()
+var ZapSugarLogger = NewZapSugarLogger()
 
 func ZapLoggerConfig() zap.Config {
 	return _ZapLoggerConfig
@@ -38,6 +39,6 @@ func NewZapLogger() *zap.Logger {
 	return logger
 }
 
-func ZapSugarLogger() *zap.SugaredLogger {
+func NewZapSugarLogger() *zap.SugaredLogger {
 	return ZapLogger.Sugar()
 }

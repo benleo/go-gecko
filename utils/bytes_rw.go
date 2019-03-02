@@ -1,9 +1,8 @@
-package x
+package utils
 
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/yoojia/go-gecko"
 )
 
 //
@@ -47,7 +46,7 @@ func (r *ByteReader) LoadBytes(out []byte) (n int, err error) {
 func (r *ByteReader) GetBytesSize(size int) []byte {
 	out := make([]byte, size)
 	if _, err := r.LoadBytes(out); nil != err {
-		gecko.ZapSugarLogger().Errorf("GetBytesSize发生错误", err)
+		panic(err)
 	}
 	return out
 }

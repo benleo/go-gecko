@@ -2,11 +2,10 @@ package net
 
 import (
 	"context"
-	"errors"
 	"github.com/parkingwang/go-conf"
+	"github.com/pkg/errors"
 	"github.com/yoojia/go-gecko"
 	"net"
-	"sync"
 	"time"
 )
 
@@ -25,7 +24,7 @@ type AbcNetInputDevice struct {
 	maxBufferSize  int64
 	readTimeout    time.Duration
 	cancelCtx      context.Context
-	cancelFun      context.CancelFunc
+	serverCancelFn context.CancelFunc
 	onServeHandler func(bytes []byte, ctx gecko.Context, deliverer gecko.InputDeliverer) error
 	topic          string
 }
@@ -39,16 +38,16 @@ func (d *AbcNetInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 }
 
 func (d *AbcNetInputDevice) OnStart(ctx gecko.Context) {
-	d.cancelCtx, d.cancelFun = context.WithCancel(context.Background())
-	log := gecko.ZapSugarLogger()
+	d.cancelCtx, d.serverCancelFn = context.WithCancel(context.Background())
+	zlog := gecko.ZapSugarLogger
 
 	if d.networkAddress == "" || d.networkType == "" {
-		log.Panicw("未设置网络通讯地址和网络类型", "address", d.networkAddress, "type", d.networkType)
+		zlog.Panicw("未设置网络通讯地址和网络类型", "address", d.networkAddress, "type", d.networkType)
 	}
 	if nil == d.onServeHandler {
-		log.Warn("使用默认数据处理接口")
+		zlog.Warn("使用默认数据处理接口")
 		if "" == d.topic {
-			log.Panic("使用默认接口必须设置topic参数")
+			zlog.Panic("使用默认接口必须设置topic参数")
 		}
 		d.onServeHandler = func(bytes []byte, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 			return deliverer.Broadcast(d.topic, gecko.FramePacket(bytes))
@@ -57,62 +56,63 @@ func (d *AbcNetInputDevice) OnStart(ctx gecko.Context) {
 }
 
 func (d *AbcNetInputDevice) OnStop(ctx gecko.Context) {
-	d.cancelFun()
+	d.serverCancelFn()
 }
 
 func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 	if nil == d.onServeHandler {
 		return errors.New("未设置onServeHandler接口")
 	}
-	log := gecko.ZapSugarLogger()
-
-	log.Infof("使用%s服务端模式，监听端口: %s", d.networkType, d.networkAddress)
+	gecko.ZapSugarLogger.Infof("使用%s服务端模式，监听端口: %s", d.networkType, d.networkAddress)
 	if "udp" == d.networkType {
-		if addr, err := net.ResolveUDPAddr("udp", d.networkAddress); err != nil {
-			return errors.New("无法创建UDP地址: " + d.networkAddress)
-		} else {
-			if conn, err := net.ListenUDP("udp", addr); nil != err {
-				return err
-			} else {
-				return d.receiveLoop(conn, ctx, deliverer)
-			}
-		}
+		return d.udpServe(ctx, deliverer)
 	} else if "tcp" == d.networkType {
-		server, err := net.Listen("tcp", d.networkAddress)
-		if nil != err {
-			return err
-		}
-		wg := new(sync.WaitGroup)
-		for {
-			select {
-			case <-d.cancelCtx.Done():
-				if err := server.Close(); nil != err {
-					log.Errorf("关闭%s服务器发生错误", d.networkType, err)
-				}
-				break
-
-			default:
-				if client, err := server.Accept(); nil != err {
-					if !d.isNetTempErr(err) {
-						log.Errorw("TCP服务端网络错误", "error", err)
-						return err
-					}
-				} else {
-					go func() {
-						defer wg.Done()
-						wg.Add(1)
-						if err := d.receiveLoop(client, ctx, deliverer); nil != err {
-							log.Errorw("TCP客户端发生错误", "error", err)
-						}
-					}()
-				}
-			}
-		}
-		// 等待所有客户端中断完成后
-		wg.Wait()
-		return nil
+		return d.tcpServe(ctx, deliverer)
 	} else {
 		return errors.New("未识别的网络连接模式: " + d.networkType)
+	}
+}
+
+func (d *AbcNetInputDevice) udpServe(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
+	if addr, err := net.ResolveUDPAddr("udp", d.networkAddress); err != nil {
+		return errors.New("无法创建UDP地址: " + d.networkAddress)
+	} else {
+		if conn, err := net.ListenUDP("udp", addr); nil != err {
+			return errors.WithMessage(err, "UDP连接监听失败")
+		} else {
+			return d.receiveLoop(conn, ctx, deliverer)
+		}
+	}
+}
+
+func (d *AbcNetInputDevice) tcpServe(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
+	zlog := gecko.ZapSugarLogger
+	server, err := net.Listen("tcp", d.networkAddress)
+	if nil != err {
+		return errors.WithMessage(err, "TCP连接监听失败")
+	}
+	for {
+		select {
+		case <-d.cancelCtx.Done():
+			if err := server.Close(); nil != err {
+				zlog.Errorf("关闭%s服务器发生错误", d.networkType, err)
+			}
+			break
+
+		default:
+			if client, err := server.Accept(); nil != err {
+				if !d.isNetTempErr(err) {
+					zlog.Errorw("TCP服务端网络错误", "error", err)
+					return err
+				}
+			} else {
+				go func() {
+					if err := d.receiveLoop(client, ctx, deliverer); nil != err {
+						zlog.Errorw("TCP客户端发生错误", "error", err)
+					}
+				}()
+			}
+		}
 	}
 }
 

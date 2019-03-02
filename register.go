@@ -3,7 +3,7 @@ package gecko
 import (
 	"container/list"
 	"github.com/parkingwang/go-conf"
-	"github.com/yoojia/go-gecko/x"
+	"github.com/yoojia/go-gecko/utils"
 )
 
 //
@@ -53,7 +53,7 @@ func prepare() *Registration {
 // 添加Encoder
 func (re *Registration) AddEncoder(name string, encoder Encoder) {
 	if _, ok := re.encodersMap[name]; ok {
-		ZapSugarLogger().Panicw("Encoder类型重复", "type", name)
+		ZapSugarLogger.Panicw("Encoder类型重复", "type", name)
 	} else {
 		re.encodersMap[name] = encoder
 	}
@@ -62,7 +62,7 @@ func (re *Registration) AddEncoder(name string, encoder Encoder) {
 // 添加Decoder
 func (re *Registration) AddDecoder(name string, decoder Decoder) {
 	if _, ok := re.decodersMap[name]; ok {
-		ZapSugarLogger().Panicw("Decoder类型重复", "type", name)
+		ZapSugarLogger.Panicw("Decoder类型重复", "type", name)
 	} else {
 		re.decodersMap[name] = decoder
 	}
@@ -114,30 +114,30 @@ func (re *Registration) AddStopAfterHook(hook HookFunc) {
 }
 
 func (re *Registration) showBundles() {
-	zlog := ZapSugarLogger()
+	zlog := ZapSugarLogger
 	zlog.Infof("已加载 Interceptors: %d", re.interceptors.Len())
-	x.ForEach(re.interceptors, func(it interface{}) {
-		zlog.Info("  - Interceptor: " + x.SimpleClassName(it))
+	utils.ForEach(re.interceptors, func(it interface{}) {
+		zlog.Info("  - Interceptor: " + utils.GetClassName(it))
 	})
 
 	zlog.Infof("已加载 InputDevices: %d", re.inputs.Len())
-	x.ForEach(re.inputs, func(it interface{}) {
-		zlog.Info("  - InputDevice: " + x.SimpleClassName(it))
+	utils.ForEach(re.inputs, func(it interface{}) {
+		zlog.Info("  - InputDevice: " + utils.GetClassName(it))
 	})
 
 	zlog.Infof("已加载OutputDevices: %d", re.outputs.Len())
-	x.ForEach(re.outputs, func(it interface{}) {
-		zlog.Info("  - OutputDevice: " + x.SimpleClassName(it))
+	utils.ForEach(re.outputs, func(it interface{}) {
+		zlog.Info("  - OutputDevice: " + utils.GetClassName(it))
 	})
 
 	zlog.Infof("已加载 Drivers: %d", re.drivers.Len())
-	x.ForEach(re.drivers, func(it interface{}) {
-		zlog.Info("  - Driver: " + x.SimpleClassName(it))
+	utils.ForEach(re.drivers, func(it interface{}) {
+		zlog.Info("  - Driver: " + utils.GetClassName(it))
 	})
 
 	zlog.Infof("已加载 Plugins: %d", re.plugins.Len())
-	x.ForEach(re.plugins, func(it interface{}) {
-		zlog.Info("  - Plugin: " + x.SimpleClassName(it))
+	utils.ForEach(re.plugins, func(it interface{}) {
+		zlog.Info("  - Plugin: " + utils.GetClassName(it))
 	})
 }
 
@@ -153,9 +153,9 @@ func (re *Registration) RegisterCodecFactory(typeName string, factory CodecFacto
 
 // 注册组件工厂函数
 func (re *Registration) AddBundleFactory(typeName string, factory BundleFactory) {
-	zlog := ZapSugarLogger()
+	zlog := ZapSugarLogger
 	if _, ok := re.factories[typeName]; ok {
-		zlog.Warnf("组件类型[%s]，旧的工厂函数将被覆盖为： %s", typeName, x.SimpleClassName(factory))
+		zlog.Warnf("组件类型[%s]，旧的工厂函数将被覆盖为： %s", typeName, utils.GetClassName(factory))
 	}
 	zlog.Infof("正在注册组件工厂函数： %s", typeName)
 	re.factories[typeName] = factory
@@ -172,7 +172,7 @@ func (re *Registration) AddCodecFactory(typeName string, factory CodecFactory) {
 		re.AddEncoder(typeName, codec.(Encoder))
 
 	default:
-		ZapSugarLogger().Panicf("未知的编/解码类型[%s]，工厂函数： %s", typeName, x.SimpleClassName(factory))
+		ZapSugarLogger.Panicf("未知的编/解码类型[%s]，工厂函数： %s", typeName, utils.GetClassName(factory))
 	}
 }
 
@@ -186,7 +186,7 @@ func (re *Registration) findFactory(typeName string) (BundleFactory, bool) {
 }
 
 func (re *Registration) ensureUniqueUUID(uuid string) string {
-	zlog := ZapSugarLogger()
+	zlog := ZapSugarLogger
 	if _, ok := re.inputsMap[uuid]; ok {
 		zlog.Panicf("设备UUID重复[Input]：%s", uuid)
 	} else if _, ok := re.outputsMap[uuid]; ok {
@@ -200,7 +200,7 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 	if configs.IsEmpty() {
 		return false
 	}
-	zlog := ZapSugarLogger()
+	zlog := ZapSugarLogger
 	configs.ForEach(func(bundleType string, item interface{}) {
 		asMap, ok := item.(map[string]interface{})
 		if !ok {
@@ -280,7 +280,7 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 			} else if outputDevice, ok := device.(OutputDevice); ok {
 				re.AddOutputDevice(outputDevice)
 			} else {
-				zlog.Panicf("未知VirtualDevice类型： %s", x.SimpleClassName(device))
+				zlog.Panicf("未知VirtualDevice类型： %s", utils.GetClassName(device))
 			}
 
 		default:

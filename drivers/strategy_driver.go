@@ -51,22 +51,22 @@ func (d *StrategyDriver) OnInit(args *cfg.Config, ctx gecko.Context) {
 	d.initArgs = args
 
 	strategies := args.MustConfig("strategies")
-	log := gecko.ZapSugarLogger()
+	zlog := gecko.ZapSugarLogger
 
 	strategies.ForEach(func(name string, value interface{}) {
 		rule := cfg.Wrap(value.(map[string]interface{}))
 		matchFields, err := rule.GetStringMapOrDefault("matchEventFields", make(map[string]string, 0))
 		if err != nil {
-			log.Panicf("matchEventFields字段格式错误[TABLE]", err)
+			zlog.Panicf("matchEventFields字段格式错误[TABLE]", err)
 		}
 		targetUUID := rule.MustString("targetUUID")
 		targetCommand := rule.MustConfig("targetCommand")
 
 		if 0 == len(matchFields) || "" == targetUUID || targetCommand.IsEmpty() {
-			log.Panicf("未正确配置匹配规则： matchFields= %s, targetUUID= %s, targetCommand=%s",
+			zlog.Panicf("未正确配置匹配规则： matchFields= %s, targetUUID= %s, targetCommand=%s",
 				matchFields, targetUUID, targetCommand.RefMap())
 		} else {
-			log.Debugf("联动配置规则： matchFields= %s, targetUUID= %s, targetCommand=%s",
+			zlog.Debugf("联动配置规则： matchFields= %s, targetUUID= %s, targetCommand=%s",
 				matchFields, targetUUID, targetCommand.RefMap())
 		}
 

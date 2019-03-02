@@ -1,4 +1,4 @@
-package x
+package utils
 
 import (
 	"reflect"
@@ -9,11 +9,11 @@ import (
 // Author: 陈永佳 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-func SimpleClassName(obj interface{}) string {
-	return SimpleTypeName(reflect.TypeOf(obj))
+func GetClassName(obj interface{}) string {
+	return GetTypeName(reflect.TypeOf(obj))
 }
 
-func SimpleTypeName(typed reflect.Type) string {
+func GetTypeName(typed reflect.Type) string {
 	name := typed.String()
 	if dotIdx := strings.LastIndex(name, "."); dotIdx >= 0 {
 		name = name[dotIdx+1:]

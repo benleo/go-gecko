@@ -1,9 +1,9 @@
-package x
+package utils
 
 import (
-	"testing"
 	"encoding/binary"
 	"fmt"
+	"testing"
 )
 
 func TestWrapByteWriterAndReader(t *testing.T) {
