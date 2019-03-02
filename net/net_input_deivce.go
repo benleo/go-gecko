@@ -19,14 +19,14 @@ func NewAbcNetInputDevice(network string) *AbcNetInputDevice {
 // Socket服务器读取设备
 type AbcNetInputDevice struct {
 	*gecko.AbcInputDevice
-	networkType    string
-	networkAddress string
-	maxBufferSize  int64
-	readTimeout    time.Duration
-	cancelCtx      context.Context
-	serverCancelFn context.CancelFunc
-	onServeHandler func(bytes []byte, ctx gecko.Context, deliverer gecko.InputDeliverer) error
-	topic          string
+	networkType        string
+	networkAddress     string
+	maxBufferSize      int64
+	readTimeout        time.Duration
+	serverCancelCtx    context.Context
+	serverCancelFn     context.CancelFunc
+	serverServeHandler func(bytes []byte, ctx gecko.Context, deliverer gecko.InputDeliverer) error
+	topic              string
 }
 
 func (d *AbcNetInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
@@ -38,18 +38,17 @@ func (d *AbcNetInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 }
 
 func (d *AbcNetInputDevice) OnStart(ctx gecko.Context) {
-	d.cancelCtx, d.serverCancelFn = context.WithCancel(context.Background())
+	d.serverCancelCtx, d.serverCancelFn = context.WithCancel(context.Background())
 	zlog := gecko.ZapSugarLogger
-
 	if d.networkAddress == "" || d.networkType == "" {
 		zlog.Panicw("未设置网络通讯地址和网络类型", "address", d.networkAddress, "type", d.networkType)
 	}
-	if nil == d.onServeHandler {
+	if nil == d.serverServeHandler {
 		zlog.Warn("使用默认数据处理接口")
 		if "" == d.topic {
 			zlog.Panic("使用默认接口必须设置topic参数")
 		}
-		d.onServeHandler = func(bytes []byte, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
+		d.serverServeHandler = func(bytes []byte, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 			return deliverer.Broadcast(d.topic, gecko.FramePacket(bytes))
 		}
 	}
@@ -60,7 +59,7 @@ func (d *AbcNetInputDevice) OnStop(ctx gecko.Context) {
 }
 
 func (d *AbcNetInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
-	if nil == d.onServeHandler {
+	if nil == d.serverServeHandler {
 		return errors.New("未设置onServeHandler接口")
 	}
 	gecko.ZapSugarLogger.Infof("使用%s服务端模式，监听端口: %s", d.networkType, d.networkAddress)
@@ -80,34 +79,34 @@ func (d *AbcNetInputDevice) udpServe(ctx gecko.Context, deliverer gecko.InputDel
 		if conn, err := net.ListenUDP("udp", addr); nil != err {
 			return errors.WithMessage(err, "UDP连接监听失败")
 		} else {
-			return d.receiveLoop(conn, ctx, deliverer)
+			return d.receiveConn(conn, ctx, deliverer)
 		}
 	}
 }
 
 func (d *AbcNetInputDevice) tcpServe(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 	zlog := gecko.ZapSugarLogger
-	server, err := net.Listen("tcp", d.networkAddress)
+	serverConn, err := net.Listen("tcp", d.networkAddress)
 	if nil != err {
 		return errors.WithMessage(err, "TCP连接监听失败")
 	}
 	for {
 		select {
-		case <-d.cancelCtx.Done():
-			if err := server.Close(); nil != err {
+		case <-d.serverCancelCtx.Done():
+			if err := serverConn.Close(); nil != err {
 				zlog.Errorf("关闭%s服务器发生错误", d.networkType, err)
 			}
 			break
 
 		default:
-			if client, err := server.Accept(); nil != err {
+			if client, err := serverConn.Accept(); nil != err {
 				if !d.isNetTempErr(err) {
 					zlog.Errorw("TCP服务端网络错误", "error", err)
 					return err
 				}
 			} else {
 				go func() {
-					if err := d.receiveLoop(client, ctx, deliverer); nil != err {
+					if err := d.receiveConn(client, ctx, deliverer); nil != err {
 						zlog.Errorw("TCP客户端发生错误", "error", err)
 					}
 				}()
@@ -125,12 +124,16 @@ func (d *AbcNetInputDevice) Topic() string {
 	return d.topic
 }
 
-func (d *AbcNetInputDevice) receiveLoop(conn net.Conn, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
-	defer conn.Close()
+func (d *AbcNetInputDevice) receiveConn(conn net.Conn, ctx gecko.Context, deliverer gecko.InputDeliverer) error {
+	defer func() {
+		if err := conn.Close(); nil != err {
+			gecko.ZapSugarLogger.Errorf("NetworkInputDevice Closed with errors: %s", err.Error())
+		}
+	}()
 	buffer := make([]byte, d.maxBufferSize)
 	for {
 		select {
-		case <-d.cancelCtx.Done():
+		case <-d.serverCancelCtx.Done():
 			return nil
 
 		default:
@@ -148,7 +151,7 @@ func (d *AbcNetInputDevice) receiveLoop(conn net.Conn, ctx gecko.Context, delive
 				}
 			} else if n > 0 {
 				frame := gecko.NewFramePacket(buffer[:n])
-				if err := d.onServeHandler(frame, ctx, deliverer); nil != err {
+				if err := d.serverServeHandler(frame, ctx, deliverer); nil != err {
 					return err
 				}
 			}
@@ -166,5 +169,5 @@ func (*AbcNetInputDevice) isNetTempErr(err error) bool {
 
 // 设置Serve处理函数
 func (d *AbcNetInputDevice) SetServeHandler(handler func([]byte, gecko.Context, gecko.InputDeliverer) error) {
-	d.onServeHandler = handler
+	d.serverServeHandler = handler
 }
