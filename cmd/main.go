@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/yoojia/go-gecko"
-	"github.com/yoojia/go-gecko/net"
+	"github.com/yoojia/go-gecko/network"
 	"github.com/yoojia/go-gecko/nop"
 )
 
@@ -14,10 +14,10 @@ func main() {
 		pipeline.AddCodecFactory(gecko.JSONDefaultEncoderFactory())
 		pipeline.AddCodecFactory(gecko.JSONDefaultDecoderFactory())
 
-		pipeline.AddBundleFactory(net.UDPInputDeviceFactory())
-		pipeline.AddBundleFactory(net.UDPOutputDeviceFactory())
-		pipeline.AddBundleFactory(net.TCPInputDeviceFactory())
-		pipeline.AddBundleFactory(net.TCPOutputDeviceFactory())
+		pipeline.AddBundleFactory(network.UDPInputDeviceFactory())
+		pipeline.AddBundleFactory(network.UDPOutputDeviceFactory())
+		pipeline.AddBundleFactory(network.TCPInputDeviceFactory())
+		pipeline.AddBundleFactory(network.TCPOutputDeviceFactory())
 
 		pipeline.AddBundleFactory(nop.NopDriverFactory())
 		pipeline.AddBundleFactory(nop.NopInterceptorFactor())

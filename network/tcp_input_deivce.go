@@ -1,4 +1,4 @@
-package net
+package network
 
 import (
 	"github.com/yoojia/go-gecko"
