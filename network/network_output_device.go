@@ -35,7 +35,7 @@ func (d *AbcNetworkOutputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 func (d *AbcNetworkOutputDevice) OnStart(ctx gecko.Context) {
 	zlog := gecko.ZapSugarLogger
 	config := d.socket.Config()
-	if config.IsValid() {
+	if !config.IsValid() {
 		zlog.Panicw("未设置网络通讯地址和网络类型", "address", config.Addr, "type", config.Type)
 	}
 	zlog.Infof("使用%s客户端模式，远程地址： %s", config.Type, config.Addr)
