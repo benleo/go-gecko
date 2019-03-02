@@ -6,19 +6,7 @@ import (
 	"time"
 )
 
-// Socket配置
-type SocketConfig struct {
-	Type         string        // 网络类型
-	Addr         string        // 地址
-	ReadTimeout  time.Duration // 读超时
-	WriteTimeout time.Duration // 写超时
-	BufferSize   uint          // 读写缓存大小
-}
-
-func (c SocketConfig) IsValid() bool {
-	return c.Type != "" && c.Addr != ""
-}
-
+// Socket客户端
 type SocketClient struct {
 	conn   net.Conn
 	config SocketConfig
@@ -36,6 +24,7 @@ func (s *SocketClient) BufferSize() uint {
 	return s.config.BufferSize
 }
 
+// Open 创建数据连接
 func (s *SocketClient) Open() error {
 	if "tcp" == s.config.Type {
 		if conn, err := net.Dial("tcp", s.config.Addr); nil != err {
@@ -58,6 +47,16 @@ func (s *SocketClient) Open() error {
 	}
 }
 
+// Close 关闭数据连接
+func (s *SocketClient) Close() error {
+	if nil != s.conn {
+		return s.conn.Close()
+	} else {
+		return nil
+	}
+}
+
+// Receive 从数据连接中读取数据
 func (s *SocketClient) Receive(buff []byte) (n int, err error) {
 	if s.conn == nil {
 		return 0, errors.New("Client connection is not ready")
@@ -68,6 +67,7 @@ func (s *SocketClient) Receive(buff []byte) (n int, err error) {
 	return s.conn.Read(buff)
 }
 
+// Send 向数据连接发送数据
 func (s *SocketClient) Send(data []byte) (n int, err error) {
 	if s.conn == nil {
 		return 0, errors.New("Client connection is not ready")
@@ -76,12 +76,4 @@ func (s *SocketClient) Send(data []byte) (n int, err error) {
 		return 0, errors.WithMessage(err, "Set write timeout failed")
 	}
 	return s.conn.Write(data)
-}
-
-func (s *SocketClient) Close() error {
-	if nil != s.conn {
-		return s.conn.Close()
-	} else {
-		return nil
-	}
 }
