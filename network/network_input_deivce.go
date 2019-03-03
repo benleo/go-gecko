@@ -11,9 +11,9 @@ func NewAbcNetworkInputDevice(network string) *AbcNetworkInputDevice {
 	return &AbcNetworkInputDevice{
 		AbcInputDevice: gecko.NewAbcInputDevice(),
 		networkType:    network,
-		socket:         new(SocketServer),
+		socket:         NewSocketServer(),
 		receiveHandler: func(addr net.Addr, data []byte, ctx gecko.Context, deliverer gecko.InputDeliverer) (resp []byte, err error) {
-			return []byte{}, nil
+			return []byte("AbstractReceiveHandler!!Implement should set receive handler"), nil
 		},
 	}
 }
@@ -52,11 +52,10 @@ func (d *AbcNetworkInputDevice) OnStart(ctx gecko.Context) {
 }
 
 func (d *AbcNetworkInputDevice) OnStop(ctx gecko.Context) {
-	d.socket.Close()
+	d.socket.Shutdown()
 }
 
 func (d *AbcNetworkInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
-
 	handler := func(addr net.Addr, data []byte) []byte {
 		if data, err := d.receiveHandler(addr, data, ctx, deliverer); nil != err {
 			gecko.ZapSugarLogger.Errorf("处理数据函数发生错误", err)
