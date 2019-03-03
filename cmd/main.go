@@ -4,6 +4,7 @@ import (
 	"github.com/yoojia/go-gecko"
 	"github.com/yoojia/go-gecko/network"
 	"github.com/yoojia/go-gecko/nop"
+	"github.com/yoojia/go-gecko/serial"
 )
 
 // Main
@@ -18,6 +19,8 @@ func main() {
 		pipeline.AddBundleFactory(network.UDPOutputDeviceFactory())
 		pipeline.AddBundleFactory(network.TCPInputDeviceFactory())
 		pipeline.AddBundleFactory(network.TCPOutputDeviceFactory())
+		pipeline.AddBundleFactory(serial.SerialPortInputDeviceFactory())
+		pipeline.AddBundleFactory(serial.SerialPortOutputDeviceFactory())
 
 		pipeline.AddBundleFactory(nop.NopDriverFactory())
 		pipeline.AddBundleFactory(nop.NopInterceptorFactor())

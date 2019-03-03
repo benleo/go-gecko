@@ -27,3 +27,21 @@
   networkAddress = "127.0.0.1:50000"
   bufferSize = 64
   writeTimeout = "3s"
+
+# 串口输出设备
+[INPUTS.SerialPortOutputDevice]
+  disable = false
+  type = "SerialPortOutputDevice"
+  name = "串口输出类型设备"
+  uuid = "com@(0755001002)"
+  group = "location:localhost"
+  private = "port:COM5"
+  topic = "/demo/serial/output"
+  encoder = "JSONDefaultEncoder"
+  decoder = "JSONDefaultDecoder"
+[INPUTS.SerialPortOutputDevice.InitArgs]
+  bufferSize = 64
+  serialPort = "COM5"
+  baudRate = 115200
+  dataBit = 8
+  stopBits = 1

@@ -29,3 +29,21 @@
   networkAddress = "0.0.0.0:5573"
   bufferSize = 64
   readTimeout = "3s"
+
+# 串口网络输入类型设备
+[INPUTS.SerialPortInputDevice]
+  disable = false
+  type = "SerialPortInputDevice"
+  name = "串口网络输入类型设备"
+  uuid = "com@(0755001001)"
+  group = "location:localhost"
+  private = "port:COM4"
+  topic = "/demo/serial/input"
+  encoder = "JSONDefaultEncoder"
+  decoder = "JSONDefaultDecoder"
+[INPUTS.SerialPortInputDevice.InitArgs]
+  bufferSize = 64
+  serialPort = "COM4"
+  baudRate = 115200
+  dataBit = 8
+  stopBits = 1
