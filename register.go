@@ -276,6 +276,11 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 			}
 
 			if inputDevice, ok := device.(InputDevice); ok {
+				if topic := config.MustString("topic"); "" == topic {
+					zlog.Panicf("Device[%s]配置项[topic]是必填参数", bundleType)
+				} else {
+					inputDevice.setTopic(topic)
+				}
 				re.AddInputDevice(inputDevice)
 			} else if outputDevice, ok := device.(OutputDevice); ok {
 				re.AddOutputDevice(outputDevice)

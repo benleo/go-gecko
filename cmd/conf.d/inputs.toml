@@ -6,10 +6,10 @@
   uuid = "udp@(0755001001)"
   group = "location:localhost"
   private = "port:5572"
+  topic = "/demo/udp/input"
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
 [INPUTS.UDPInputDevice.InitArgs]
-  topic = "/demo/udp/input"
   networkAddress = "0.0.0.0:5572"
   bufferSize = 64
   readTimeout = "3s"
@@ -22,10 +22,10 @@
   uuid = "tcp@(0755001001)"
   group = "location:localhost"
   private = "port:5573"
+  topic = "/demo/tcp/input"
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
 [INPUTS.TCPInputDevice.InitArgs]
-  topic = "/demo/tcp/input"
   networkAddress = "0.0.0.0:5573"
   bufferSize = 64
   readTimeout = "3s"

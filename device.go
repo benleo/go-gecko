@@ -52,6 +52,9 @@ type VirtualDevice interface {
 // Input设备是表示向系统输入数据的设备
 type InputDevice interface {
 	VirtualDevice
+	// 输入设备都具有一个Topic
+	setTopic(topic string)
+	GetTopic() string
 	// 监听设备的输入数据。如果设备发生错误，返回错误信息。
 	Serve(ctx Context, deliverer InputDeliverer) error
 }
@@ -67,6 +70,7 @@ type AbcInputDevice struct {
 	address DeviceAddress
 	decoder Decoder
 	encoder Encoder
+	topic   string
 }
 
 func (dev *AbcInputDevice) OnInit(args *cfg.Config, ctx Context) {
@@ -80,6 +84,14 @@ func (dev *AbcInputDevice) GetInitArgs() *cfg.Config {
 
 func (dev *AbcInputDevice) GetInitContext() Context {
 	return dev.ctx
+}
+
+func (dev *AbcInputDevice) setTopic(topic string) {
+	dev.topic = topic
+}
+
+func (dev *AbcInputDevice) GetTopic() string {
+	return dev.topic
 }
 
 func (dev *AbcInputDevice) setDecoder(decoder Decoder) {

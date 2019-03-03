@@ -12,7 +12,7 @@ import (
 )
 
 // 消息处理
-type PacketHandler func(addr net.Addr, frame []byte) (resp []byte)
+type PacketHandler func(addr net.Addr, frame []byte) (resp []byte, err error)
 
 // Socket客户端
 type SocketServer struct {
@@ -125,7 +125,7 @@ func (ss *SocketServer) tcpServeLoop(listen net.Listener, handler PacketHandler)
 	}
 }
 
-func (ss *SocketServer) rwLoop(protoType string, conn net.Conn, handler PacketHandler) error {
+func (ss *SocketServer) rwLoop(protoType string, conn net.Conn, userHandler PacketHandler) error {
 	listenAddr := conn.RemoteAddr()
 	if "udp" == protoType {
 		listenAddr = conn.LocalAddr()
@@ -168,7 +168,10 @@ func (ss *SocketServer) rwLoop(protoType string, conn net.Conn, handler PacketHa
 			continue
 		}
 
-		data := handler(clientAddr, buffer[:n])
+		data, err := userHandler(clientAddr, buffer[:n])
+		if err != nil {
+			return err
+		}
 		if len(data) <= 0 {
 			continue
 		}
