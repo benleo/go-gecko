@@ -50,6 +50,19 @@ func (d *AbcNetworkOutputDevice) OnStop(ctx gecko.Context) {
 	}
 }
 
+func (d *AbcNetworkOutputDevice) Process(frame gecko.FramePacket, ctx gecko.Context) (gecko.FramePacket, error) {
+	socket := d.Socket()
+	buffer := make([]byte, socket.BufferSize())
+	if _, err := socket.Send(frame); nil != err {
+		return nil, err
+	}
+	if n, err := socket.Receive(buffer); nil != err {
+		return nil, err
+	} else {
+		return gecko.NewFramePacket(buffer[:n]), nil
+	}
+}
+
 func (d *AbcNetworkOutputDevice) Socket() *SocketClient {
 	return d.socket
 }

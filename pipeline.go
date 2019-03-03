@@ -115,11 +115,17 @@ func (p *Pipeline) Start() {
 	})
 	// Input Serve Last
 	utils.ForEach(p.inputs, func(it interface{}) {
-		device := it.(InputDevice)
-		deliverer := p.newInputDeliverer(device)
+		input := it.(InputDevice)
+		deliverer := p.newInputDeliverer(input)
 		go func() {
-			if err := device.Serve(p.ctx, deliverer); nil != err {
-				zlog.Errorw("InputDevice服务运行错误：", "error", err, "class", utils.GetClassName(device))
+			devId := input.GetAddress().UUID
+			defer zlog.Debugf("InputDevice已经停止：%s", devId)
+			err := input.Serve(p.ctx, deliverer)
+			if nil != err {
+				zlog.Errorw("InputDevice服务运行错误",
+					"uuid", devId,
+					"error", err,
+					"class", utils.GetClassName(input))
 			}
 		}()
 	})
@@ -182,21 +188,21 @@ func (p *Pipeline) deliverToOutput(address string, broadcast bool, data JSONPack
 	// 广播给相同组地址的设备
 	if broadcast {
 		zlog := ZapSugarLogger
-		for addr, device := range p.outputsMap {
+		for addr, output := range p.outputsMap {
 			// 忽略GroupAddress不匹配的设备
-			if address != device.GetAddress().Group {
+			if address != output.GetAddress().Group {
 				continue
 			}
-			frame, encErr := device.GetEncoder().Encode(data)
+			frame, encErr := output.GetEncoder().Encode(data)
 			if nil != encErr {
 				return nil, errors.WithMessage(encErr, "设备Encode数据出错: "+addr)
 			}
-			if ret, procErr := device.Process(frame, p.ctx); nil != procErr {
+			if ret, procErr := output.Process(frame, p.ctx); nil != procErr {
 				zlog.Errorw("OutputDevice处理广播事件发生错误", "addr", addr, "error", procErr)
 				return nil, errors.WithMessage(procErr, "Output broadcast of device: "+addr)
 			} else {
 				if nil != ret {
-					if json, decErr := device.GetDecoder().Decode(ret); nil != decErr {
+					if json, decErr := output.GetDecoder().Decode(ret); nil != decErr {
 						return nil, errors.WithMessage(encErr, "设备Decode数据出错: "+addr)
 					} else {
 						zlog.Debugf("OutputDevice[%s]返回响应： %s", addr, json)
@@ -207,16 +213,16 @@ func (p *Pipeline) deliverToOutput(address string, broadcast bool, data JSONPack
 		return nil, nil
 	} else {
 		// 发送给精确地址的设备
-		if device, ok := p.outputsMap[address]; ok {
-			frame, encErr := device.GetEncoder().Encode(data)
+		if output, ok := p.outputsMap[address]; ok {
+			frame, encErr := output.GetEncoder().Encode(data)
 			if nil != encErr {
 				return nil, errors.WithMessage(encErr, "设备Encode数据出错: "+address)
 			}
-			ret, procErr := device.Process(frame, p.ctx)
+			ret, procErr := output.Process(frame, p.ctx)
 			if nil != procErr {
 				return nil, errors.WithMessage(procErr, "Output设备处理出错: "+address)
 			}
-			if json, decErr := device.GetDecoder().Decode(ret); nil != decErr {
+			if json, decErr := output.GetDecoder().Decode(ret); nil != decErr {
 				return nil, errors.WithMessage(encErr, "设备Decode数据出错: "+address)
 			} else {
 				return json, nil
@@ -298,7 +304,7 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 			zlog.Debugf("拦截器中断事件： %s", err.Error())
 			session.Outbound().AddDataField("error", "InterceptorDropped")
 			// 终止，输出处理
-			session.AddAttribute("Since@Interceptor", session.Since())
+			session.AddAttribute("拦截过程用时", session.Since())
 			p.output(session)
 			return
 		} else {
@@ -306,7 +312,7 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 		}
 	}
 	// 继续
-	session.AddAttribute("Since@Interceptor", session.Since())
+	session.AddAttribute("拦截过程用时", session.Since())
 	p.dispatcher.EndC() <- session
 }
 
@@ -337,7 +343,7 @@ func (p *Pipeline) handleDriver(session EventSession) {
 		}
 	}
 	// 输出处理
-	session.AddAttribute("Since@Driver", session.Since())
+	session.AddAttribute("驱动过程用时", session.Since())
 	p.output(session)
 }
 
