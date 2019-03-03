@@ -1,20 +1,36 @@
 
 # Gecko概念
 
-## InputDevice - 输入设备
+## 一、InputDevice/OutputDevice - 输入输出设备
 
-在Gecko的设计中，InputDevice和OutputDevice都是一个虚拟概念的设备，它们都是代表`(represent)`一个真实具体设备向Gecko系统输入、输出数据；
+在Gecko系统中，**InputDevice**和**OutputDevice**都是一个虚拟设备概念，它们都是代表一个真实具体设备，向Gecko系统输入、输出数据的设备代理；
 
-`InputDevice`由是指能够读取到具体硬件设备、外部系统控制事件等的虚拟输入端。
-在硬件方面，InputDevice可以是通过UART/USB/RS232/RS485等硬件通讯方式，与ID卡读卡器、指纹机、人脸识别设备、门禁开关等设备进行数据交互；
-在软件方面，InputDevice可以通过UDP/TCP等方式，接收和返回通过网络接口通讯的设备；这些设备可能也是上述硬件设备；
-在网络通讯方面来讲，InputDevice可以通过MQTT、HTTP等方式，接收远程硬件、第三方服务发送的控制事件；
+在与硬件通讯时，InputDevice/OutputDevice可以是通过_UART/USB/RS232/RS485_等硬件通讯接口，可以与ID/IC读卡器、指纹机设备、人脸识别设备、门禁电磁开关等硬件设备进行数据交互；
 
-## Interceptor - 拦截器
+在与软件通讯时，InputDevice/OutputDevice可以通过_UDP/TCP_等通讯协议，接收并响应通过网络接口通讯的设备；这些终端设备可能也是上述硬件设备；
+
+在与物联网云通讯时，InputDevice/OutputDevice可以通过MQTT、HTTP等协议，接收远程硬件、第三方Web服务发送的控制事件；
+
+### 虚拟设备应用场景
+
+`InputDevice`由是指能够读取到真实硬件、外部系统控制事件等数据的虚拟输入端。在我们的实际项目中，InputDevice通过UDP通讯协议，作为UDP服务器，接收来自门禁主板主动上报的刷卡数据、二维码扫描数据。
+
+### 1.1 Encoder/Decoder - 编码解码器
+
+`Encoder`和`Decoder`作用于InputDevice和OutputDeivce。当数据在**向设备对象`输入`**和**设备对象`输出`**时，会执行设备对象配置的编码解码器接口来处理数据。
+
+
+
+### 1.2 内置支持的设备
+
+1. `TCP / UDP` 通讯协议的InputDevice / OutputDevice；
+2. `SerialPort` 通讯协议的InputDevice / OutputDevice；
+
+## 二、Interceptor - 拦截器
 
 // TODO
 
-## Driver - 用户驱动
+## 三、Driver - 用户驱动
 
 Driver-`用户驱动`，是实现`设备与设备之间联动`、`设备事件响应业务处理`的核心组件，它通常与Interceptor一起完成某种业务功能；
 
@@ -22,28 +38,10 @@ Driver-`用户驱动`，是实现`设备与设备之间联动`、`设备事件�
 Driver通过接收特定事件Topic的事件，使用内部数据库、业务方法等逻辑计算后，控制OutputDeliverer下一级输出设备作出操作。
 最典型的例子是：Driver接收到门禁刷卡ID后，驱动门锁开关设备；
 
-## OutputDevice - 输出设备
-
-// TODO
-
-## Encoder/Decoder - 编码解码器
+## 四、Plugin - 插件
 
 // TODO 
 
-## Plugin - 插件
-
-// TODO 
-
-## Hook - 生命周期钩子
-
-// TODO 
-
-# 数据结构说明
-
-## PacketFrame
-
-// TODO 
-
-## PacketMap
+## 五、Hook - 生命周期钩子
 
 // TODO 
