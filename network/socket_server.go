@@ -130,8 +130,9 @@ func (ss *SocketServer) rwLoop(protoType string, conn net.Conn, userHandler Pack
 	if "udp" == protoType {
 		listenAddr = conn.LocalAddr()
 	}
-	gecko.ZapSugarLogger.Debugf("开启数据通讯循环[%s]：%s", protoType, listenAddr)
-	defer gecko.ZapSugarLogger.Debugf("中止数据通讯循环[%s]: %s", protoType, listenAddr)
+	zlog := gecko.ZapSugarLogger
+	zlog.Debugf("开启数据通讯循环[%s]：%s", protoType, listenAddr)
+	defer zlog.Debugf("中止数据通讯循环[%s]: %s", protoType, listenAddr)
 
 	readFromClient := func(c net.Conn, buf []byte, proto string) (n int, clientAddr net.Addr, err error) {
 		if "udp" == proto {
@@ -170,7 +171,8 @@ func (ss *SocketServer) rwLoop(protoType string, conn net.Conn, userHandler Pack
 
 		data, err := userHandler(clientAddr, buffer[:n])
 		if err != nil {
-			return err
+			zlog.Errorw("用户处理函数内部错误", "err", err)
+			continue
 		}
 		if len(data) <= 0 {
 			continue
