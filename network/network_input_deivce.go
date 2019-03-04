@@ -48,7 +48,7 @@ func (d *AbcNetworkInputDevice) OnStop(ctx gecko.Context) {
 
 func (d *AbcNetworkInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 	return d.Socket().Serve(func(addr net.Addr, input []byte) (output []byte, err error) {
-		return deliverer.Execute(d.GetTopic(), gecko.NewFramePacket(input))
+		return deliverer.Deliver(d.GetTopic(), gecko.NewFramePacket(input))
 	})
 }
 

@@ -182,12 +182,58 @@ func (p *Pipeline) prepareEnv() {
 	p.shutdownCtx, p.shutdownFunc = context.WithCancel(context.Background())
 }
 
+// 创建InputDeliverer函数
+// InputDeliverer函数对于InputDevice对象是一个系统内部数据传输流程的代理函数。
+// 每个Deliver请求，都会向系统发起请求，并获取系统处理结果响应数据。也意味着，InputDevice发起的每个请求
+// 都会执行 Decode -> Deliver(GeckoKernelFlow) -> Encode 流程。
+func (p *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
+	return InputDeliverer(func(topic string, frame FramePacket) (FramePacket, error) {
+		// 从Input设备中读取Decode数据
+		inData := frame.Data()
+		if nil == inData {
+			return nil, errors.New("Input设备发起Deliver请求必须携带参数数据")
+		}
+		input, err := device.GetDecoder()(inData)
+		if nil != err {
+			return nil, errors.WithMessage(err, "Input设备Decode数据出错："+device.GetAddress().UUID)
+		}
+		output := make(chan JSONPacket, 1)
+		// 发送到Dispatcher调度处理
+		p.dispatcher.StartC() <- &_EventSessionImpl{
+			timestamp:  time.Now(),
+			attributes: make(map[string]interface{}),
+			attrLock:   new(sync.RWMutex),
+			topic:      topic,
+			inbound: &Message{
+				Topic: topic,
+				Data:  input,
+			},
+			outbound: &Message{
+				Topic: topic,
+				Data:  make(map[string]interface{}),
+			},
+			outputChan: output,
+		}
+		// 等待处理完成
+		outData := <-output
+		if nil == outData {
+			return nil, errors.New("Input设备发起Deliver请求必须返回结果数据")
+		}
+		if bytes, err := device.GetEncoder()(outData); nil != err {
+			return nil, errors.WithMessage(err, "Input设备Encode数据出错："+device.GetAddress().UUID)
+		} else {
+			return NewFramePacket(bytes), nil
+		}
+	})
+}
+
 // 输出派发函数
 // 根据Driver指定的目标输出设备地址，查找并处理数据包
 func (p *Pipeline) deliverToOutput(address string, broadcast bool, data JSONPacket) (JSONPacket, error) {
 	// 广播给相同组地址的设备
 	if broadcast {
 		zlog := ZapSugarLogger
+		responseOfTargets := JSONPacket{}
 		for addr, output := range p.outputsMap {
 			// 忽略GroupAddress不匹配的设备
 			if address != output.GetAddress().Group {
@@ -197,20 +243,25 @@ func (p *Pipeline) deliverToOutput(address string, broadcast bool, data JSONPack
 			if nil != encErr {
 				return nil, errors.WithMessage(encErr, "设备Encode数据出错: "+addr)
 			}
-			if ret, procErr := output.Process(frame, p.ctx); nil != procErr {
+
+			result, procErr := output.Process(frame, p.ctx)
+			if nil != procErr {
 				zlog.Errorw("OutputDevice处理广播事件发生错误", "addr", addr, "error", procErr)
 				return nil, errors.WithMessage(procErr, "Output broadcast of device: "+addr)
-			} else {
-				if nil != ret {
-					if json, decErr := output.GetDecoder().Decode(ret); nil != decErr {
-						return nil, errors.WithMessage(encErr, "设备Decode数据出错: "+addr)
-					} else {
-						zlog.Debugf("OutputDevice[%s]返回响应： %s", addr, json)
-					}
+			}
+
+			if nil != result {
+				if json, decErr := output.GetDecoder().Decode(result); nil != decErr {
+					return nil, errors.WithMessage(encErr, "设备Decode数据出错: "+addr)
+				} else {
+					zlog.Debugf("OutputDevice[%s]返回响应： %s", addr, json)
+					responseOfTargets[addr] = json
 				}
+			}else{
+				responseOfTargets[addr] = JSONPacket{ "error": "NO_RESPONSE" }
 			}
 		}
-		return nil, nil
+		return responseOfTargets, nil
 	} else {
 		// 发送给精确地址的设备
 		if output, ok := p.outputsMap[address]; ok {
@@ -231,42 +282,6 @@ func (p *Pipeline) deliverToOutput(address string, broadcast bool, data JSONPack
 			return nil, errors.New("指定地址的Output设备不存在:" + address)
 		}
 	}
-}
-
-// 创建InputDeliverer函数
-func (p *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
-	return InputDeliverer(func(topic string, frame FramePacket) (FramePacket, error) {
-		// 从Input设备中读取Decode数据
-		decoder := device.GetDecoder()
-		input, err := decoder(frame.Data())
-		if nil != err {
-			return nil, errors.WithMessage(err, "Input设备Decode数据出错："+device.GetAddress().UUID)
-		}
-		output := make(chan JSONPacket, 1)
-		// 发送到Dispatcher调度处理
-		p.dispatcher.StartC() <- &_GeckoEventContext{
-			timestamp:  time.Now(),
-			attributes: make(map[string]interface{}),
-			attrLock:   new(sync.RWMutex),
-			topic:      topic,
-			inbound: &Message{
-				Topic: topic,
-				Data:  input,
-			},
-			outbound: &Message{
-				Topic: topic,
-				Data:  make(map[string]interface{}),
-			},
-			completedNotifier: output,
-		}
-		// Encode返回到Input设备
-		encoder := device.GetEncoder()
-		if bytes, err := encoder(<-output); nil != err {
-			return nil, errors.WithMessage(err, "Input设备Encode数据出错："+device.GetAddress().UUID)
-		} else {
-			return NewFramePacket(bytes), nil
-		}
-	})
 }
 
 // 处理拦截器过程
@@ -359,7 +374,8 @@ func (p *Pipeline) output(event EventSession) {
 	defer func() {
 		p.checkRecover(recover(), "Output-Goroutine内部错误")
 	}()
-	event.(*_GeckoEventContext).completedNotifier <- event.Outbound().Data
+	// 返回处理结果
+	event.(*_EventSessionImpl).outputChan <- event.Outbound().Data
 }
 
 func (p *Pipeline) checkDefTimeout(msg string, act func(Context)) {

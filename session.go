@@ -39,29 +39,29 @@ type EventSession interface {
 
 ////
 
-type _GeckoEventContext struct {
-	timestamp         time.Time
-	attributes        map[string]interface{}
-	attrLock          *sync.RWMutex
-	topic             string
-	inbound           *Message
-	outbound          *Message
-	completedNotifier chan <- JSONPacket
+type _EventSessionImpl struct {
+	timestamp  time.Time
+	attributes map[string]interface{}
+	attrLock   *sync.RWMutex
+	topic      string
+	inbound    *Message
+	outbound   *Message
+	outputChan chan <- JSONPacket
 }
 
-func (si *_GeckoEventContext) Attributes() *cfg.Config {
+func (si *_EventSessionImpl) Attributes() *cfg.Config {
 	si.attrLock.RLock()
 	defer si.attrLock.RUnlock()
 	return cfg.Wrap(si.attributes)
 }
 
-func (si *_GeckoEventContext) AddAttribute(name string, value interface{}) {
+func (si *_EventSessionImpl) AddAttribute(name string, value interface{}) {
 	si.attrLock.Lock()
 	defer si.attrLock.Unlock()
 	si.attributes[name] = value
 }
 
-func (si *_GeckoEventContext) AddAttributes(attributes map[string]interface{}) {
+func (si *_EventSessionImpl) AddAttributes(attributes map[string]interface{}) {
 	si.attrLock.Lock()
 	defer si.attrLock.Unlock()
 	for k, v := range attributes {
@@ -69,22 +69,22 @@ func (si *_GeckoEventContext) AddAttributes(attributes map[string]interface{}) {
 	}
 }
 
-func (si *_GeckoEventContext) Timestamp() time.Time {
+func (si *_EventSessionImpl) Timestamp() time.Time {
 	return si.timestamp
 }
 
-func (si *_GeckoEventContext) Topic() string {
+func (si *_EventSessionImpl) Topic() string {
 	return si.topic
 }
 
-func (si *_GeckoEventContext) Inbound() *Message {
+func (si *_EventSessionImpl) Inbound() *Message {
 	return si.inbound
 }
 
-func (si *_GeckoEventContext) Outbound() *Message {
+func (si *_EventSessionImpl) Outbound() *Message {
 	return si.outbound
 }
 
-func (si *_GeckoEventContext) Since() time.Duration {
+func (si *_EventSessionImpl) Since() time.Duration {
 	return time.Since(si.Timestamp())
 }

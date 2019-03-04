@@ -100,14 +100,14 @@ func (d *StrategyDriver) Handle(session gecko.EventSession, deliverer gecko.Outp
 		if nil == target {
 			continue
 		}
-		address := target.DeviceUUID
-		if ret, err := deliverer.Execute(address, target.Payload); nil != err {
-			responses[address] = gecko.JSONPacket{
+		uuid := target.DeviceUUID
+		if ret, err := deliverer.Execute(uuid, target.Payload); nil != err {
+			responses[uuid] = gecko.JSONPacket{
 				"status":  "error",
 				"message": err.Error(),
 			}
 		} else {
-			responses[address] = gecko.JSONPacket{
+			responses[uuid] = gecko.JSONPacket{
 				"status": "success",
 				"data":   ret,
 			}

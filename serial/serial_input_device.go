@@ -71,7 +71,7 @@ func (d *SerialPortInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDe
 			// FIXME 需要处理Port被Close后的Error状态
 			return err
 		} else {
-			output, err := deliverer.Execute(d.GetTopic(), buffer[:n])
+			output, err := deliverer.Deliver(d.GetTopic(), buffer[:n])
 			if nil != err {
 				return err
 			}
