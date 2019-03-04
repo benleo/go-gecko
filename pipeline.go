@@ -318,8 +318,9 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 
 // 处理驱动执行过程
 func (p *Pipeline) handleDriver(session EventSession) {
+	zlog := ZapSugarLogger
 	p.ctx.OnIfLogV(func() {
-		ZapSugarLogger.Debugf("Driver调度处理，Topic: %s", session.Topic())
+		zlog.Debugf("Driver调度处理，Topic: %s", session.Topic())
 	})
 	defer func() {
 		p.checkRecover(recover(), "Driver-Goroutine内部错误")
@@ -330,7 +331,7 @@ func (p *Pipeline) handleDriver(session EventSession) {
 		driver := el.Value.(Driver)
 		match := anyTopicMatches(driver.GetTopicExpr(), session.Topic())
 		p.ctx.OnIfLogV(func() {
-			ZapSugarLogger.Debugf("用户驱动处理： driver[%s], topic: %s, Matches: %s",
+			zlog.Debugf("用户驱动处理： driver[%s], topic: %s, match: %s",
 				utils.GetClassName(driver),
 				session.Topic(),
 				strconv.FormatBool(match))
