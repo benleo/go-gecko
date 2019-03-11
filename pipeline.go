@@ -46,7 +46,7 @@ type Pipeline struct {
 // 初始化Pipeline
 func (p *Pipeline) Init(config *cfg.Config) {
 	zlog := ZapSugarLogger
-	geckoCtx := newGeckoContext(config)
+	geckoCtx := p.newGeckoContext(config)
 	p.ctx = geckoCtx
 	gecko := p.ctx.gecko()
 	capacity := gecko.GetInt64OrDefault("eventsCapacity", 8)
@@ -60,19 +60,19 @@ func (p *Pipeline) Init(config *cfg.Config) {
 	initWithContext := func(it Initialize, args *cfg.Config) {
 		it.OnInit(args, p.ctx)
 	}
-	if !p.registerIfHit(geckoCtx.plugins, initWithContext) {
+	if !p.registerIfHit(geckoCtx.cfgPlugins, initWithContext) {
 		zlog.Warn("警告：未配置任何[Plugin]组件")
 	}
-	if !p.registerIfHit(geckoCtx.outputs, initWithContext) {
+	if !p.registerIfHit(geckoCtx.cfgOutputs, initWithContext) {
 		zlog.Fatal("严重：未配置任何[OutputDevice]组件")
 	}
-	if !p.registerIfHit(geckoCtx.interceptors, initWithContext) {
+	if !p.registerIfHit(geckoCtx.cfgInterceptors, initWithContext) {
 		zlog.Warn("警告：未配置任何[Interceptor]组件")
 	}
-	if !p.registerIfHit(geckoCtx.drivers, initWithContext) {
+	if !p.registerIfHit(geckoCtx.cfgDrivers, initWithContext) {
 		zlog.Warn("警告：未配置任何[Driver]组件")
 	}
-	if !p.registerIfHit(geckoCtx.inputs, initWithContext) {
+	if !p.registerIfHit(geckoCtx.cfgInputs, initWithContext) {
 		zlog.Fatal("严重：未配置任何[InputDevice]组件")
 	}
 	// show
@@ -234,7 +234,7 @@ func (p *Pipeline) deliverToOutput(address string, broadcast bool, data JSONPack
 	if broadcast {
 		zlog := ZapSugarLogger
 		responseOfTargets := JSONPacket{}
-		for addr, output := range p.outputsMap {
+		for addr, output := range p.namedOutputs {
 			// 忽略GroupAddress不匹配的设备
 			if address != output.GetAddress().Group {
 				continue
@@ -257,14 +257,14 @@ func (p *Pipeline) deliverToOutput(address string, broadcast bool, data JSONPack
 					zlog.Debugf("OutputDevice[%s]返回响应： %s", addr, json)
 					responseOfTargets[addr] = json
 				}
-			}else{
-				responseOfTargets[addr] = JSONPacket{ "error": "NO_RESPONSE" }
+			} else {
+				responseOfTargets[addr] = JSONPacket{"error": "NO_RESPONSE"}
 			}
 		}
 		return responseOfTargets, nil
 	} else {
 		// 发送给精确地址的设备
-		if output, ok := p.outputsMap[address]; ok {
+		if output, ok := p.namedOutputs[address]; ok {
 			frame, encErr := output.GetEncoder().Encode(data)
 			if nil != encErr {
 				return nil, errors.WithMessage(encErr, "设备Encode数据出错: "+address)
@@ -405,16 +405,21 @@ func (p *Pipeline) failFastLogger(err error, msg string) {
 	}
 }
 
-func newGeckoContext(config *cfg.Config) *_GeckoContext {
+func (p *Pipeline) newGeckoContext(config *cfg.Config) *_GeckoContext {
 	return &_GeckoContext{
-		geckos:       config.MustConfig("GECKO"),
-		globals:      config.MustConfig("GLOBALS"),
-		interceptors: config.MustConfig("INTERCEPTORS"),
-		drivers:      config.MustConfig("DRIVERS"),
-		outputs:      config.MustConfig("OUTPUTS"),
-		inputs:       config.MustConfig("INPUTS"),
-		plugins:      config.MustConfig("PLUGINS"),
-		scopedKV:     make(map[interface{}]interface{}),
+		cfgGeckos:       config.MustConfig("GECKO"),
+		cfgGlobals:      config.MustConfig("GLOBALS"),
+		cfgInterceptors: config.MustConfig("INTERCEPTORS"),
+		cfgDrivers:      config.MustConfig("DRIVERS"),
+		cfgOutputs:      config.MustConfig("OUTPUTS"),
+		cfgInputs:       config.MustConfig("INPUTS"),
+		cfgPlugins:      config.MustConfig("PLUGINS"),
+		scopedKV:        make(map[interface{}]interface{}),
+		plugins:         p.plugins,
+		interceptors:    p.interceptors,
+		drivers:         p.drivers,
+		outputs:         p.outputs,
+		inputs:          p.inputs,
 	}
 }
 

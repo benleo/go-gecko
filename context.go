@@ -1,7 +1,9 @@
 package gecko
 
 import (
+	"container/list"
 	"github.com/parkingwang/go-conf"
+	"github.com/yoojia/go-gecko/utils"
 	"time"
 )
 
@@ -15,6 +17,21 @@ var Version = "G1-0.4"
 type Context interface {
 	// 返回当前版本
 	Version() string
+
+	// 获取Input设备列表，返回一个复制列表
+	GetInputDevices() *list.List
+
+	// 获取Output设备列表，返回一个复制列表
+	GetOutputDevices() *list.List
+
+	// 获取Interceptor设备列表，返回一个复制列表
+	GetInterceptors() *list.List
+
+	// 获取Driver列表，返回一个复制列表
+	GetDrivers() *list.List
+
+	// 获取插件列表，返回一个复制列表
+	GetPlugins() *list.List
 
 	// 检查操作是否超时
 	CheckTimeout(msg string, timeout time.Duration, action func())
@@ -57,48 +74,78 @@ type Context interface {
 ///
 
 type _GeckoContext struct {
-	geckos       *cfg.Config
-	globals      *cfg.Config
-	interceptors *cfg.Config
-	drivers      *cfg.Config
-	outputs      *cfg.Config
-	inputs       *cfg.Config
-	plugins      *cfg.Config
-	scopedKV     map[interface{}]interface{}
+	cfgGeckos       *cfg.Config
+	cfgGlobals      *cfg.Config
+	cfgInterceptors *cfg.Config
+	cfgDrivers      *cfg.Config
+	cfgOutputs      *cfg.Config
+	cfgInputs       *cfg.Config
+	cfgPlugins      *cfg.Config
+	scopedKV        map[interface{}]interface{}
+	plugins         *list.List
+	interceptors    *list.List
+	drivers         *list.List
+	outputs         *list.List
+	inputs          *list.List
 }
 
-func (ci *_GeckoContext) gecko() *cfg.Config {
-	return ci.geckos
+func (c *_GeckoContext) gecko() *cfg.Config {
+	return c.cfgGeckos
 }
 
-func (ci *_GeckoContext) workerId() int64 {
-	return ci.geckos.GetInt64OrDefault("workerId", 0)
+func (c *_GeckoContext) workerId() int64 {
+	return c.cfgGeckos.GetInt64OrDefault("workerId", 0)
 }
 
-func (ci *_GeckoContext) Version() string {
+func (c *_GeckoContext) Version() string {
 	return Version
 }
 
-func (ci *_GeckoContext) PutMagic(key interface{}, value interface{}) {
-	ci.PutScoped(key, value)
+// 获取Input设备列表
+func (c *_GeckoContext) GetInputDevices() *list.List {
+	return copyList(c.inputs)
 }
 
-func (ci *_GeckoContext) PutScoped(key interface{}, value interface{}) {
-	if _, ok := ci.scopedKV[key]; ok {
+// 获取Output设备列表
+func (c *_GeckoContext) GetOutputDevices() *list.List {
+	return copyList(c.outputs)
+}
+
+// 获取Interceptor设备列表
+func (c *_GeckoContext) GetInterceptors() *list.List {
+	return copyList(c.interceptors)
+}
+
+// 获取Driver列表
+func (c *_GeckoContext) GetDrivers() *list.List {
+	return copyList(c.drivers)
+}
+
+// 获取插件列表
+func (c *_GeckoContext) GetPlugins() *list.List {
+	return copyList(c.plugins)
+}
+
+func (c *_GeckoContext) PutMagic(key interface{}, value interface{}) {
+	c.PutScoped(key, value)
+}
+
+func (c *_GeckoContext) PutScoped(key interface{}, value interface{}) {
+	if _, ok := c.scopedKV[key]; ok {
 		ZapSugarLogger.Panicw("ScopedKey 不可重复，Key已存在", "key", key)
 	}
-	ci.scopedKV[key] = value
+	c.scopedKV[key] = value
 }
 
-func (ci *_GeckoContext) GetMagic(key interface{}) interface{} {
-	return ci.GetScoped(key)
+func (c *_GeckoContext) GetMagic(key interface{}) interface{} {
+	return c.GetScoped(key)
 }
 
-func (ci *_GeckoContext) GetScoped(key interface{}) interface{} {
-	return ci.scopedKV[key]
+func (c *_GeckoContext) GetScoped(key interface{}) interface{} {
+	return c.scopedKV[key]
 }
 
-func (ci *_GeckoContext) CheckTimeout(msg string, timeout time.Duration, action func()) {
+func (c *_GeckoContext) CheckTimeout(msg string, timeout time.Duration, action func()) {
 	t := time.AfterFunc(timeout, func() {
 		ZapSugarLogger.Errorw("指令执行时间太长", "action", msg, "timeout", timeout.String())
 	})
@@ -106,34 +153,42 @@ func (ci *_GeckoContext) CheckTimeout(msg string, timeout time.Duration, action 
 	action()
 }
 
-func (ci *_GeckoContext) GlobalConfig() *cfg.Config {
-	return ci.globals
+func (c *_GeckoContext) GlobalConfig() *cfg.Config {
+	return c.cfgGlobals
 }
 
-func (ci *_GeckoContext) Domain() string {
-	return ci.geckos.MustString("domain")
+func (c *_GeckoContext) Domain() string {
+	return c.cfgGeckos.MustString("domain")
 }
 
-func (ci *_GeckoContext) NodeId() string {
-	return ci.geckos.MustString("nodeId")
+func (c *_GeckoContext) NodeId() string {
+	return c.cfgGeckos.MustString("nodeId")
 }
 
-func (ci *_GeckoContext) IsVerboseEnabled() bool {
-	return ci.globals.MustBool("loggingVerbose")
+func (c *_GeckoContext) IsVerboseEnabled() bool {
+	return c.cfgGlobals.MustBool("loggingVerbose")
 }
 
-func (ci *_GeckoContext) IsFailFastEnabled() bool {
-	return ci.globals.GetBoolOrDefault("failFastEnable", false)
+func (c *_GeckoContext) IsFailFastEnabled() bool {
+	return c.cfgGlobals.GetBoolOrDefault("failFastEnable", false)
 }
 
-func (ci *_GeckoContext) OnIfLogV(fun func()) {
-	if ci.IsVerboseEnabled() {
+func (c *_GeckoContext) OnIfLogV(fun func()) {
+	if c.IsVerboseEnabled() {
 		fun()
 	}
 }
 
-func (ci *_GeckoContext) OnIfFailFast(fun func()) {
-	if ci.IsFailFastEnabled() {
+func (c *_GeckoContext) OnIfFailFast(fun func()) {
+	if c.IsFailFastEnabled() {
 		fun()
 	}
+}
+
+func copyList(src *list.List) *list.List {
+	out := new(list.List)
+	utils.ForEach(src, func(it interface{}) {
+		out.PushBack(it)
+	})
+	return out
 }

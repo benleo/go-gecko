@@ -13,15 +13,15 @@ import (
 // 负责对Engine组件的注册管理
 type Registration struct {
 	// 组件管理
-	outputsMap   map[string]OutputDevice
-	inputsMap    map[string]InputDevice
-	decodersMap  map[string]Decoder
-	encodersMap  map[string]Encoder
-	plugins      *list.List
-	interceptors *list.List
-	drivers      *list.List
-	outputs      *list.List
-	inputs       *list.List
+	namedOutputs  map[string]OutputDevice
+	namedInputs   map[string]InputDevice
+	namedDecoders map[string]Decoder
+	namedEncoders map[string]Encoder
+	plugins       *list.List
+	interceptors  *list.List
+	drivers       *list.List
+	outputs       *list.List
+	inputs        *list.List
 	// Hooks
 	startBeforeHooks *list.List
 	startAfterHooks  *list.List
@@ -33,10 +33,10 @@ type Registration struct {
 
 func prepare() *Registration {
 	re := new(Registration)
-	re.outputsMap = make(map[string]OutputDevice)
-	re.inputsMap = make(map[string]InputDevice)
-	re.decodersMap = make(map[string]Decoder)
-	re.encodersMap = make(map[string]Encoder)
+	re.namedOutputs = make(map[string]OutputDevice)
+	re.namedInputs = make(map[string]InputDevice)
+	re.namedDecoders = make(map[string]Decoder)
+	re.namedEncoders = make(map[string]Encoder)
 	re.plugins = list.New()
 	re.interceptors = list.New()
 	re.drivers = list.New()
@@ -52,33 +52,33 @@ func prepare() *Registration {
 
 // 添加Encoder
 func (re *Registration) AddEncoder(name string, encoder Encoder) {
-	if _, ok := re.encodersMap[name]; ok {
+	if _, ok := re.namedEncoders[name]; ok {
 		ZapSugarLogger.Panicw("Encoder类型重复", "type", name)
 	} else {
-		re.encodersMap[name] = encoder
+		re.namedEncoders[name] = encoder
 	}
 }
 
 // 添加Decoder
 func (re *Registration) AddDecoder(name string, decoder Decoder) {
-	if _, ok := re.decodersMap[name]; ok {
+	if _, ok := re.namedDecoders[name]; ok {
 		ZapSugarLogger.Panicw("Decoder类型重复", "type", name)
 	} else {
-		re.decodersMap[name] = decoder
+		re.namedDecoders[name] = decoder
 	}
 }
 
 // 添加OutputDevice
 func (re *Registration) AddOutputDevice(device OutputDevice) {
 	uuid := re.ensureUniqueUUID(device.GetAddress().UUID)
-	re.outputsMap[uuid] = device
+	re.namedOutputs[uuid] = device
 	re.outputs.PushBack(device)
 }
 
 // 添加InputDevice
 func (re *Registration) AddInputDevice(device InputDevice) {
 	uuid := re.ensureUniqueUUID(device.GetAddress().UUID)
-	re.inputsMap[uuid] = device
+	re.namedInputs[uuid] = device
 	re.inputs.PushBack(device)
 }
 
@@ -187,9 +187,9 @@ func (re *Registration) findFactory(typeName string) (BundleFactory, bool) {
 
 func (re *Registration) ensureUniqueUUID(uuid string) string {
 	zlog := ZapSugarLogger
-	if _, ok := re.inputsMap[uuid]; ok {
+	if _, ok := re.namedInputs[uuid]; ok {
 		zlog.Panicf("设备UUID重复[Input]：%s", uuid)
-	} else if _, ok := re.outputsMap[uuid]; ok {
+	} else if _, ok := re.namedOutputs[uuid]; ok {
 		zlog.Panicf("设备UUID重复[Output]：%s", uuid)
 	}
 	return uuid
@@ -256,7 +256,7 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 					zlog.Panicf("未设置默认Encoder时，Device[%s]配置项[encoder]是必填参数", bundleType)
 				}
 			} else {
-				if encoder, ok := re.encodersMap[name]; ok {
+				if encoder, ok := re.namedEncoders[name]; ok {
 					device.setEncoder(encoder)
 				} else {
 					zlog.Panicf("Encoder[%s]未注册", name)
@@ -268,7 +268,7 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 					zlog.Panicf("未设置默认Decoder时，Device[%s]配置项[decoder]是必填参数", bundleType)
 				}
 			} else {
-				if decoder, ok := re.decodersMap[name]; ok {
+				if decoder, ok := re.namedDecoders[name]; ok {
 					device.setDecoder(decoder)
 				} else {
 					zlog.Panicf("Decoder[%s]未注册", name)
