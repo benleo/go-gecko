@@ -189,21 +189,25 @@ func (p *Pipeline) prepareEnv() {
 func (p *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
 	return InputDeliverer(func(topic string, frame FramePacket) (FramePacket, error) {
 		// 从Input设备中读取Decode数据
+		address := device.GetAddress()
 		inData := frame.Data()
 		if nil == inData {
 			return nil, errors.New("Input设备发起Deliver请求必须携带参数数据")
 		}
 		input, err := device.GetDecoder()(inData)
 		if nil != err {
-			return nil, errors.WithMessage(err, "Input设备Decode数据出错："+device.GetAddress().UUID)
+			return nil, errors.WithMessage(err, "Input设备Decode数据出错："+address.UUID)
 		}
-		output := make(chan JSONPacket, 1)
+		outputCh := make(chan JSONPacket, 1)
+		attributes := make(map[string]interface{})
+		attributes["@InputDeviceType"] = utils.GetClassName(device)
 		// 发送到Dispatcher调度处理
 		p.dispatcher.StartC() <- &_EventSessionImpl{
 			timestamp:  time.Now(),
-			attributes: make(map[string]interface{}),
+			attributes: attributes,
 			attrLock:   new(sync.RWMutex),
 			topic:      topic,
+			address:    address,
 			inbound: &Message{
 				Topic: topic,
 				Data:  input,
@@ -212,15 +216,15 @@ func (p *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
 				Topic: topic,
 				Data:  make(map[string]interface{}),
 			},
-			outputChan: output,
+			outputChan: outputCh,
 		}
 		// 等待处理完成
-		outData := <-output
+		outData := <-outputCh
 		if nil == outData {
 			return nil, errors.New("Input设备发起Deliver请求必须返回结果数据")
 		}
 		if bytes, err := device.GetEncoder()(outData); nil != err {
-			return nil, errors.WithMessage(err, "Input设备Encode数据出错："+device.GetAddress().UUID)
+			return nil, errors.WithMessage(err, "Input设备Encode数据出错："+address.UUID)
 		} else {
 			return NewFramePacket(bytes), nil
 		}

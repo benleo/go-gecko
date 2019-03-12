@@ -30,6 +30,9 @@ type EventSession interface {
 	// 当前事件的Topic
 	Topic() string
 
+	// 当前事件的设备地址
+	Address() DeviceAddress
+
 	// 返回输入端消息对象
 	Inbound() *Message
 
@@ -44,9 +47,10 @@ type _EventSessionImpl struct {
 	attributes map[string]interface{}
 	attrLock   *sync.RWMutex
 	topic      string
+	address    DeviceAddress
 	inbound    *Message
 	outbound   *Message
-	outputChan chan <- JSONPacket
+	outputChan chan<- JSONPacket
 }
 
 func (si *_EventSessionImpl) Attributes() *cfg.Config {
@@ -75,6 +79,10 @@ func (si *_EventSessionImpl) Timestamp() time.Time {
 
 func (si *_EventSessionImpl) Topic() string {
 	return si.topic
+}
+
+func (si *_EventSessionImpl) Address() DeviceAddress {
+	return si.address
 }
 
 func (si *_EventSessionImpl) Inbound() *Message {
