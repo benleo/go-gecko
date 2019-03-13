@@ -101,7 +101,7 @@ func (d *StrategyDriver) Handle(session gecko.EventSession, deliverer gecko.Outp
 			continue
 		}
 		uuid := target.DeviceUUID
-		if ret, err := deliverer.Execute(uuid, target.Payload); nil != err {
+		if ret, err := deliverer.Deliver(uuid, target.Payload); nil != err {
 			responses[uuid] = gecko.JSONPacket{
 				"status":  "error",
 				"message": err.Error(),
