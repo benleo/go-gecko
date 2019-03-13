@@ -46,8 +46,8 @@ type Pipeline struct {
 // 初始化Pipeline
 func (p *Pipeline) Init(config *cfg.Config) {
 	zlog := ZapSugarLogger
-	geckoCtx := p.newGeckoContext(config)
-	p.ctx = geckoCtx
+	ctx := p.newGeckoContext(config)
+	p.ctx = ctx
 	gecko := p.ctx.gecko()
 	capacity := gecko.GetInt64OrDefault("eventsCapacity", 8)
 	zlog.Infof("事件通道容量： %d", capacity)
@@ -60,19 +60,19 @@ func (p *Pipeline) Init(config *cfg.Config) {
 	initWithContext := func(it Initialize, args *cfg.Config) {
 		it.OnInit(args, p.ctx)
 	}
-	if !p.registerIfHit(geckoCtx.cfgPlugins, initWithContext) {
+	if !p.registerIfHit(ctx.cfgPlugins, initWithContext) {
 		zlog.Warn("警告：未配置任何[Plugin]组件")
 	}
-	if !p.registerIfHit(geckoCtx.cfgOutputs, initWithContext) {
+	if !p.registerIfHit(ctx.cfgOutputs, initWithContext) {
 		zlog.Fatal("严重：未配置任何[OutputDevice]组件")
 	}
-	if !p.registerIfHit(geckoCtx.cfgInterceptors, initWithContext) {
+	if !p.registerIfHit(ctx.cfgInterceptors, initWithContext) {
 		zlog.Warn("警告：未配置任何[Interceptor]组件")
 	}
-	if !p.registerIfHit(geckoCtx.cfgDrivers, initWithContext) {
+	if !p.registerIfHit(ctx.cfgDrivers, initWithContext) {
 		zlog.Warn("警告：未配置任何[Driver]组件")
 	}
-	if !p.registerIfHit(geckoCtx.cfgInputs, initWithContext) {
+	if !p.registerIfHit(ctx.cfgInputs, initWithContext) {
 		zlog.Fatal("严重：未配置任何[InputDevice]组件")
 	}
 	// show
@@ -118,12 +118,12 @@ func (p *Pipeline) Start() {
 		input := it.(InputDevice)
 		deliverer := p.newInputDeliverer(input)
 		go func() {
-			devId := input.GetAddress().UUID
-			defer zlog.Debugf("InputDevice已经停止：%s", devId)
+			uuid := input.GetUuid()
+			defer zlog.Debugf("InputDevice已经停止：%s", uuid)
 			err := input.Serve(p.ctx, deliverer)
 			if nil != err {
 				zlog.Errorw("InputDevice服务运行错误",
-					"uuid", devId,
+					"uuid", uuid,
 					"error", err,
 					"class", utils.GetClassName(input))
 			}
@@ -189,14 +189,14 @@ func (p *Pipeline) prepareEnv() {
 func (p *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
 	return InputDeliverer(func(topic string, frame FramePacket) (FramePacket, error) {
 		// 从Input设备中读取Decode数据
-		address := device.GetAddress()
+		uuid := device.GetUuid()
 		inData := frame.Data()
 		if nil == inData {
 			return nil, errors.New("Input设备发起Deliver请求必须携带参数数据")
 		}
 		input, err := device.GetDecoder()(inData)
 		if nil != err {
-			return nil, errors.WithMessage(err, "Input设备Decode数据出错："+address.UUID)
+			return nil, errors.WithMessage(err, "Input设备Decode数据出错："+uuid)
 		}
 		outputCh := make(chan JSONPacket, 1)
 		attributes := make(map[string]interface{})
@@ -207,7 +207,7 @@ func (p *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
 			attributes: attributes,
 			attrLock:   new(sync.RWMutex),
 			topic:      topic,
-			address:    address,
+			uuid:       uuid,
 			inbound: &Message{
 				Topic: topic,
 				Data:  input,
@@ -224,7 +224,7 @@ func (p *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
 			return nil, errors.New("Input设备发起Deliver请求必须返回结果数据")
 		}
 		if bytes, err := device.GetEncoder()(outData); nil != err {
-			return nil, errors.WithMessage(err, "Input设备Encode数据出错："+address.UUID)
+			return nil, errors.WithMessage(err, "Input设备Encode数据出错："+uuid)
 		} else {
 			return NewFramePacket(bytes), nil
 		}
@@ -233,58 +233,23 @@ func (p *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
 
 // 输出派发函数
 // 根据Driver指定的目标输出设备地址，查找并处理数据包
-func (p *Pipeline) deliverToOutput(address string, broadcast bool, data JSONPacket) (JSONPacket, error) {
-	// 广播给相同组地址的设备
-	if broadcast {
-		zlog := ZapSugarLogger
-		responseOfTargets := JSONPacket{}
-		for addr, output := range p.namedOutputs {
-			// 忽略GroupAddress不匹配的设备
-			if address != output.GetAddress().Group {
-				continue
-			}
-			frame, encErr := output.GetEncoder().Encode(data)
-			if nil != encErr {
-				return nil, errors.WithMessage(encErr, "设备Encode数据出错: "+addr)
-			}
-
-			result, procErr := output.Process(frame, p.ctx)
-			if nil != procErr {
-				zlog.Errorw("OutputDevice处理广播事件发生错误", "addr", addr, "error", procErr)
-				return nil, errors.WithMessage(procErr, "Output broadcast of device: "+addr)
-			}
-
-			if nil != result {
-				if json, decErr := output.GetDecoder().Decode(result); nil != decErr {
-					return nil, errors.WithMessage(encErr, "设备Decode数据出错: "+addr)
-				} else {
-					zlog.Debugf("OutputDevice[%s]返回响应： %s", addr, json)
-					responseOfTargets[addr] = json
-				}
-			} else {
-				responseOfTargets[addr] = JSONPacket{"error": "NO_RESPONSE"}
-			}
+func (p *Pipeline) deliverToOutput(uuid string, data JSONPacket) (JSONPacket, error) {
+	if output, ok := p.uuidOutputs[uuid]; ok {
+		frame, encErr := output.GetEncoder().Encode(data)
+		if nil != encErr {
+			return nil, errors.WithMessage(encErr, "设备Encode数据出错: "+uuid)
 		}
-		return responseOfTargets, nil
-	} else {
-		// 发送给精确地址的设备
-		if output, ok := p.namedOutputs[address]; ok {
-			frame, encErr := output.GetEncoder().Encode(data)
-			if nil != encErr {
-				return nil, errors.WithMessage(encErr, "设备Encode数据出错: "+address)
-			}
-			ret, procErr := output.Process(frame, p.ctx)
-			if nil != procErr {
-				return nil, errors.WithMessage(procErr, "Output设备处理出错: "+address)
-			}
-			if json, decErr := output.GetDecoder().Decode(ret); nil != decErr {
-				return nil, errors.WithMessage(encErr, "设备Decode数据出错: "+address)
-			} else {
-				return json, nil
-			}
+		ret, procErr := output.Process(frame, p.ctx)
+		if nil != procErr {
+			return nil, errors.WithMessage(procErr, "Output设备处理出错: "+uuid)
+		}
+		if json, decErr := output.GetDecoder().Decode(ret); nil != decErr {
+			return nil, errors.WithMessage(encErr, "设备Decode数据出错: "+uuid)
 		} else {
-			return nil, errors.New("指定地址的Output设备不存在:" + address)
+			return json, nil
 		}
+	} else {
+		return nil, errors.New("指定地址的Output设备不存在:" + uuid)
 	}
 }
 

@@ -13,8 +13,8 @@ import (
 // 负责对Engine组件的注册管理
 type Registration struct {
 	// 组件管理
-	namedOutputs  map[string]OutputDevice
-	namedInputs   map[string]InputDevice
+	uuidOutputs   map[string]OutputDevice
+	uuidInputs    map[string]InputDevice
 	namedDecoders map[string]Decoder
 	namedEncoders map[string]Encoder
 	plugins       *list.List
@@ -33,8 +33,8 @@ type Registration struct {
 
 func prepare() *Registration {
 	re := new(Registration)
-	re.namedOutputs = make(map[string]OutputDevice)
-	re.namedInputs = make(map[string]InputDevice)
+	re.uuidOutputs = make(map[string]OutputDevice)
+	re.uuidInputs = make(map[string]InputDevice)
 	re.namedDecoders = make(map[string]Decoder)
 	re.namedEncoders = make(map[string]Encoder)
 	re.plugins = list.New()
@@ -70,15 +70,15 @@ func (re *Registration) AddDecoder(name string, decoder Decoder) {
 
 // 添加OutputDevice
 func (re *Registration) AddOutputDevice(device OutputDevice) {
-	uuid := re.ensureUniqueUUID(device.GetAddress().UUID)
-	re.namedOutputs[uuid] = device
+	uuid := re.ensureUniqueUUID(device.GetUuid())
+	re.uuidOutputs[uuid] = device
 	re.outputs.PushBack(device)
 }
 
 // 添加InputDevice
 func (re *Registration) AddInputDevice(device InputDevice) {
-	uuid := re.ensureUniqueUUID(device.GetAddress().UUID)
-	re.namedInputs[uuid] = device
+	uuid := re.ensureUniqueUUID(device.GetUuid())
+	re.uuidInputs[uuid] = device
 	re.inputs.PushBack(device)
 }
 
@@ -187,9 +187,9 @@ func (re *Registration) findFactory(typeName string) (BundleFactory, bool) {
 
 func (re *Registration) ensureUniqueUUID(uuid string) string {
 	zlog := ZapSugarLogger
-	if _, ok := re.namedInputs[uuid]; ok {
+	if _, ok := re.uuidInputs[uuid]; ok {
 		zlog.Panicf("设备UUID重复[Input]：%s", uuid)
-	} else if _, ok := re.namedOutputs[uuid]; ok {
+	} else if _, ok := re.uuidOutputs[uuid]; ok {
 		zlog.Panicf("设备UUID重复[Output]：%s", uuid)
 	}
 	return uuid
@@ -241,15 +241,11 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 				device.setName(name)
 			}
 
-			address := DeviceAddress{
-				UUID:    config.MustString("uuid"),
-				Group:   config.MustString("group"),
-				Private: config.MustString("private"),
+			uuid := config.MustString("uuid")
+			if "" == uuid {
+				zlog.Panicf("VirtualDevice[%s]配置项[uuid]是必填参数", bundleType)
 			}
-			if !address.IsValid() {
-				zlog.Panicf("VirtualDevice[%s]配置项[uuid/group/private]是必填参数", bundleType)
-			}
-			device.setAddress(address)
+			device.setUuid(uuid)
 
 			if name := config.MustString("encoder"); "" == name {
 				if nil == device.GetEncoder() {
