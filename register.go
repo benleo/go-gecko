@@ -123,8 +123,8 @@ func (re *Registration) showBundles() {
 	zlog.Infof("已加载 InputDevices: %d", re.inputs.Len())
 	utils.ForEach(re.inputs, func(it interface{}) {
 		zlog.Info("  - InputDevice: " + utils.GetClassName(it))
-		for _, shadow := range it.(InputDevice).GetShadowDevices() {
-			zlog.Info("    - Shadow: " + utils.GetClassName(shadow))
+		for _, shadow := range it.(InputDevice).GetLogicDevices() {
+			zlog.Info("    - Logic: " + utils.GetClassName(shadow))
 		}
 	})
 
@@ -291,8 +291,8 @@ func (re *Registration) register(configs *cfg.Config, initFunc func(bundle Initi
 				zlog.Panicf("未知VirtualDevice类型： %s", utils.GetClassName(device))
 			}
 
-		case ShadowDevice:
-			shadow := bundle.(ShadowDevice)
+		case LogicDevice:
+			shadow := bundle.(LogicDevice)
 			if uuid := config.MustString("uuid"); "" != uuid {
 				shadow.setUuid(uuid)
 			} else {
@@ -303,6 +303,11 @@ func (re *Registration) register(configs *cfg.Config, initFunc func(bundle Initi
 			} else {
 				zlog.Panicf("ShadowDevice[%s]配置项[name]是必填参数", bundleType)
 			}
+			if topic := config.MustString("topic"); "" != topic {
+				shadow.setTopic(topic)
+			} else {
+				zlog.Panicf("ShadowDevice[%s]配置项[topic]是必填参数", bundleType)
+			}
 			masterUuid := config.MustString("masterUuid")
 			if "" != masterUuid {
 				shadow.setMasterUuid(masterUuid)
@@ -311,7 +316,7 @@ func (re *Registration) register(configs *cfg.Config, initFunc func(bundle Initi
 			}
 			// Add to input
 			if input, ok := re.uuidInputs[masterUuid]; ok {
-				input.addShadowDevice(shadow)
+				input.addLogicDevice(shadow)
 			} else {
 				zlog.Panicf("ShadowDevice[%s]配置项[masterUuid]是没找到对应设备", bundleType)
 			}

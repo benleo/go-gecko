@@ -12,12 +12,13 @@
   bufferSize = 64
   readTimeout = "3s"
   
-[SHADOWINPUTS.NopShadowDevice]
-  type = "NopShadowDevice"
-  name = "数据分包影子设备#1"
+[LOGICS.NopLogicDevice]
+  type = "NopLogicDevice"
+  name = "数据分包逻辑设备#1"
   uuid = "udp@(0755001001)#1"
+  topic = "/demo/udp/input/1"
   masterUuid = "udp@(0755001001)"
-[SHADOWINPUTS.NopShadowDevice.InitArgs]
+[LOGICS.NopLogicDevice.InitArgs]
   readerId = 1
 
 

@@ -85,10 +85,10 @@ func (p *Pipeline) Init(config *cfg.Config) {
 	} else {
 		p.register(ctx.cfgInputs, initWithContext)
 	}
-	if !ctx.cfgInputsShadow.IsEmpty() {
-		p.register(ctx.cfgInputsShadow, initWithContext)
+	if !ctx.cfgInputsLogic.IsEmpty() {
+		p.register(ctx.cfgInputsLogic, initWithContext)
 	} else {
-		zlog.Warn("警告：未配置任何[ShadowDevice]组件")
+		zlog.Warn("警告：未配置任何[LogicDevice]组件")
 	}
 
 	// show
@@ -223,19 +223,20 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 		toSendTopic := topic
 		toSendData := inputJSON
 
-		var shadowDevice ShadowDevice = nil
-		// 查找符合条件的影子设备，并转换数据
-		for _, dev := range masterInput.GetShadowDevices() {
-			if dev.IsShadow(inputJSON) {
-				shadowDevice = dev
-				attributes["@InputDevice.Shadow.Type"] = utils.GetClassName(shadowDevice)
-				attributes["@InputDevice.Shadow.Name"] = shadowDevice.GetName()
+		var logicDevice LogicDevice = nil
+		// 查找符合条件的逻辑设备，并转换数据
+		for _, dev := range masterInput.GetLogicDevices() {
+			if dev.CheckIfMatch(inputJSON) {
+				logicDevice = dev
+				attributes["@InputDevice.Logic.Type"] = utils.GetClassName(logicDevice)
+				attributes["@InputDevice.Logic.Name"] = logicDevice.GetName()
 				break
 			}
 		}
-		if shadowDevice != nil {
-			toSendUuid = shadowDevice.GetUuid()
-			toSendTopic, toSendData = shadowDevice.TransformInput(toSendTopic, toSendData)
+		if logicDevice != nil {
+			toSendUuid = logicDevice.GetUuid()
+			toSendTopic = logicDevice.GetTopic()
+			toSendData = logicDevice.Transform(toSendData)
 		}
 		// 发送到Dispatcher调度处理
 		p.dispatcher.StartC() <- &_EventSessionImpl{
@@ -259,9 +260,6 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 		if nil == outputJSON {
 			return nil, errors.New("Input设备发起Deliver请求必须返回结果数据")
 		}
-		if shadowDevice != nil {
-			outputJSON = shadowDevice.TransformOutput(outputJSON)
-		}
 		if outputFrame, err := masterInput.GetEncoder()(outputJSON); nil != err {
 			return nil, errors.WithMessage(err, "Input设备Encode数据出错："+masterUuid)
 		} else {
@@ -272,17 +270,17 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 
 // 输出派发函数
 // 根据Driver指定的目标输出设备地址，查找并处理数据包
-func (p *Pipeline) deliverToOutput(uuid string, data JSONPacket) (JSONPacket, error) {
+func (p *Pipeline) deliverToOutput(uuid string, rawJSON JSONPacket) (JSONPacket, error) {
 	if output, ok := p.uuidOutputs[uuid]; ok {
-		frame, encErr := output.GetEncoder().Encode(data)
+		inputFrame, encErr := output.GetEncoder().Encode(rawJSON)
 		if nil != encErr {
 			return nil, errors.WithMessage(encErr, "设备Encode数据出错: "+uuid)
 		}
-		ret, procErr := output.Process(frame, p.ctx)
-		if nil != procErr {
-			return nil, errors.WithMessage(procErr, "Output设备处理出错: "+uuid)
+		retJSON, err := output.Process(inputFrame, p.ctx)
+		if nil != err {
+			return nil, errors.WithMessage(err, "Output设备处理出错: "+uuid)
 		}
-		if json, decErr := output.GetDecoder().Decode(ret); nil != decErr {
+		if json, decErr := output.GetDecoder().Decode(retJSON); nil != decErr {
 			return nil, errors.WithMessage(encErr, "设备Decode数据出错: "+uuid)
 		} else {
 			return json, nil
@@ -422,7 +420,7 @@ func (p *Pipeline) newGeckoContext(config *cfg.Config) *_GeckoContext {
 		cfgOutputs:      config.MustConfig("OUTPUTS"),
 		cfgInputs:       config.MustConfig("INPUTS"),
 		cfgPlugins:      config.MustConfig("PLUGINS"),
-		cfgInputsShadow: config.MustConfig("SHADOWINPUTS"),
+		cfgInputsLogic:  config.MustConfig("LOGICS"),
 		scopedKV:        make(map[interface{}]interface{}),
 		plugins:         p.plugins,
 		interceptors:    p.interceptors,

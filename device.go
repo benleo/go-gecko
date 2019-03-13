@@ -25,64 +25,6 @@ type VirtualDevice interface {
 	GetEncoder() Encoder
 }
 
-////
-
-// ShadowDevice，是InputDevice的直属下级，非常轻量级的影子设备，
-// 它用于判断将InputDevice的输入数据是否为影子设备数据；
-// 如果符合，则转换事件发送者的标记数据为影子设备的数据；
-type ShadowDevice interface {
-	Initialize
-	// 内部函数
-	setUuid(uuid string)
-	setName(name string)
-	setMasterUuid(masterUuid string)
-	// 公开可访问函数
-	GetUuid() string
-	GetName() string
-	GetMasterUuid() string
-	// 检查是否符合影子设备的数据
-	IsShadow(json JSONPacket) bool
-	// 转换输入的数据
-	TransformInput(topic string, json JSONPacket) (newTopic string, newJson JSONPacket)
-	// 转换返回给设备的数据
-	TransformOutput(json JSONPacket) (newJson JSONPacket)
-}
-
-type AbcShadowDevice struct {
-	ShadowDevice
-	name       string
-	uuid       string
-	masterUuid string
-}
-
-func (s *AbcShadowDevice) setUuid(uuid string) {
-	s.uuid = uuid
-}
-
-func (s *AbcShadowDevice) setName(name string) {
-	s.name = name
-}
-
-func (s *AbcShadowDevice) setMasterUuid(masterUuid string) {
-	s.masterUuid = masterUuid
-}
-
-func (s *AbcShadowDevice) GetUuid() string {
-	return s.uuid
-}
-
-func (s *AbcShadowDevice) GetName() string {
-	return s.name
-}
-
-func (s *AbcShadowDevice) GetMasterUuid() string {
-	return s.masterUuid
-}
-
-func NewAbcShadowDevice() *AbcShadowDevice {
-	return new(AbcShadowDevice)
-}
-
 //// Input
 
 // Input设备是表示向系统输入数据的设备
@@ -91,9 +33,9 @@ type InputDevice interface {
 	// 输入设备都具有一个Topic
 	setTopic(topic string)
 	GetTopic() string
-	// 影子设备
-	addShadowDevice(device ShadowDevice) error
-	GetShadowDevices() []ShadowDevice
+	// 逻辑设备
+	addLogicDevice(device LogicDevice) error
+	GetLogicDevices() []LogicDevice
 	// 监听设备的输入数据。如果设备发生错误，返回错误信息。
 	Serve(ctx Context, deliverer InputDeliverer) error
 }
@@ -110,7 +52,7 @@ type AbcInputDevice struct {
 	decoder Decoder
 	encoder Encoder
 	topic   string
-	devices map[string]ShadowDevice
+	logics  map[string]LogicDevice
 }
 
 func (d *AbcInputDevice) OnInit(args *cfg.Config, ctx Context) {
@@ -166,20 +108,20 @@ func (d *AbcInputDevice) GetUuid() string {
 	return d.uuid
 }
 
-// 影子设备
-func (d *AbcInputDevice) addShadowDevice(device ShadowDevice) error {
+// 逻辑设备
+func (d *AbcInputDevice) addLogicDevice(device LogicDevice) error {
 	uuid := device.GetUuid()
-	if _, ok := d.devices[uuid]; ok {
-		return errors.New("shadow device uuid重复：" + uuid)
+	if _, ok := d.logics[uuid]; ok {
+		return errors.New("LogicDevice uuid重复：" + uuid)
 	} else {
-		d.devices[uuid] = device
+		d.logics[uuid] = device
 		return nil
 	}
 }
 
-func (d *AbcInputDevice) GetShadowDevices() []ShadowDevice {
-	output := make([]ShadowDevice, 0, len(d.devices))
-	for _, dev := range d.devices {
+func (d *AbcInputDevice) GetLogicDevices() []LogicDevice {
+	output := make([]LogicDevice, 0, len(d.logics))
+	for _, dev := range d.logics {
 		output = append(output, dev)
 	}
 	return output
@@ -187,7 +129,7 @@ func (d *AbcInputDevice) GetShadowDevices() []ShadowDevice {
 
 func NewAbcInputDevice() *AbcInputDevice {
 	return &AbcInputDevice{
-		devices: make(map[string]ShadowDevice),
+		logics: make(map[string]LogicDevice),
 	}
 }
 
