@@ -11,6 +11,15 @@
   networkAddress = "0.0.0.0:5572"
   bufferSize = 64
   readTimeout = "3s"
+  
+[SHADOWINPUTS.NopShadowDevice]
+  type = "NopShadowDevice"
+  name = "数据分包影子设备#1"
+  uuid = "udp@(0755001001)#1"
+  masterUuid = "udp@(0755001001)"
+[SHADOWINPUTS.NopShadowDevice.InitArgs]
+  readerId = 1
+
 
 # TCP服务端模式设备
 [INPUTS.TCPInputDevice]

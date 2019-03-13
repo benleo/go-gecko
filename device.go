@@ -1,6 +1,7 @@
 package gecko
 
 import (
+	"errors"
 	"github.com/parkingwang/go-conf"
 )
 
@@ -13,7 +14,7 @@ import (
 type VirtualDevice interface {
 	Bundle
 	// 内部函数
-	setUuid(addr string)
+	setUuid(uuid string)
 	setName(name string)
 	setDecoder(decoder Decoder)
 	setEncoder(encoder Encoder)
@@ -24,6 +25,64 @@ type VirtualDevice interface {
 	GetEncoder() Encoder
 }
 
+////
+
+// ShadowDevice，是InputDevice的直属下级，非常轻量级的影子设备，
+// 它用于判断将InputDevice的输入数据是否为影子设备数据；
+// 如果符合，则转换事件发送者的标记数据为影子设备的数据；
+type ShadowDevice interface {
+	Initialize
+	// 内部函数
+	setUuid(uuid string)
+	setName(name string)
+	setMasterUuid(masterUuid string)
+	// 公开可访问函数
+	GetUuid() string
+	GetName() string
+	GetMasterUuid() string
+	// 检查是否符合影子设备的数据
+	IsShadow(json JSONPacket) bool
+	// 转换输入的数据
+	TransformInput(topic string, json JSONPacket) (newTopic string, newJson JSONPacket)
+	// 转换返回给设备的数据
+	TransformOutput(json JSONPacket) (newJson JSONPacket)
+}
+
+type AbcShadowDevice struct {
+	ShadowDevice
+	name       string
+	uuid       string
+	masterUuid string
+}
+
+func (s *AbcShadowDevice) setUuid(uuid string) {
+	s.uuid = uuid
+}
+
+func (s *AbcShadowDevice) setName(name string) {
+	s.name = name
+}
+
+func (s *AbcShadowDevice) setMasterUuid(masterUuid string) {
+	s.masterUuid = masterUuid
+}
+
+func (s *AbcShadowDevice) GetUuid() string {
+	return s.uuid
+}
+
+func (s *AbcShadowDevice) GetName() string {
+	return s.name
+}
+
+func (s *AbcShadowDevice) GetMasterUuid() string {
+	return s.masterUuid
+}
+
+func NewAbcShadowDevice() *AbcShadowDevice {
+	return new(AbcShadowDevice)
+}
+
 //// Input
 
 // Input设备是表示向系统输入数据的设备
@@ -32,6 +91,9 @@ type InputDevice interface {
 	// 输入设备都具有一个Topic
 	setTopic(topic string)
 	GetTopic() string
+	// 影子设备
+	addShadowDevice(device ShadowDevice) error
+	GetShadowDevices() []ShadowDevice
 	// 监听设备的输入数据。如果设备发生错误，返回错误信息。
 	Serve(ctx Context, deliverer InputDeliverer) error
 }
@@ -48,63 +110,85 @@ type AbcInputDevice struct {
 	decoder Decoder
 	encoder Encoder
 	topic   string
+	devices map[string]ShadowDevice
 }
 
-func (dev *AbcInputDevice) OnInit(args *cfg.Config, ctx Context) {
-	dev.args = args
-	dev.ctx = ctx
+func (d *AbcInputDevice) OnInit(args *cfg.Config, ctx Context) {
+	d.args = args
+	d.ctx = ctx
 }
 
-func (dev *AbcInputDevice) GetInitArgs() *cfg.Config {
-	return dev.args
+func (d *AbcInputDevice) GetInitArgs() *cfg.Config {
+	return d.args
 }
 
-func (dev *AbcInputDevice) GetInitContext() Context {
-	return dev.ctx
+func (d *AbcInputDevice) GetInitContext() Context {
+	return d.ctx
 }
 
-func (dev *AbcInputDevice) setTopic(topic string) {
-	dev.topic = topic
+func (d *AbcInputDevice) setTopic(topic string) {
+	d.topic = topic
 }
 
-func (dev *AbcInputDevice) GetTopic() string {
-	return dev.topic
+func (d *AbcInputDevice) GetTopic() string {
+	return d.topic
 }
 
-func (dev *AbcInputDevice) setDecoder(decoder Decoder) {
-	dev.decoder = decoder
+func (d *AbcInputDevice) setDecoder(decoder Decoder) {
+	d.decoder = decoder
 }
 
-func (dev *AbcInputDevice) GetDecoder() Decoder {
-	return dev.decoder
+func (d *AbcInputDevice) GetDecoder() Decoder {
+	return d.decoder
 }
 
-func (dev *AbcInputDevice) setEncoder(encoder Encoder) {
-	dev.encoder = encoder
+func (d *AbcInputDevice) setEncoder(encoder Encoder) {
+	d.encoder = encoder
 }
 
-func (dev *AbcInputDevice) GetEncoder() Encoder {
-	return dev.encoder
+func (d *AbcInputDevice) GetEncoder() Encoder {
+	return d.encoder
 }
 
-func (dev *AbcInputDevice) setName(name string) {
-	dev.name = name
+func (d *AbcInputDevice) setName(name string) {
+	d.name = name
 }
 
-func (dev *AbcInputDevice) GetName() string {
-	return dev.name
+func (d *AbcInputDevice) GetName() string {
+	return d.name
 }
 
-func (dev *AbcInputDevice) setUuid(addr string) {
-	dev.uuid = addr
+func (d *AbcInputDevice) setUuid(uuid string) {
+	d.uuid = uuid
 }
 
-func (dev *AbcInputDevice) GetUuid() string {
-	return dev.uuid
+func (d *AbcInputDevice) GetUuid() string {
+	return d.uuid
+}
+
+// 影子设备
+func (d *AbcInputDevice) addShadowDevice(device ShadowDevice) error {
+	uuid := device.GetUuid()
+	if _, ok := d.devices[uuid]; ok {
+		return errors.New("shadow device uuid重复：" + uuid)
+	} else {
+		d.devices[uuid] = device
+		return nil
+	}
+}
+
+func (d *AbcInputDevice) GetShadowDevices() []ShadowDevice {
+	output := make([]ShadowDevice, 0, len(d.devices))
+	for _, dev := range d.devices {
+		output = append(output, dev)
+	}
+	return output
 }
 
 func NewAbcInputDevice() *AbcInputDevice {
-	return new(AbcInputDevice)
+	return &AbcInputDevice{
+		devices: make(map[string]ShadowDevice),
+	}
 }
 
 //// Output
@@ -166,8 +250,8 @@ func (dev *AbcOutputDevice) GetName() string {
 	return dev.displayName
 }
 
-func (dev *AbcOutputDevice) setUuid(addr string) {
-	dev.uuid = addr
+func (dev *AbcOutputDevice) setUuid(uuid string) {
+	dev.uuid = uuid
 }
 
 func (dev *AbcOutputDevice) GetUuid() string {

@@ -25,5 +25,6 @@ func main() {
 		pipeline.AddBundleFactory(nop.NopDriverFactory())
 		pipeline.AddBundleFactory(nop.NopInterceptorFactor())
 		pipeline.AddBundleFactory(nop.NopPluginFactory())
+		pipeline.AddBundleFactory(nop.NopShadowDeviceFactory())
 	})
 }

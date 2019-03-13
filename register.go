@@ -123,6 +123,9 @@ func (re *Registration) showBundles() {
 	zlog.Infof("已加载 InputDevices: %d", re.inputs.Len())
 	utils.ForEach(re.inputs, func(it interface{}) {
 		zlog.Info("  - InputDevice: " + utils.GetClassName(it))
+		for _, shadow := range it.(InputDevice).GetShadowDevices() {
+			zlog.Info("    - Shadow: " + utils.GetClassName(shadow))
+		}
 	})
 
 	zlog.Infof("已加载OutputDevices: %d", re.outputs.Len())
@@ -195,34 +198,38 @@ func (re *Registration) ensureUniqueUUID(uuid string) string {
 	return uuid
 }
 
-// 注册组件，如果注册失败，返回False
-func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle Initialize, args *cfg.Config)) bool {
-	if configs.IsEmpty() {
-		return false
-	}
+func (re *Registration) factory(bundleType string, configItem interface{}) (bundle interface{}, bType string, config *cfg.Config, ok bool) {
 	zlog := ZapSugarLogger
-	configs.ForEach(func(bundleType string, item interface{}) {
-		asMap, ok := item.(map[string]interface{})
+	asMap, ok := configItem.(map[string]interface{})
+	if !ok {
+		zlog.Panicf("组件配置信息类型错误: %s", bundleType)
+	}
+	wrap := cfg.Wrap(asMap)
+	if wrap.MustBool("disable") {
+		zlog.Infof("组件[%s]在配置中禁用", bundleType)
+		return nil, bundleType, nil, false
+	}
+
+	// 配置选项中，指定 type 字段为类型名称
+	if typeName := wrap.MustString("type"); "" != typeName {
+		bundleType = typeName
+	}
+
+	factory, ok := re.findFactory(bundleType)
+	if !ok {
+		zlog.Panicf("组件类型[%s]，没有注册对应的工厂函数", bundleType)
+	}
+	return factory(), bundleType, wrap, true
+}
+
+func (re *Registration) register(configs *cfg.Config, initFunc func(bundle Initialize, args *cfg.Config)) {
+	zlog := ZapSugarLogger
+	step := func(rawType string, item interface{}) {
+		bundle, bundleType, config, ok := re.factory(rawType, item)
 		if !ok {
-			zlog.Panicf("组件配置信息类型错误: %s", bundleType)
-		}
-		config := cfg.Wrap(asMap)
-		if config.MustBool("disable") {
-			zlog.Infof("组件[%s]在配置中禁用", bundleType)
 			return
 		}
 
-		// 配置选项中，指定 type 字段为类型名称
-		if typeName := config.MustString("type"); "" != typeName {
-			bundleType = typeName
-		}
-
-		factory, ok := re.findFactory(bundleType)
-		if !ok {
-			zlog.Panicf("组件类型[%s]，没有注册对应的工厂函数", bundleType)
-		}
-		// 根据类型注册
-		bundle := factory()
 		switch bundle.(type) {
 
 		case Driver:
@@ -284,6 +291,31 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 				zlog.Panicf("未知VirtualDevice类型： %s", utils.GetClassName(device))
 			}
 
+		case ShadowDevice:
+			shadow := bundle.(ShadowDevice)
+			if uuid := config.MustString("uuid"); "" != uuid {
+				shadow.setUuid(uuid)
+			} else {
+				zlog.Panicf("ShadowDevice[%s]配置项[uuid]是必填参数", bundleType)
+			}
+			if name := config.MustString("name"); "" != name {
+				shadow.setName(name)
+			} else {
+				zlog.Panicf("ShadowDevice[%s]配置项[name]是必填参数", bundleType)
+			}
+			masterUuid := config.MustString("masterUuid")
+			if "" != masterUuid {
+				shadow.setMasterUuid(masterUuid)
+			} else {
+				zlog.Panicf("ShadowDevice[%s]配置项[masterUuid]是必填参数", bundleType)
+			}
+			// Add to input
+			if input, ok := re.uuidInputs[masterUuid]; ok {
+				input.addShadowDevice(shadow)
+			} else {
+				zlog.Panicf("ShadowDevice[%s]配置项[masterUuid]是没找到对应设备", bundleType)
+			}
+
 		default:
 			if plg, ok := bundle.(Plugin); ok {
 				re.AddPlugin(plg)
@@ -305,6 +337,7 @@ func (re *Registration) registerIfHit(configs *cfg.Config, initFunc func(bundle 
 		if init, ok := bundle.(Initialize); ok {
 			initFunc(init, config.MustConfig("InitArgs"))
 		}
-	})
-	return true
+	}
+
+	configs.ForEach(step)
 }

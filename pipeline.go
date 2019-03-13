@@ -60,21 +60,37 @@ func (p *Pipeline) Init(config *cfg.Config) {
 	initWithContext := func(it Initialize, args *cfg.Config) {
 		it.OnInit(args, p.ctx)
 	}
-	if !p.registerIfHit(ctx.cfgPlugins, initWithContext) {
+	if ctx.cfgPlugins.IsEmpty() {
 		zlog.Warn("警告：未配置任何[Plugin]组件")
+	} else {
+		p.register(ctx.cfgPlugins, initWithContext)
 	}
-	if !p.registerIfHit(ctx.cfgOutputs, initWithContext) {
+	if ctx.cfgOutputs.IsEmpty() {
 		zlog.Fatal("严重：未配置任何[OutputDevice]组件")
+	} else {
+		p.register(ctx.cfgOutputs, initWithContext)
 	}
-	if !p.registerIfHit(ctx.cfgInterceptors, initWithContext) {
+	if ctx.cfgInterceptors.IsEmpty() {
 		zlog.Warn("警告：未配置任何[Interceptor]组件")
+	} else {
+		p.register(ctx.cfgInterceptors, initWithContext)
 	}
-	if !p.registerIfHit(ctx.cfgDrivers, initWithContext) {
+	if ctx.cfgDrivers.IsEmpty() {
 		zlog.Warn("警告：未配置任何[Driver]组件")
+	} else {
+		p.register(ctx.cfgDrivers, initWithContext)
 	}
-	if !p.registerIfHit(ctx.cfgInputs, initWithContext) {
+	if ctx.cfgInputs.IsEmpty() {
 		zlog.Fatal("严重：未配置任何[InputDevice]组件")
+	} else {
+		p.register(ctx.cfgInputs, initWithContext)
 	}
+	if !ctx.cfgInputsShadow.IsEmpty() {
+		p.register(ctx.cfgInputsShadow, initWithContext)
+	} else {
+		zlog.Warn("警告：未配置任何[ShadowDevice]组件")
+	}
+
 	// show
 	p.showBundles()
 }
@@ -109,7 +125,7 @@ func (p *Pipeline) Start() {
 	})
 	// Inputs
 	utils.ForEach(p.inputs, func(it interface{}) {
-		p.ctx.CheckTimeout("Trigger.Start", DefaultLifeCycleTimeout, func() {
+		p.ctx.CheckTimeout("Input.Start", DefaultLifeCycleTimeout, func() {
 			it.(InputDevice).OnStart(p.ctx)
 		})
 	})
@@ -186,47 +202,70 @@ func (p *Pipeline) prepareEnv() {
 // InputDeliverer函数对于InputDevice对象是一个系统内部数据传输流程的代理函数。
 // 每个Deliver请求，都会向系统发起请求，并获取系统处理结果响应数据。也意味着，InputDevice发起的每个请求
 // 都会执行 Decode -> Deliver(GeckoKernelFlow) -> Encode 流程。
-func (p *Pipeline) newInputDeliverer(device InputDevice) InputDeliverer {
-	return InputDeliverer(func(topic string, frame FramePacket) (FramePacket, error) {
+func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
+	return InputDeliverer(func(topic string, rawFrame FramePacket) (FramePacket, error) {
 		// 从Input设备中读取Decode数据
-		uuid := device.GetUuid()
-		inData := frame.Data()
-		if nil == inData {
+		masterUuid := masterInput.GetUuid()
+		inputFrame := rawFrame.Data()
+		if nil == inputFrame {
 			return nil, errors.New("Input设备发起Deliver请求必须携带参数数据")
 		}
-		input, err := device.GetDecoder()(inData)
+		inputJSON, err := masterInput.GetDecoder()(inputFrame)
 		if nil != err {
-			return nil, errors.WithMessage(err, "Input设备Decode数据出错："+uuid)
+			return nil, errors.WithMessage(err, "Input设备Decode数据出错："+masterUuid)
 		}
 		outputCh := make(chan JSONPacket, 1)
 		attributes := make(map[string]interface{})
-		attributes["@InputDeviceType"] = utils.GetClassName(device)
+		attributes["@InputDevice.Type"] = utils.GetClassName(masterInput)
+		attributes["@InputDevice.Name"] = masterInput.GetName()
+
+		toSendUuid := masterUuid
+		toSendTopic := topic
+		toSendData := inputJSON
+
+		var shadowDevice ShadowDevice = nil
+		// 查找符合条件的影子设备，并转换数据
+		for _, dev := range masterInput.GetShadowDevices() {
+			if dev.IsShadow(inputJSON) {
+				shadowDevice = dev
+				attributes["@InputDevice.Shadow.Type"] = utils.GetClassName(shadowDevice)
+				attributes["@InputDevice.Shadow.Name"] = shadowDevice.GetName()
+				break
+			}
+		}
+		if shadowDevice != nil {
+			toSendUuid = shadowDevice.GetUuid()
+			toSendTopic, toSendData = shadowDevice.TransformInput(toSendTopic, toSendData)
+		}
 		// 发送到Dispatcher调度处理
 		p.dispatcher.StartC() <- &_EventSessionImpl{
 			timestamp:  time.Now(),
 			attributes: attributes,
 			attrLock:   new(sync.RWMutex),
-			topic:      topic,
-			uuid:       uuid,
+			topic:      toSendTopic,
+			uuid:       toSendUuid,
 			inbound: &Message{
-				Topic: topic,
-				Data:  input,
+				Topic: toSendTopic,
+				Data:  toSendData,
 			},
 			outbound: &Message{
-				Topic: topic,
+				Topic: toSendTopic,
 				Data:  make(map[string]interface{}),
 			},
 			outputChan: outputCh,
 		}
 		// 等待处理完成
-		outData := <-outputCh
-		if nil == outData {
+		outputJSON := <-outputCh
+		if nil == outputJSON {
 			return nil, errors.New("Input设备发起Deliver请求必须返回结果数据")
 		}
-		if bytes, err := device.GetEncoder()(outData); nil != err {
-			return nil, errors.WithMessage(err, "Input设备Encode数据出错："+uuid)
+		if shadowDevice != nil {
+			outputJSON = shadowDevice.TransformOutput(outputJSON)
+		}
+		if outputFrame, err := masterInput.GetEncoder()(outputJSON); nil != err {
+			return nil, errors.WithMessage(err, "Input设备Encode数据出错："+masterUuid)
 		} else {
-			return NewFramePacket(bytes), nil
+			return NewFramePacket(outputFrame), nil
 		}
 	})
 }
@@ -383,6 +422,7 @@ func (p *Pipeline) newGeckoContext(config *cfg.Config) *_GeckoContext {
 		cfgOutputs:      config.MustConfig("OUTPUTS"),
 		cfgInputs:       config.MustConfig("INPUTS"),
 		cfgPlugins:      config.MustConfig("PLUGINS"),
+		cfgInputsShadow: config.MustConfig("SHADOWINPUTS"),
 		scopedKV:        make(map[interface{}]interface{}),
 		plugins:         p.plugins,
 		interceptors:    p.interceptors,

@@ -80,6 +80,7 @@ type _GeckoContext struct {
 	cfgDrivers      *cfg.Config
 	cfgOutputs      *cfg.Config
 	cfgInputs       *cfg.Config
+	cfgInputsShadow *cfg.Config
 	cfgPlugins      *cfg.Config
 	scopedKV        map[interface{}]interface{}
 	plugins         *list.List
