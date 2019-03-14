@@ -36,7 +36,7 @@ func TestSocketClient(t *testing.T) {
 func TestSocketServer(t *testing.T) {
 	server := NewSocketServer()
 	server.Init(SocketConfig{
-		Type:         "tcp",
+		Type:         "udp",
 		Addr:         "127.0.0.1:5555",
 		ReadTimeout:  time.Second,
 		WriteTimeout: time.Second,
@@ -48,9 +48,9 @@ func TestSocketServer(t *testing.T) {
 		server.Shutdown()
 	})
 
-	if err := server.Serve(func(addr net.Addr, frame []byte) (resp []byte) {
+	if err := server.Serve(func(addr net.Addr, frame []byte) (resp []byte, err error) {
 		fmt.Println(fmt.Sprintf("Addr: %s, byte: %v", addr, frame))
-		return []byte("SERVER_ECHO")
+		return []byte("SERVER_ECHO"), nil
 	}); nil != err {
 		t.Fatal(err)
 	}

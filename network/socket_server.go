@@ -11,24 +11,29 @@ import (
 	"time"
 )
 
+const (
+	StateReady = iota
+	StateClose
+)
+
 // 消息处理
-type PacketHandler func(addr net.Addr, frame []byte) (resp []byte, err error)
+type FrameHandler func(addr net.Addr, frame []byte) (resp []byte, err error)
 
 // Socket客户端
 type SocketServer struct {
-	conn            net.Conn
-	config          SocketConfig
-	closeServer     context.Context
-	closeServerFunc context.CancelFunc
-	closeState      int32
+	conn         net.Conn
+	config       SocketConfig
+	shutdown     context.Context
+	shutdownFunc context.CancelFunc
+	state        int32
 }
 
 func NewSocketServer() *SocketServer {
 	c, f := context.WithCancel(context.Background())
 	return &SocketServer{
-		closeServer:     c,
-		closeServerFunc: f,
-		closeState:      0,
+		shutdown:     c,
+		shutdownFunc: f,
+		state:        StateReady,
 	}
 }
 
@@ -44,7 +49,7 @@ func (ss *SocketServer) BufferSize() uint {
 	return ss.config.BufferSize
 }
 
-func (ss *SocketServer) Serve(handler PacketHandler) error {
+func (ss *SocketServer) Serve(handler FrameHandler) error {
 	networkType := ss.config.Type
 	networkAddr := ss.config.Addr
 	gecko.ZapSugarLogger.Debugf("启动服务端：Type=%s, Addr=%s", networkType, networkAddr)
@@ -65,27 +70,27 @@ func (ss *SocketServer) Serve(handler PacketHandler) error {
 	}
 }
 
-func (ss *SocketServer) udpServeLoop(udpConn *net.UDPConn, handler PacketHandler) error {
+func (ss *SocketServer) udpServeLoop(udpConn *net.UDPConn, handler FrameHandler) error {
+	// 收到终止服务端信号
 	go func() {
-		// 收到终止服务端信号
-		<-ss.closeServer.Done()
+		<-ss.shutdown.Done()
 		if err := udpConn.Close(); nil != err {
 			gecko.ZapSugarLogger.Errorf("UDP服务端关闭时发生错误", err)
 		}
 	}()
 	err := ss.rwLoop("udp", udpConn, handler)
-	if atomic.LoadInt32(&ss.closeState) > 0 {
+	if atomic.LoadInt32(&ss.state) == StateClose {
 		return nil
 	} else {
 		return err
 	}
 }
 
-func (ss *SocketServer) tcpServeLoop(listen net.Listener, handler PacketHandler) error {
+func (ss *SocketServer) tcpServeLoop(server net.Listener, handler FrameHandler) error {
 	clients := new(sync.Map)
 	zlog := gecko.ZapSugarLogger
 	go func() {
-		<-ss.closeServer.Done()
+		<-ss.shutdown.Done()
 		zlog.Debug("关闭客户端列表")
 		clients.Range(func(_, c interface{}) bool {
 			conn := c.(*net.TCPConn)
@@ -94,38 +99,54 @@ func (ss *SocketServer) tcpServeLoop(listen net.Listener, handler PacketHandler)
 			}
 			return true
 		})
-		if err := listen.Close(); nil != err {
+		if err := server.Close(); nil != err {
 			zlog.Errorf("TCP服务端关闭时发生错误", err)
 		}
 	}()
+
+	serve := func(clientAddr net.Addr, clientConn net.Conn) {
+		defer clients.Delete(clientAddr) // 客户端主动中断时，删除注册
+		err := ss.rwLoop("tcp", clientConn, handler)
+		if nil != err && atomic.LoadInt32(&ss.state) == StateReady {
+			zlog.Errorf("客户端中止通讯循环: %s", err)
+		}
+	}
+
+	var delay time.Duration
 	for {
-		if conn, err := listen.Accept(); nil != err {
+		conn, err := server.Accept()
+		if nil != err {
+			// 检查关闭信号
+			select {
+			case <-ss.shutdown.Done():
+				return nil
+			default:
+			}
+			// Accept超时，则适当延时
 			if IsNetTempErr(err) {
+				if delay == 0 {
+					delay = 5 * time.Millisecond
+				} else {
+					delay = 2 * delay
+				}
+				if max := time.Second; delay > max {
+					delay = max
+				}
+				time.Sleep(delay)
 				continue
 			} else {
-				if atomic.LoadInt32(&ss.closeState) > 0 {
-					return nil
-				} else {
-					return err
-				}
+
+				return err
 			}
-		} else {
-			addr := conn.RemoteAddr()
-			clients.Store(addr, conn)
-			zlog.Debugf("接受客户端连接: %s", addr)
-			go func(clientAddr net.Addr, clientConn net.Conn) {
-				defer clients.Delete(clientAddr) // 客户端主动中断时，删除注册
-				if err := ss.rwLoop("tcp", clientConn, handler); nil != err {
-					if atomic.LoadInt32(&ss.closeState) == 0 {
-						zlog.Errorf("客户端中止通讯循环: %s", err)
-					}
-				}
-			}(addr, conn)
 		}
+		addr := conn.RemoteAddr()
+		zlog.Debugf("接受客户端连接: %s", addr)
+		clients.Store(addr, conn)
+		go serve(addr, conn)
 	}
 }
 
-func (ss *SocketServer) rwLoop(protoType string, conn net.Conn, userHandler PacketHandler) error {
+func (ss *SocketServer) rwLoop(protoType string, conn net.Conn, userHandler FrameHandler) error {
 	listenAddr := conn.RemoteAddr()
 	if "udp" == protoType {
 		listenAddr = conn.LocalAddr()
@@ -134,7 +155,7 @@ func (ss *SocketServer) rwLoop(protoType string, conn net.Conn, userHandler Pack
 	zlog.Debugf("开启数据通讯循环[%s]：%s", protoType, listenAddr)
 	defer zlog.Debugf("中止数据通讯循环[%s]: %s", protoType, listenAddr)
 
-	readFromClient := func(c net.Conn, buf []byte, proto string) (n int, clientAddr net.Addr, err error) {
+	readFrame := func(c net.Conn, buf []byte, proto string) (n int, clientAddr net.Addr, err error) {
 		if "udp" == proto {
 			return c.(*net.UDPConn).ReadFromUDP(buf)
 		} else /*if "tcp" == proto*/ {
@@ -148,7 +169,8 @@ func (ss *SocketServer) rwLoop(protoType string, conn net.Conn, userHandler Pack
 	writeTimeout := ss.config.WriteTimeout
 
 	for {
-		if err := conn.SetReadDeadline(time.Now().Add(readTimeout)); nil != err {
+		err := conn.SetReadDeadline(time.Now().Add(readTimeout))
+		if nil != err {
 			if IsNetTempErr(err) {
 				continue
 			} else {
@@ -156,7 +178,7 @@ func (ss *SocketServer) rwLoop(protoType string, conn net.Conn, userHandler Pack
 			}
 		}
 
-		n, clientAddr, err := readFromClient(conn, buffer, protoType)
+		n, clientAddr, err := readFrame(conn, buffer, protoType)
 		if nil != err {
 			if IsNetTempErr(err) {
 				continue
@@ -193,6 +215,13 @@ func (ss *SocketServer) rwLoop(protoType string, conn net.Conn, userHandler Pack
 	}
 }
 
+func (ss *SocketServer) Shutdown() {
+	// 标记当前Server为Close状态
+	atomic.StoreInt32(&ss.state, StateClose)
+	// 发起Shutdown信号，其它依赖于shutdownContext的协程会中断内部循环
+	ss.shutdownFunc()
+}
+
 func OpenUdpConn(addr string) (*net.UDPConn, error) {
 	if udpAddr, err := net.ResolveUDPAddr("udp", addr); err != nil {
 		return nil, errors.WithMessage(err, "无法创建UDP地址: "+addr)
@@ -215,9 +244,4 @@ func OpenTcpListener(network, addr string) (*net.TCPListener, error) {
 			return ln, nil
 		}
 	}
-}
-
-func (ss *SocketServer) Shutdown() {
-	atomic.StoreInt32(&ss.closeState, 1)
-	ss.closeServerFunc()
 }
