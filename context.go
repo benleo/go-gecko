@@ -11,7 +11,7 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-var Version = "G1-0.4"
+var Version = "v1.3"
 
 // Context 提供一些全局性质的函数
 type Context interface {
@@ -127,19 +127,11 @@ func (c *_GeckoContext) GetPlugins() *list.List {
 	return copyList(c.plugins)
 }
 
-func (c *_GeckoContext) PutMagic(key interface{}, value interface{}) {
-	c.PutScoped(key, value)
-}
-
 func (c *_GeckoContext) PutScoped(key interface{}, value interface{}) {
 	if _, ok := c.scopedKV[key]; ok {
 		ZapSugarLogger.Panicw("ScopedKey 不可重复，Key已存在", "key", key)
 	}
 	c.scopedKV[key] = value
-}
-
-func (c *_GeckoContext) GetMagic(key interface{}) interface{} {
-	return c.GetScoped(key)
 }
 
 func (c *_GeckoContext) GetScoped(key interface{}) interface{} {
