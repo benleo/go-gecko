@@ -4,7 +4,7 @@ package gecko
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-// Message 作为Gecko输入数据模型。
+// Message 作为Gecko内部传递数据的模型。
 type Message struct {
 	// 当前Topic
 	Topic string

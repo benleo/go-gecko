@@ -2,7 +2,6 @@ package gecko
 
 import (
 	"github.com/parkingwang/go-conf"
-	"sync"
 	"time"
 )
 
@@ -20,6 +19,9 @@ type EventSession interface {
 
 	// 添加多个属性。相同Key的属性将被覆盖。
 	AddAttributes(attributes map[string]interface{})
+
+	// 获取属性
+	GetAttribute(key string) (interface{}, bool)
 
 	// 创建的时间戳
 	Timestamp() time.Time
@@ -45,7 +47,6 @@ type EventSession interface {
 type _EventSessionImpl struct {
 	timestamp  time.Time
 	attributes map[string]interface{}
-	attrLock   *sync.RWMutex
 	topic      string
 	uuid       string
 	inbound    *Message
@@ -53,46 +54,45 @@ type _EventSessionImpl struct {
 	outputChan chan<- JSONPacket
 }
 
-func (si *_EventSessionImpl) Attributes() *cfg.Config {
-	si.attrLock.RLock()
-	defer si.attrLock.RUnlock()
-	return cfg.Wrap(si.attributes)
+func (s *_EventSessionImpl) Attributes() *cfg.Config {
+	return cfg.Wrap(s.attributes)
 }
 
-func (si *_EventSessionImpl) AddAttribute(name string, value interface{}) {
-	si.attrLock.Lock()
-	defer si.attrLock.Unlock()
-	si.attributes[name] = value
+func (s *_EventSessionImpl) GetAttribute(key string) (interface{}, bool) {
+	v, ok := s.attributes[key]
+	return v, ok
 }
 
-func (si *_EventSessionImpl) AddAttributes(attributes map[string]interface{}) {
-	si.attrLock.Lock()
-	defer si.attrLock.Unlock()
+func (s *_EventSessionImpl) AddAttribute(name string, value interface{}) {
+	s.attributes[name] = value
+}
+
+func (s *_EventSessionImpl) AddAttributes(attributes map[string]interface{}) {
 	for k, v := range attributes {
-		si.AddAttribute(k, v)
+		s.AddAttribute(k, v)
 	}
 }
 
-func (si *_EventSessionImpl) Timestamp() time.Time {
-	return si.timestamp
+func (s *_EventSessionImpl) Timestamp() time.Time {
+	return s.timestamp
 }
 
-func (si *_EventSessionImpl) Topic() string {
-	return si.topic
+func (s *_EventSessionImpl) Topic() string {
+	return s.topic
 }
 
-func (si *_EventSessionImpl) Uuid() string {
-	return si.uuid
+func (s *_EventSessionImpl) Uuid() string {
+	return s.uuid
 }
 
-func (si *_EventSessionImpl) Inbound() *Message {
-	return si.inbound
+func (s *_EventSessionImpl) Inbound() *Message {
+	return s.inbound
 }
 
-func (si *_EventSessionImpl) Outbound() *Message {
-	return si.outbound
+func (s *_EventSessionImpl) Outbound() *Message {
+	return s.outbound
 }
 
-func (si *_EventSessionImpl) Since() time.Duration {
-	return time.Since(si.Timestamp())
+func (s *_EventSessionImpl) Since() time.Duration {
+	return time.Since(s.Timestamp())
 }

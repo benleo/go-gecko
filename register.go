@@ -11,7 +11,7 @@ import (
 //
 
 // 负责对Engine组件的注册管理
-type Registration struct {
+type Register struct {
 	// 组件管理
 	uuidOutputs   map[string]OutputDevice
 	uuidInputs    map[string]InputDevice
@@ -31,8 +31,8 @@ type Registration struct {
 	factories map[string]BundleFactory
 }
 
-func prepare() *Registration {
-	re := new(Registration)
+func prepare() *Register {
+	re := new(Register)
 	re.uuidOutputs = make(map[string]OutputDevice)
 	re.uuidInputs = make(map[string]InputDevice)
 	re.namedDecoders = make(map[string]Decoder)
@@ -51,7 +51,7 @@ func prepare() *Registration {
 }
 
 // 添加Encoder
-func (re *Registration) AddEncoder(name string, encoder Encoder) {
+func (re *Register) AddEncoder(name string, encoder Encoder) {
 	if _, ok := re.namedEncoders[name]; ok {
 		ZapSugarLogger.Panicw("Encoder类型重复", "type", name)
 	} else {
@@ -60,7 +60,7 @@ func (re *Registration) AddEncoder(name string, encoder Encoder) {
 }
 
 // 添加Decoder
-func (re *Registration) AddDecoder(name string, decoder Decoder) {
+func (re *Register) AddDecoder(name string, decoder Decoder) {
 	if _, ok := re.namedDecoders[name]; ok {
 		ZapSugarLogger.Panicw("Decoder类型重复", "type", name)
 	} else {
@@ -69,51 +69,51 @@ func (re *Registration) AddDecoder(name string, decoder Decoder) {
 }
 
 // 添加OutputDevice
-func (re *Registration) AddOutputDevice(device OutputDevice) {
+func (re *Register) AddOutputDevice(device OutputDevice) {
 	uuid := re.ensureUniqueUUID(device.GetUuid())
 	re.uuidOutputs[uuid] = device
 	re.outputs.PushBack(device)
 }
 
 // 添加InputDevice
-func (re *Registration) AddInputDevice(device InputDevice) {
+func (re *Register) AddInputDevice(device InputDevice) {
 	uuid := re.ensureUniqueUUID(device.GetUuid())
 	re.uuidInputs[uuid] = device
 	re.inputs.PushBack(device)
 }
 
 // 添加Plugin
-func (re *Registration) AddPlugin(plugin Plugin) {
+func (re *Register) AddPlugin(plugin Plugin) {
 	re.plugins.PushBack(plugin)
 }
 
 // 添加Interceptor
-func (re *Registration) AddInterceptor(interceptor Interceptor) {
+func (re *Register) AddInterceptor(interceptor Interceptor) {
 	re.interceptors.PushBack(interceptor)
 }
 
 // 添加Driver
-func (re *Registration) AddDriver(driver Driver) {
+func (re *Register) AddDriver(driver Driver) {
 	re.drivers.PushBack(driver)
 }
 
-func (re *Registration) AddStartBeforeHook(hook HookFunc) {
+func (re *Register) AddStartBeforeHook(hook HookFunc) {
 	re.startBeforeHooks.PushBack(hook)
 }
 
-func (re *Registration) AddStartAfterHook(hook HookFunc) {
+func (re *Register) AddStartAfterHook(hook HookFunc) {
 	re.startAfterHooks.PushBack(hook)
 }
 
-func (re *Registration) AddStopBeforeHook(hook HookFunc) {
+func (re *Register) AddStopBeforeHook(hook HookFunc) {
 	re.stopBeforeHooks.PushBack(hook)
 }
 
-func (re *Registration) AddStopAfterHook(hook HookFunc) {
+func (re *Register) AddStopAfterHook(hook HookFunc) {
 	re.startAfterHooks.PushBack(hook)
 }
 
-func (re *Registration) showBundles() {
+func (re *Register) showBundles() {
 	zlog := ZapSugarLogger
 	zlog.Infof("已加载 Interceptors: %d", re.interceptors.Len())
 	utils.ForEach(re.interceptors, func(it interface{}) {
@@ -145,17 +145,17 @@ func (re *Registration) showBundles() {
 }
 
 // Deprecated: Use AddBundleFactory instead.
-func (re *Registration) RegisterBundleFactory(typeName string, factory BundleFactory) {
+func (re *Register) RegisterBundleFactory(typeName string, factory BundleFactory) {
 	re.AddBundleFactory(typeName, factory)
 }
 
 // Deprecated: Use AddCodecFactory instead.
-func (re *Registration) RegisterCodecFactory(typeName string, factory CodecFactory) {
+func (re *Register) RegisterCodecFactory(typeName string, factory CodecFactory) {
 	re.AddCodecFactory(typeName, factory)
 }
 
 // 注册组件工厂函数
-func (re *Registration) AddBundleFactory(typeName string, factory BundleFactory) {
+func (re *Register) AddBundleFactory(typeName string, factory BundleFactory) {
 	zlog := ZapSugarLogger
 	if _, ok := re.factories[typeName]; ok {
 		zlog.Warnf("组件类型[%s]，旧的工厂函数将被覆盖为： %s", typeName, utils.GetClassName(factory))
@@ -165,7 +165,7 @@ func (re *Registration) AddBundleFactory(typeName string, factory BundleFactory)
 }
 
 // 注册编码解码工厂函数
-func (re *Registration) AddCodecFactory(typeName string, factory CodecFactory) {
+func (re *Register) AddCodecFactory(typeName string, factory CodecFactory) {
 	codec := factory()
 	switch codec.(type) {
 	case Decoder:
@@ -180,7 +180,7 @@ func (re *Registration) AddCodecFactory(typeName string, factory CodecFactory) {
 }
 
 // 查找指定类型的
-func (re *Registration) findFactory(typeName string) (BundleFactory, bool) {
+func (re *Register) findFactory(typeName string) (BundleFactory, bool) {
 	if f, ok := re.factories[typeName]; ok {
 		return f, true
 	} else {
@@ -188,7 +188,7 @@ func (re *Registration) findFactory(typeName string) (BundleFactory, bool) {
 	}
 }
 
-func (re *Registration) ensureUniqueUUID(uuid string) string {
+func (re *Register) ensureUniqueUUID(uuid string) string {
 	zlog := ZapSugarLogger
 	if _, ok := re.uuidInputs[uuid]; ok {
 		zlog.Panicf("设备UUID重复[Input]：%s", uuid)
@@ -198,7 +198,7 @@ func (re *Registration) ensureUniqueUUID(uuid string) string {
 	return uuid
 }
 
-func (re *Registration) factory(bundleType string, configItem interface{}) (bundle interface{}, bType string, config *cfg.Config, ok bool) {
+func (re *Register) factory(bundleType string, configItem interface{}) (bundle interface{}, bType string, config *cfg.Config, ok bool) {
 	zlog := ZapSugarLogger
 	asMap, ok := configItem.(map[string]interface{})
 	if !ok {
@@ -222,7 +222,7 @@ func (re *Registration) factory(bundleType string, configItem interface{}) (bund
 	return factory(), bundleType, wrap, true
 }
 
-func (re *Registration) register(configs *cfg.Config, initFunc func(bundle Initialize, args *cfg.Config)) {
+func (re *Register) register(configs *cfg.Config, initFunc func(bundle Initialize, args *cfg.Config)) {
 	zlog := ZapSugarLogger
 	step := func(rawType string, item interface{}) {
 		bundle, bundleType, config, ok := re.factory(rawType, item)
@@ -316,7 +316,9 @@ func (re *Registration) register(configs *cfg.Config, initFunc func(bundle Initi
 			}
 			// Add to input
 			if input, ok := re.uuidInputs[masterUuid]; ok {
-				input.addLogicDevice(shadow)
+				if err := input.addLogicDevice(shadow); nil != err {
+					zlog.Panic("ShadowDevice挂载到MasterInputDevice发生错误", err)
+				}
 			} else {
 				zlog.Panicf("ShadowDevice[%s]配置项[masterUuid]是没找到对应设备", bundleType)
 			}
@@ -329,7 +331,7 @@ func (re *Registration) register(configs *cfg.Config, initFunc func(bundle Initi
 			}
 		}
 
-		// 需要Topic过滤
+		// Interceptor / Driver 需要Topic过滤
 		if tf, ok := bundle.(NeedTopicFilter); ok {
 			if topics, err := config.MustStringArray("topics"); nil != err || 0 == len(topics) {
 				zlog.Panicw("配置项中[topics]必须是字符串数组", "type", bundleType, "error", err)
@@ -338,7 +340,7 @@ func (re *Registration) register(configs *cfg.Config, initFunc func(bundle Initi
 			}
 		}
 
-		// 组件初始化。由外部函数处理，减少不必要的依赖
+		// 组件初始化。由外部函数处理，减少不必要的依赖注入
 		if init, ok := bundle.(Initialize); ok {
 			initFunc(init, config.MustConfig("InitArgs"))
 		}
