@@ -20,7 +20,7 @@ func NopDriverFactory() (string, gecko.ComponentFactory) {
 // 触发UDP设备的模拟Driver
 type NopDriver struct {
 	*gecko.AbcDriver
-	gecko.NeedInit
+	gecko.Initial
 	gecko.LifeCycle
 }
 

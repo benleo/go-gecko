@@ -9,7 +9,6 @@ import (
 //
 
 // VirtualDevice是对硬件的抽象；
-// 提供通讯地址和命名接口，以及支持的通讯协议
 type VirtualDevice interface {
 	// 内部函数
 	setUuid(uuid string)

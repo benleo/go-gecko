@@ -16,19 +16,19 @@ func NewAbcNetworkOutputDevice(network string) *AbcNetworkOutputDevice {
 // Socket客户端输出设备
 type AbcNetworkOutputDevice struct {
 	*gecko.AbcOutputDevice
-	gecko.NeedStructInit
+	gecko.StructuredInitial
 	gecko.LifeCycle
 
 	networkType string
 	socket      *SocketClient
 }
 
-func (d *AbcNetworkOutputDevice) GetConfigStruct() interface{} {
+func (d *AbcNetworkOutputDevice) StructuredConfig() interface{} {
 	return &NetConfig{}
 }
 
-func (d *AbcNetworkOutputDevice) OnInit(cfg interface{}, ctx gecko.Context) {
-	config := cfg.(*NetConfig)
+func (d *AbcNetworkOutputDevice) Init(structConfig interface{}, ctx gecko.Context) {
+	config := structConfig.(*NetConfig)
 	zlog := gecko.ZapSugarLogger
 	read, err := time.ParseDuration(config.ReadTimeout)
 	if nil != err {

@@ -23,7 +23,7 @@ func NopLogicDeviceFactory() (string, gecko.ComponentFactory) {
 
 type NopLogicDevice struct {
 	*gecko.AbcLogicDevice
-	gecko.NeedInit
+	gecko.Initial
 }
 
 func (s *NopLogicDevice) OnInit(config *cfg.Config, ctx gecko.Context) {

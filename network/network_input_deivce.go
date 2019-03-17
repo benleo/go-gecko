@@ -17,34 +17,34 @@ func NewAbcNetworkInputDevice(network string) *AbcNetworkInputDevice {
 // Socket服务器读取设备
 type AbcNetworkInputDevice struct {
 	*gecko.AbcInputDevice
-	gecko.NeedStructInit
+	gecko.StructuredInitial
 	gecko.LifeCycle
 
 	networkType string
 	socket      *SocketServer
 }
 
-func (d *AbcNetworkInputDevice) GetConfigStruct() interface{} {
+func (d *AbcNetworkInputDevice) StructuredConfig() interface{} {
 	return &NetConfig{}
 }
 
-func (d *AbcNetworkInputDevice) OnInit(config interface{}, ctx gecko.Context) {
-	netConfig := config.(*NetConfig)
+func (d *AbcNetworkInputDevice) Init(structConfig interface{}, ctx gecko.Context) {
+	config := structConfig.(*NetConfig)
 	zlog := gecko.ZapSugarLogger
-	read, err := time.ParseDuration(netConfig.ReadTimeout)
+	read, err := time.ParseDuration(config.ReadTimeout)
 	if nil != err {
 		zlog.Panic(err)
 	}
-	write, err := time.ParseDuration(netConfig.WriteTimeout)
+	write, err := time.ParseDuration(config.WriteTimeout)
 	if nil != err {
 		zlog.Panic(err)
 	}
 	d.socket.Init(SocketConfig{
 		Type:         d.networkType,
-		Addr:         netConfig.Address,
+		Addr:         config.Address,
 		ReadTimeout:  read,
 		WriteTimeout: write,
-		BufferSize:   netConfig.BufferSize,
+		BufferSize:   config.BufferSize,
 	})
 }
 

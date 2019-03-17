@@ -59,52 +59,52 @@ func (p *Pipeline) Init(config *cfg.Config) {
 	go p.dispatcher.Serve(p.shutdownCtx)
 
 	// 初始化组件：根据配置文件指定项目
-	initFn := func(it NeedInit, args *cfg.Config) {
+	initFn := func(it Initial, args *cfg.Config) {
 		it.OnInit(args, p.context)
 	}
 	// 使用结构化的参数来初始化
-	initStructFn := func(it NeedStructInit, args *cfg.Config) {
-		config := it.GetConfigStruct()
-		decoder, err := structs.NewDecoder(&structs.DecoderConfig{
+	structInitFn := func(it StructuredInitial, args *cfg.Config) {
+		structConfig := it.StructuredConfig()
+		m2sDecoder, err := structs.NewDecoder(&structs.DecoderConfig{
 			TagName: "toml",
-			Result:  config,
+			Result:  structConfig,
 		})
 		if nil != err {
 			zlog.Panic("无法创建Map2Struct解码器", err)
 		}
-		if err := decoder.Decode(args.RefMap()); nil != err {
+		if err := m2sDecoder.Decode(args.RefMap()); nil != err {
 			zlog.Panic("Map2Struct解码出错", err)
 		}
-		it.OnInit(config, p.context)
+		it.Init(structConfig, p.context)
 	}
 
 	if ctx.cfgPlugins.IsEmpty() {
 		zlog.Warn("警告：未配置任何[Plugin]组件")
 	} else {
-		p.register(ctx.cfgPlugins, initFn, initStructFn)
+		p.register(ctx.cfgPlugins, initFn, structInitFn)
 	}
 	if ctx.cfgOutputs.IsEmpty() {
 		zlog.Fatal("严重：未配置任何[OutputDevice]组件")
 	} else {
-		p.register(ctx.cfgOutputs, initFn, initStructFn)
+		p.register(ctx.cfgOutputs, initFn, structInitFn)
 	}
 	if ctx.cfgInterceptors.IsEmpty() {
 		zlog.Warn("警告：未配置任何[Interceptor]组件")
 	} else {
-		p.register(ctx.cfgInterceptors, initFn, initStructFn)
+		p.register(ctx.cfgInterceptors, initFn, structInitFn)
 	}
 	if ctx.cfgDrivers.IsEmpty() {
 		zlog.Warn("警告：未配置任何[Driver]组件")
 	} else {
-		p.register(ctx.cfgDrivers, initFn, initStructFn)
+		p.register(ctx.cfgDrivers, initFn, structInitFn)
 	}
 	if ctx.cfgInputs.IsEmpty() {
 		zlog.Fatal("严重：未配置任何[InputDevice]组件")
 	} else {
-		p.register(ctx.cfgInputs, initFn, initStructFn)
+		p.register(ctx.cfgInputs, initFn, structInitFn)
 	}
 	if !ctx.cfgLogics.IsEmpty() {
-		p.register(ctx.cfgLogics, initFn, initStructFn)
+		p.register(ctx.cfgLogics, initFn, structInitFn)
 	} else {
 		zlog.Warn("警告：未配置任何[LogicDevice]组件")
 	}
@@ -128,9 +128,9 @@ func (p *Pipeline) Start() {
 	}()
 
 	startFn := func(component interface{}) {
-		if stoppable, ok := component.(LifeCycle); ok {
+		if starts, ok := component.(LifeCycle); ok {
 			p.context.CheckTimeout(utils.GetClassName(component)+".Start", DefaultLifeCycleTimeout, func() {
-				stoppable.OnStart(p.context)
+				starts.OnStart(p.context)
 			})
 		}
 	}
@@ -179,9 +179,9 @@ func (p *Pipeline) Stop() {
 	}()
 
 	stopFn := func(component interface{}) {
-		if stoppable, ok := component.(LifeCycle); ok {
+		if stops, ok := component.(LifeCycle); ok {
 			p.context.CheckTimeout(utils.GetClassName(component)+".Stop", DefaultLifeCycleTimeout, func() {
-				stoppable.OnStop(p.context)
+				stops.OnStop(p.context)
 			})
 		}
 	}

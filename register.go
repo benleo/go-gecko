@@ -223,20 +223,20 @@ func (re *Register) factory(componentType string, configItem interface{}) (compo
 }
 
 func (re *Register) register(configs *cfg.Config,
-	initFn func(component NeedInit, args *cfg.Config),
-	initFnX func(component NeedStructInit, args *cfg.Config)) {
+	initFn func(component Initial, args *cfg.Config),
+	structInitFn func(component StructuredInitial, args *cfg.Config)) {
 
 	// 组件初始化。由外部函数处理，减少不必要的依赖注入
 	configs.ForEach(func(rawType string, item interface{}) {
 		component, config := re.register0(rawType, item)
 		// 初始化0
 		args := config.MustConfig("InitArgs")
-		if init, ok := component.(NeedInit); ok {
+		if init, ok := component.(Initial); ok {
 			initFn(init, args)
-		}
+		} else
 		// 初始化1
-		if init, ok := component.(NeedStructInit); ok {
-			initFnX(init, args)
+		if init, ok := component.(StructuredInitial); ok {
+			structInitFn(init, args)
 		}
 	})
 }

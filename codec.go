@@ -14,7 +14,7 @@ import (
 // 当系统处理结束后，给InputDevice返回结果消息时，需要使用Encoder来编码成外部设备的消息协议格式；
 // 同样，OutputDevice在消息的传递过程中，也需要Encoder和Decoder来转换数据格式；
 
-// 解码器，负责将字节数组转换成PacketMap对象
+// 解码器，负责将字节数组转换成JSONPacket对象
 type Decoder func(bytes FramePacket) (JSONPacket, error)
 
 // 扩展Decoder的函数
@@ -22,7 +22,7 @@ func (d Decoder) Decode(frame FramePacket) (JSONPacket, error) {
 	return d(frame)
 }
 
-// 编码器，负责将PacketMap对象转换成字节数组
+// 编码器，负责将JSONPacket对象转换成字节数组
 type Encoder func(data JSONPacket) (FramePacket, error)
 
 // 扩展Encoder的函数
@@ -46,7 +46,7 @@ func JSONDefaultDecoderFactory() (string, CodecFactory) {
 	}
 }
 
-// 默认JSON解码器，将Byte数据解析成PacketMap对象
+// 默认JSON解码器，将Byte数据解析成JSONPacket对象
 func JSONDefaultDecoder(bytes FramePacket) (JSONPacket, error) {
 	m := make(map[string]interface{})
 	err := json.Unmarshal(bytes, &m)
@@ -59,7 +59,7 @@ func JSONDefaultEncoderFactory() (string, CodecFactory) {
 	}
 }
 
-// 默认JSON编码器，负责将PacketMap对象解析成Byte数组
+// 默认JSON编码器，负责将JSONPacket对象解析成Byte数组
 func JSONDefaultEncoder(data JSONPacket) (FramePacket, error) {
 	return json.Marshal(data)
 }

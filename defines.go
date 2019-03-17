@@ -6,17 +6,21 @@ import "github.com/parkingwang/go-conf"
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 
 // 初始化接口提供一个初始化组件的Interface。
-type NeedInit interface {
-	// 指定参数初始化组件
+type Initial interface {
+	// 通用类型的组件初始化函数。
 	OnInit(config *cfg.Config, context Context)
 }
 
-// 初始化接口。允许实现组件通过Struct结构体来包装config参数
-type NeedStructInit interface {
-	// 初始化。其中config参数为GetConfigStruct返回的结构体。
-	OnInit(config interface{}, context Context)
-	// 指定参数结构体类型。内部字段必须带toml tag
-	GetConfigStruct() interface{}
+// 初始化接口。
+// 允许实现组件通过Struct结构体来包装config参数
+type StructuredInitial interface {
+	// 指定参数类型的组件初始化函数。其中config参数为 StructuredConfig 返回的结构体。
+	Init(structConfig interface{}, context Context)
+
+	// StructuredConfig 返回一个结构体指针，指定Init函数的config参数类型。
+	// 其中的结构体解析参数为组件的TOML配置文件的InitArgs字段；
+	// 其中结构体公开访问字段必须带“toml”tag标签
+	StructuredConfig() interface{}
 }
 
 // 生命周期接口
