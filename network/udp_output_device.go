@@ -4,7 +4,7 @@ import (
 	"github.com/yoojia/go-gecko"
 )
 
-func UDPOutputDeviceFactory() (string, gecko.BundleFactory) {
+func UDPOutputDeviceFactory() (string, gecko.ComponentFactory) {
 	return "UDPOutputDevice", func() interface{} {
 		return NewUDPOutputDevice()
 	}

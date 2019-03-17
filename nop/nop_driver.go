@@ -9,7 +9,7 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-func NopDriverFactory() (string, gecko.BundleFactory) {
+func NopDriverFactory() (string, gecko.ComponentFactory) {
 	return "NopDriver", func() interface{} {
 		return &NopDriver{
 			AbcDriver: gecko.NewAbcDriver(),
@@ -20,6 +20,8 @@ func NopDriverFactory() (string, gecko.BundleFactory) {
 // 触发UDP设备的模拟Driver
 type NopDriver struct {
 	*gecko.AbcDriver
+	gecko.NeedInit
+	gecko.LifeCycle
 }
 
 func (du *NopDriver) OnInit(config *cfg.Config, ctx gecko.Context) {

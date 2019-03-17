@@ -11,7 +11,6 @@ package gecko
 // 逻辑设备的应用场景是：市场上大部分控制门禁主板都至少包含1-4个门锁开关接口，1-2个读卡器接口。
 // 在硬件上，门禁主板才是实际的设备，它们使用统一的TCP/UDP/RS485等协议来通讯；但其内部门锁开关不能直接映射到输入设备实体上，因为他们只存在于数据逻辑中。
 type LogicDevice interface {
-	Initialize
 	// 内部函数
 	setUuid(uuid string)
 	setTopic(topic string)

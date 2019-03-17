@@ -4,7 +4,7 @@ import (
 	"github.com/yoojia/go-gecko"
 )
 
-func TCPOutputDeviceFactory() (string, gecko.BundleFactory) {
+func TCPOutputDeviceFactory() (string, gecko.ComponentFactory) {
 	return "TCPOutputDevice", func() interface{} {
 		return NewTCPOutputDevice()
 	}

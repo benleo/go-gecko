@@ -15,7 +15,7 @@ func NewNopLogicDevice() gecko.LogicDevice {
 	}
 }
 
-func NopLogicDeviceFactory() (string, gecko.BundleFactory) {
+func NopLogicDeviceFactory() (string, gecko.ComponentFactory) {
 	return "NopLogicDevice", func() interface{} {
 		return NewNopLogicDevice()
 	}
@@ -23,6 +23,7 @@ func NopLogicDeviceFactory() (string, gecko.BundleFactory) {
 
 type NopLogicDevice struct {
 	*gecko.AbcLogicDevice
+	gecko.NeedInit
 }
 
 func (s *NopLogicDevice) OnInit(config *cfg.Config, ctx gecko.Context) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/parkingwang/go-conf"
 	"github.com/pkg/errors"
+	"github.com/yoojia/go-gecko/structs"
 	"github.com/yoojia/go-gecko/utils"
 	"os"
 	"os/signal"
@@ -58,36 +59,52 @@ func (p *Pipeline) Init(config *cfg.Config) {
 	go p.dispatcher.Serve(p.shutdownCtx)
 
 	// 初始化组件：根据配置文件指定项目
-	initWithContext := func(it Initialize, args *cfg.Config) {
+	initFn := func(it NeedInit, args *cfg.Config) {
 		it.OnInit(args, p.context)
 	}
+	// 使用结构化的参数来初始化
+	initStructFn := func(it NeedStructInit, args *cfg.Config) {
+		config := it.GetConfigStruct()
+		decoder, err := structs.NewDecoder(&structs.DecoderConfig{
+			TagName: "toml",
+			Result:  config,
+		})
+		if nil != err {
+			zlog.Panic("无法创建Map2Struct解码器", err)
+		}
+		if err := decoder.Decode(args.RefMap()); nil != err {
+			zlog.Panic("Map2Struct解码出错", err)
+		}
+		it.OnInit(config, p.context)
+	}
+
 	if ctx.cfgPlugins.IsEmpty() {
 		zlog.Warn("警告：未配置任何[Plugin]组件")
 	} else {
-		p.register(ctx.cfgPlugins, initWithContext)
+		p.register(ctx.cfgPlugins, initFn, initStructFn)
 	}
 	if ctx.cfgOutputs.IsEmpty() {
 		zlog.Fatal("严重：未配置任何[OutputDevice]组件")
 	} else {
-		p.register(ctx.cfgOutputs, initWithContext)
+		p.register(ctx.cfgOutputs, initFn, initStructFn)
 	}
 	if ctx.cfgInterceptors.IsEmpty() {
 		zlog.Warn("警告：未配置任何[Interceptor]组件")
 	} else {
-		p.register(ctx.cfgInterceptors, initWithContext)
+		p.register(ctx.cfgInterceptors, initFn, initStructFn)
 	}
 	if ctx.cfgDrivers.IsEmpty() {
 		zlog.Warn("警告：未配置任何[Driver]组件")
 	} else {
-		p.register(ctx.cfgDrivers, initWithContext)
+		p.register(ctx.cfgDrivers, initFn, initStructFn)
 	}
 	if ctx.cfgInputs.IsEmpty() {
 		zlog.Fatal("严重：未配置任何[InputDevice]组件")
 	} else {
-		p.register(ctx.cfgInputs, initWithContext)
+		p.register(ctx.cfgInputs, initFn, initStructFn)
 	}
 	if !ctx.cfgLogics.IsEmpty() {
-		p.register(ctx.cfgLogics, initWithContext)
+		p.register(ctx.cfgLogics, initFn, initStructFn)
 	} else {
 		zlog.Warn("警告：未配置任何[LogicDevice]组件")
 	}
@@ -109,27 +126,24 @@ func (p *Pipeline) Start() {
 		})
 		zlog.Info("Pipeline启动...OK")
 	}()
+
+	startFn := func(component interface{}) {
+		if stoppable, ok := component.(LifeCycle); ok {
+			p.context.CheckTimeout(utils.GetClassName(component)+".Start", DefaultLifeCycleTimeout, func() {
+				stoppable.OnStart(p.context)
+			})
+		}
+	}
+
 	// Plugins
-	utils.ForEach(p.plugins, func(it interface{}) {
-		p.checkDefTimeout("Plugin.Start", it.(Plugin).OnStart)
-	})
+	utils.ForEach(p.plugins, startFn)
 	// Outputs
-	utils.ForEach(p.outputs, func(it interface{}) {
-		p.context.CheckTimeout("Output.Start", DefaultLifeCycleTimeout, func() {
-			it.(OutputDevice).OnStart(p.context)
-		})
-	})
+	utils.ForEach(p.outputs, startFn)
 	// Drivers
-	utils.ForEach(p.drivers, func(it interface{}) {
-		p.checkDefTimeout("Driver.Start", it.(Driver).OnStart)
-	})
+	utils.ForEach(p.drivers, startFn)
 	// Inputs
-	utils.ForEach(p.inputs, func(it interface{}) {
-		p.context.CheckTimeout("Input.Start", DefaultLifeCycleTimeout, func() {
-			it.(InputDevice).OnStart(p.context)
-		})
-	})
-	// Input Serve Last
+	utils.ForEach(p.inputs, startFn)
+	// Then, Serve inputs
 	utils.ForEach(p.inputs, func(it interface{}) {
 		input := it.(InputDevice)
 		deliverer := p.newInputDeliverer(input)
@@ -163,26 +177,22 @@ func (p *Pipeline) Stop() {
 		p.shutdownFunc()
 		zlog.Info("Pipeline停止...OK")
 	}()
+
+	stopFn := func(component interface{}) {
+		if stoppable, ok := component.(LifeCycle); ok {
+			p.context.CheckTimeout(utils.GetClassName(component)+".Stop", DefaultLifeCycleTimeout, func() {
+				stoppable.OnStop(p.context)
+			})
+		}
+	}
 	// Inputs
-	utils.ForEach(p.inputs, func(it interface{}) {
-		p.context.CheckTimeout("Input.Stop", DefaultLifeCycleTimeout, func() {
-			it.(InputDevice).OnStop(p.context)
-		})
-	})
+	utils.ForEach(p.inputs, stopFn)
 	// Drivers
-	utils.ForEach(p.drivers, func(it interface{}) {
-		p.checkDefTimeout("Driver.Stop", it.(Driver).OnStop)
-	})
+	utils.ForEach(p.drivers, stopFn)
 	// Outputs
-	utils.ForEach(p.outputs, func(it interface{}) {
-		p.context.CheckTimeout("Output.Stop", DefaultLifeCycleTimeout, func() {
-			it.(OutputDevice).OnStop(p.context)
-		})
-	})
+	utils.ForEach(p.outputs, stopFn)
 	// Plugins
-	utils.ForEach(p.plugins, func(it interface{}) {
-		p.checkDefTimeout("Plugin.Stop", it.(Plugin).OnStop)
-	})
+	utils.ForEach(p.plugins, stopFn)
 }
 
 // 等待系统终止信息
@@ -191,6 +201,10 @@ func (p *Pipeline) AwaitTermination() {
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	<-ch
 	ZapSugarLogger.Info("接收到系统停止信号")
+}
+
+func (p *Pipeline) init() {
+
 }
 
 // 准备运行环境，初始化相关组件

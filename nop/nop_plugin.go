@@ -1,7 +1,6 @@
 package nop
 
 import (
-	"github.com/parkingwang/go-conf"
 	"github.com/yoojia/go-gecko"
 )
 
@@ -13,7 +12,7 @@ func NewNopPlugin() gecko.Plugin {
 	return new(NopPlugin)
 }
 
-func NopPluginFactory() (string, gecko.BundleFactory) {
+func NopPluginFactory() (string, gecko.ComponentFactory) {
 	return "NopPlugin", func() interface{} {
 		return NewNopPlugin()
 	}
@@ -21,10 +20,6 @@ func NopPluginFactory() (string, gecko.BundleFactory) {
 
 type NopPlugin struct {
 	gecko.Plugin
-}
-
-func (no *NopPlugin) OnInit(config *cfg.Config, ctx gecko.Context) {
-
 }
 
 func (no *NopPlugin) OnStart(ctx gecko.Context) {

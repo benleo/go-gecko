@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func SerialPortOutputDeviceFactory() (string, gecko.BundleFactory) {
+func SerialPortOutputDeviceFactory() (string, gecko.ComponentFactory) {
 	return "SerialPortOutputDevice", func() interface{} {
 		return NewSerialOutputDevice()
 	}
@@ -28,7 +28,6 @@ type SerialPortOutputDevice struct {
 }
 
 func (d *SerialPortOutputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
-	d.AbcOutputDevice.OnInit(config, ctx)
 	d.bufferSize = int(config.MustInt64("bufferSize"))
 	d.config = getSerialConfig(config, time.Millisecond*100)
 }

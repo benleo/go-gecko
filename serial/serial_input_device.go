@@ -7,7 +7,7 @@ import (
 	"github.com/yoojia/go-gecko"
 )
 
-func SerialPortInputDeviceFactory() (string, gecko.BundleFactory) {
+func SerialPortInputDeviceFactory() (string, gecko.ComponentFactory) {
 	return "SerialPortInputDevice", func() interface{} {
 		return NewSerialInputDevice()
 	}
@@ -30,7 +30,6 @@ type SerialPortInputDevice struct {
 }
 
 func (d *SerialPortInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
-	d.AbcInputDevice.OnInit(config, ctx)
 	d.bufferSize = int(config.MustInt64("bufferSize"))
 	// 如果设置Read超时，port.Read方法会启用NonBlocking读模式。
 	// 此处设置为0，使用阻塞读模式。

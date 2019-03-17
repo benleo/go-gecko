@@ -1,7 +1,6 @@
 package network
 
 import (
-	"github.com/parkingwang/go-conf"
 	"github.com/yoojia/go-gecko"
 	"time"
 )
@@ -17,18 +16,34 @@ func NewAbcNetworkOutputDevice(network string) *AbcNetworkOutputDevice {
 // Socket客户端输出设备
 type AbcNetworkOutputDevice struct {
 	*gecko.AbcOutputDevice
+	gecko.NeedStructInit
+	gecko.LifeCycle
+
 	networkType string
 	socket      *SocketClient
 }
 
-func (d *AbcNetworkOutputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
-	d.AbcOutputDevice.OnInit(config, ctx)
+func (d *AbcNetworkOutputDevice) GetConfigStruct() interface{} {
+	return &NetConfig{}
+}
+
+func (d *AbcNetworkOutputDevice) OnInit(cfg interface{}, ctx gecko.Context) {
+	config := cfg.(*NetConfig)
+	zlog := gecko.ZapSugarLogger
+	read, err := time.ParseDuration(config.ReadTimeout)
+	if nil != err {
+		zlog.Panic(err)
+	}
+	write, err := time.ParseDuration(config.WriteTimeout)
+	if nil != err {
+		zlog.Panic(err)
+	}
 	d.socket.Init(SocketConfig{
 		Type:         d.networkType,
-		Addr:         config.MustString("networkAddress"),
-		ReadTimeout:  config.GetDurationOrDefault("readTimeout", time.Second*5),
-		WriteTimeout: config.GetDurationOrDefault("writeTimeout", time.Second*5),
-		BufferSize:   uint(config.GetInt64OrDefault("bufferSize", 512)),
+		Addr:         config.Address,
+		ReadTimeout:  read,
+		WriteTimeout: write,
+		BufferSize:   config.BufferSize,
 	})
 }
 

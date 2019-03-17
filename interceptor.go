@@ -12,7 +12,6 @@ var ErrInterceptorDropped = errors.New("INTERCEPTOR_DROPPED")
 // 在Gecko系统中，通过Trigger触发事件后，由 Interceptor 处理拦截。
 // 负责对触发器发起的事件进行拦截处理，不符合规则的事件将被中断，丢弃。
 type Interceptor interface {
-	Initialize
 	NeedTopicFilter
 	// Interceptor可设置优先级
 	GetPriority() int

@@ -2,7 +2,6 @@ package gecko
 
 import (
 	"errors"
-	"github.com/parkingwang/go-conf"
 )
 
 //
@@ -12,7 +11,6 @@ import (
 // VirtualDevice是对硬件的抽象；
 // 提供通讯地址和命名接口，以及支持的通讯协议
 type VirtualDevice interface {
-	Bundle
 	// 内部函数
 	setUuid(uuid string)
 	setName(name string)
@@ -45,27 +43,12 @@ type InputDevice interface {
 // AbcInputDevice
 type AbcInputDevice struct {
 	InputDevice
-	args    *cfg.Config
-	ctx     Context
 	name    string
 	uuid    string
 	decoder Decoder
 	encoder Encoder
 	topic   string
 	logics  map[string]LogicDevice
-}
-
-func (d *AbcInputDevice) OnInit(args *cfg.Config, ctx Context) {
-	d.args = args
-	d.ctx = ctx
-}
-
-func (d *AbcInputDevice) GetInitArgs() *cfg.Config {
-	return d.args
-}
-
-func (d *AbcInputDevice) GetInitContext() Context {
-	return d.ctx
 }
 
 func (d *AbcInputDevice) setTopic(topic string) {
@@ -147,25 +130,10 @@ type OutputDevice interface {
 // AbcOutputDevice
 type AbcOutputDevice struct {
 	OutputDevice
-	args        *cfg.Config
-	ctx         Context
 	displayName string
 	uuid        string
 	decoder     Decoder
 	encoder     Encoder
-}
-
-func (dev *AbcOutputDevice) OnInit(args *cfg.Config, ctx Context) {
-	dev.args = args
-	dev.ctx = ctx
-}
-
-func (dev *AbcOutputDevice) GetInitArgs() *cfg.Config {
-	return dev.args
-}
-
-func (dev *AbcOutputDevice) GetInitContext() Context {
-	return dev.ctx
 }
 
 func (dev *AbcOutputDevice) setDecoder(decoder Decoder) {

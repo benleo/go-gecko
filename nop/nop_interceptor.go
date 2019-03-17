@@ -11,6 +11,7 @@ import (
 
 type NopInterceptor struct {
 	*gecko.AbcInterceptor
+	gecko.NeedInit
 }
 
 func (ni *NopInterceptor) OnInit(config *cfg.Config, ctx gecko.Context) {
@@ -28,7 +29,7 @@ func NewNopInterceptor() gecko.Interceptor {
 	}
 }
 
-func NopInterceptorFactor() (string, gecko.BundleFactory) {
+func NopInterceptorFactor() (string, gecko.ComponentFactory) {
 	return "NopInterceptor", func() interface{} {
 		return NewNopInterceptor()
 	}
