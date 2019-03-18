@@ -5,6 +5,20 @@ import "github.com/parkingwang/go-conf"
 //
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 
+// VirtualDevice是对硬件的抽象；
+type VirtualDevice interface {
+	// 内部函数
+	setUuid(uuid string)
+	setName(name string)
+	setDecoder(decoder Decoder)
+	setEncoder(encoder Encoder)
+	// 公开可访问函数
+	GetUuid() string
+	GetName() string
+	GetDecoder() Decoder
+	GetEncoder() Encoder
+}
+
 // 初始化接口提供一个初始化组件的Interface。
 type Initial interface {
 	// 通用类型的组件初始化函数。
