@@ -20,6 +20,8 @@ func (ni *NopInterceptor) OnInit(config *cfg.Config, ctx gecko.Context) {
 
 func (ni *NopInterceptor) Handle(session gecko.EventSession, ctx gecko.Context) error {
 	//return ni.Drop()
+	msg := session.Outbound()
+	msg.AddField("HH", "OO")
 	return ni.Next()
 }
 

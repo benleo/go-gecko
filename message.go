@@ -13,7 +13,7 @@ type Message struct {
 }
 
 // 添加Data字段。相同的Name将会被覆盖。
-func (out *Message) AddDataField(name string, value interface{}) *Message {
+func (out *Message) AddField(name string, value interface{}) *Message {
 	out.Data[name] = value
 	return out
 }

@@ -12,16 +12,16 @@ import (
 // EventSession 是每次请求生成的上下文对象，服务于事件请求的整个生命周期。
 type EventSession interface {
 	// 返回属性列表
-	Attributes() *cfg.Config
+	Attrs() *cfg.Config
 
 	// 添加属性
-	AddAttribute(key string, value interface{})
+	AddAttr(key string, value interface{})
 
 	// 添加多个属性。相同Key的属性将被覆盖。
-	AddAttributes(attributes map[string]interface{})
+	AddAttrs(attributes map[string]interface{})
 
 	// 获取属性
-	GetAttribute(key string) (interface{}, bool)
+	GetAttr(key string) (interface{}, bool)
 
 	// 创建的时间戳
 	Timestamp() time.Time
@@ -54,22 +54,22 @@ type _EventSessionImpl struct {
 	outputChan chan<- JSONPacket
 }
 
-func (s *_EventSessionImpl) Attributes() *cfg.Config {
+func (s *_EventSessionImpl) Attrs() *cfg.Config {
 	return cfg.Wrap(s.attributes)
 }
 
-func (s *_EventSessionImpl) GetAttribute(key string) (interface{}, bool) {
+func (s *_EventSessionImpl) GetAttr(key string) (interface{}, bool) {
 	v, ok := s.attributes[key]
 	return v, ok
 }
 
-func (s *_EventSessionImpl) AddAttribute(name string, value interface{}) {
+func (s *_EventSessionImpl) AddAttr(name string, value interface{}) {
 	s.attributes[name] = value
 }
 
-func (s *_EventSessionImpl) AddAttributes(attributes map[string]interface{}) {
+func (s *_EventSessionImpl) AddAttrs(attributes map[string]interface{}) {
 	for k, v := range attributes {
-		s.AddAttribute(k, v)
+		s.AddAttr(k, v)
 	}
 }
 

@@ -24,15 +24,16 @@ type InputDevice interface {
 	setTopic(topic string)
 	GetTopic() string
 	// 逻辑设备
-	addLogicDevice(device LogicDevice) error
-	GetLogicDevices() []LogicDevice
+	addLogic(device LogicDevice) error
+	GetLogicList() []LogicDevice
+
 	// 监听设备的输入数据。如果设备发生错误，返回错误信息。
+	// 发生错误后，后导致输入设备循环中断。
 	Serve(ctx Context, deliverer InputDeliverer) error
 }
 
-////
+//// ABC
 
-// AbcInputDevice
 type AbcInputDevice struct {
 	InputDevice
 	name       string
@@ -84,7 +85,7 @@ func (d *AbcInputDevice) GetUuid() string {
 }
 
 // 逻辑设备
-func (d *AbcInputDevice) addLogicDevice(device LogicDevice) error {
+func (d *AbcInputDevice) addLogic(device LogicDevice) error {
 	uuid := device.GetUuid()
 	if _, ok := d.namedLogic[uuid]; ok {
 		return errors.New("LogicDevice uuid重复：" + uuid)
@@ -94,7 +95,7 @@ func (d *AbcInputDevice) addLogicDevice(device LogicDevice) error {
 	}
 }
 
-func (d *AbcInputDevice) GetLogicDevices() []LogicDevice {
+func (d *AbcInputDevice) GetLogicList() []LogicDevice {
 	output := make([]LogicDevice, 0, len(d.namedLogic))
 	for _, dev := range d.namedLogic {
 		output = append(output, dev)

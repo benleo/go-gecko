@@ -22,6 +22,7 @@ func NewUARTInputDevice() *UARTInputDevice {
 // UART客户端输入设备
 type UARTInputDevice struct {
 	*gecko.AbcInputDevice
+	gecko.Initial
 	config       *serial.Config
 	port         *serial.Port
 	bufferSize   int

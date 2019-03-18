@@ -123,7 +123,7 @@ func (re *Register) showBundles() {
 	zlog.Infof("已加载 InputDevices: %d", re.inputs.Len())
 	utils.ForEach(re.inputs, func(it interface{}) {
 		zlog.Info("  - InputDevice: " + utils.GetClassName(it))
-		for _, shadow := range it.(InputDevice).GetLogicDevices() {
+		for _, shadow := range it.(InputDevice).GetLogicList() {
 			zlog.Info("    - Logic: " + utils.GetClassName(shadow))
 		}
 	})
@@ -334,7 +334,7 @@ func (re *Register) register0(rawType string, item interface{}) (interface{}, *c
 		}
 		// Add to input
 		if input, ok := re.uuidInputs[masterUuid]; ok {
-			if err := input.addLogicDevice(shadow); nil != err {
+			if err := input.addLogic(shadow); nil != err {
 				zlog.Panic("ShadowDevice挂载到MasterInputDevice发生错误", err)
 			}
 		} else {

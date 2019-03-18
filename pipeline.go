@@ -239,7 +239,7 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 
 		var logic LogicDevice = nil
 		// 查找符合条件的逻辑设备，并转换数据
-		for _, item := range masterInput.GetLogicDevices() {
+		for _, item := range masterInput.GetLogicList() {
 			if item.CheckIfMatch(inputJSON) {
 				logic = item
 				attributes["@InputDevice.Logic.Type"] = utils.GetClassName(logic)
@@ -336,9 +336,9 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 		}
 		if err == ErrInterceptorDropped {
 			zlog.Debugf("拦截器中断事件： %s", err.Error())
-			session.Outbound().AddDataField("error", "InterceptorDropped")
+			session.Outbound().AddField("error", "InterceptorDropped")
 			// 终止，输出处理
-			session.AddAttribute("拦截过程用时", session.Since())
+			session.AddAttr("拦截过程用时", session.Since())
 			p.output(session)
 			return
 		} else {
@@ -346,7 +346,7 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 		}
 	}
 	// 继续
-	session.AddAttribute("拦截过程用时", session.Since())
+	session.AddAttr("拦截过程用时", session.Since())
 	p.dispatcher.EndC() <- session
 }
 
@@ -378,7 +378,7 @@ func (p *Pipeline) handleDriver(session EventSession) {
 		}
 	}
 	// 输出处理
-	session.AddAttribute("驱动过程用时", session.Since())
+	session.AddAttr("驱动过程用时", session.Since())
 	p.output(session)
 }
 
@@ -386,7 +386,7 @@ func (p *Pipeline) output(event EventSession) {
 	p.context.OnIfLogV(func() {
 		zlog := ZapSugarLogger
 		zlog.Debugf("Output调度处理，Topic: %s", event.Topic())
-		event.Attributes().ForEach(func(k string, v interface{}) {
+		event.Attrs().ForEach(func(k string, v interface{}) {
 			zlog.Debugf("SessionAttr: %s = %v", k, v)
 		})
 	})

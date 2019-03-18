@@ -113,6 +113,6 @@ func (d *StrategyDriver) Handle(session gecko.EventSession, deliverer gecko.Outp
 			}
 		}
 	}
-	session.Outbound().AddDataField("driverResponse", responses)
+	session.Outbound().AddField("driverResponse", responses)
 	return nil
 }
