@@ -7,20 +7,20 @@ import (
 	"github.com/yoojia/go-gecko"
 )
 
-func SerialPortInputDeviceFactory() (string, gecko.ComponentFactory) {
-	return "SerialPortInputDevice", func() interface{} {
-		return NewSerialInputDevice()
+func UARTInputDeviceFactory() (string, gecko.ComponentFactory) {
+	return "UARTInputDevice", func() interface{} {
+		return NewUARTInputDevice()
 	}
 }
 
-func NewSerialInputDevice() *SerialPortInputDevice {
-	return &SerialPortInputDevice{
+func NewUARTInputDevice() *UARTInputDevice {
+	return &UARTInputDevice{
 		AbcInputDevice: gecko.NewAbcInputDevice(),
 	}
 }
 
-// SerialPort客户端输入设备
-type SerialPortInputDevice struct {
+// UART客户端输入设备
+type UARTInputDevice struct {
 	*gecko.AbcInputDevice
 	config       *serial.Config
 	port         *serial.Port
@@ -29,14 +29,14 @@ type SerialPortInputDevice struct {
 	closeFunc    context.CancelFunc
 }
 
-func (d *SerialPortInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
+func (d *UARTInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 	d.bufferSize = int(config.MustInt64("bufferSize"))
 	// 如果设置Read超时，port.Read方法会启用NonBlocking读模式。
 	// 此处设置为0，使用阻塞读模式。
 	d.config = getSerialConfig(config, 0)
 }
 
-func (d *SerialPortInputDevice) OnStart(ctx gecko.Context) {
+func (d *UARTInputDevice) OnStart(ctx gecko.Context) {
 	zlog := gecko.ZapSugarLogger
 	zlog.Debugf("打开串口设备: %s", d.config.Name)
 	if port, err := serial.OpenPort(d.config); nil != err {
@@ -46,7 +46,7 @@ func (d *SerialPortInputDevice) OnStart(ctx gecko.Context) {
 	}
 }
 
-func (d *SerialPortInputDevice) OnStop(ctx gecko.Context) {
+func (d *UARTInputDevice) OnStop(ctx gecko.Context) {
 	if nil != d.port {
 		if err := d.port.Close(); nil != err {
 			gecko.ZapSugarLogger.Fatalf("关闭串口设备发生错误", err)
@@ -54,16 +54,16 @@ func (d *SerialPortInputDevice) OnStop(ctx gecko.Context) {
 	}
 }
 
-func (d *SerialPortInputDevice) SerialPort() *serial.Port {
+func (d *UARTInputDevice) Port() *serial.Port {
 	return d.port
 }
 
-func (d *SerialPortInputDevice) BufferSize() int {
+func (d *UARTInputDevice) BufferSize() int {
 	return d.bufferSize
 }
 
-func (d *SerialPortInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
-	port := d.SerialPort()
+func (d *UARTInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
+	port := d.Port()
 	buffer := make([]byte, d.BufferSize())
 	for {
 		if n, err := port.Read(buffer); nil != err {
