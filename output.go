@@ -7,10 +7,10 @@ package gecko
 // OutputDeliverer，用于向Output设备发送指令请求，并返回Output设备的处理结果。
 // @param uuid 设备UUID地址
 // @param data 指令数据包；
-type OutputDeliverer func(uuid string, data JSONPacket) (JSONPacket, error)
+type OutputDeliverer func(uuid string, data ObjectPacket) (ObjectPacket, error)
 
 // @see OutputDeliverer
-func (fn OutputDeliverer) Deliver(uuid string, data JSONPacket) (JSONPacket, error) {
+func (fn OutputDeliverer) Deliver(uuid string, data ObjectPacket) (ObjectPacket, error) {
 	return fn(uuid, data)
 }
 

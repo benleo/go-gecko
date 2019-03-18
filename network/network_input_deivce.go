@@ -25,7 +25,10 @@ type AbcNetworkInputDevice struct {
 }
 
 func (d *AbcNetworkInputDevice) StructuredConfig() interface{} {
-	return &NetConfig{}
+	return &NetConfig{
+		ReadTimeout:  "3s",
+		WriteTimeout: "3s",
+	}
 }
 
 func (d *AbcNetworkInputDevice) Init(structConfig interface{}, ctx gecko.Context) {
@@ -63,7 +66,7 @@ func (d *AbcNetworkInputDevice) OnStop(ctx gecko.Context) {
 
 func (d *AbcNetworkInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 	return d.Socket().Serve(func(addr net.Addr, input []byte) (output []byte, err error) {
-		return deliverer.Deliver(d.GetTopic(), gecko.NewFramePacket(input))
+		return deliverer.Deliver(d.GetTopic(), gecko.FramePacket(input))
 	})
 }
 

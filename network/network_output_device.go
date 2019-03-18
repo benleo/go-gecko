@@ -24,7 +24,10 @@ type AbcNetworkOutputDevice struct {
 }
 
 func (d *AbcNetworkOutputDevice) StructuredConfig() interface{} {
-	return &NetConfig{}
+	return &NetConfig{
+		ReadTimeout:  "3s",
+		WriteTimeout: "3s",
+	}
 }
 
 func (d *AbcNetworkOutputDevice) Init(structConfig interface{}, ctx gecko.Context) {
@@ -74,7 +77,7 @@ func (d *AbcNetworkOutputDevice) Process(frame gecko.FramePacket, ctx gecko.Cont
 	if n, err := socket.Receive(buffer); nil != err {
 		return nil, err
 	} else {
-		return gecko.NewFramePacket(buffer[:n]), nil
+		return gecko.FramePacket(buffer[:n]), nil
 	}
 }
 

@@ -37,15 +37,15 @@
   readTimeout = "3s"
 
 # 串口网络输入类型设备
-[INPUTS.SerialPortInputDevice]
+[INPUTS.UARTInputDevice]
   disable = false
-  type = "SerialPortInputDevice"
+  type = "UARTInputDevice"
   name = "串口网络输入类型设备"
   uuid = "com@(0755001001)"
   topic = "/demo/serial/input"
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
-[INPUTS.SerialPortInputDevice.InitArgs]
+[INPUTS.UARTInputDevice.InitArgs]
   bufferSize = 64
   serialPort = "COM4"
   baudRate = 115200

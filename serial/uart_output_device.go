@@ -68,6 +68,6 @@ func (d *UARTOutputDevice) Process(frame gecko.FramePacket, ctx gecko.Context) (
 	if n, err := port.Read(buffer); nil != err {
 		return nil, err
 	} else {
-		return gecko.NewFramePacket(buffer[:n]), nil
+		return gecko.FramePacket(buffer[:n]), nil
 	}
 }

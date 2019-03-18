@@ -25,11 +25,15 @@ func NewStrategyDriver() *StrategyDriver {
 // 联动目标设备
 type ConnectedDevice struct {
 	DeviceUUID string
-	Payload    gecko.JSONPacket
+	Payload    gecko.ObjectPacket
 }
 
 // 驱动触发策略
 type DriveStrategy func(event map[string]interface{}) *ConnectedDevice
+
+func (ds DriveStrategy) Do(event map[string]interface{}) *ConnectedDevice {
+	return ds(event)
+}
 
 // 策略驱动Driver
 type StrategyDriver struct {
@@ -93,24 +97,24 @@ func (d *StrategyDriver) OnInit(args *cfg.Config, ctx gecko.Context) {
 }
 
 func (d *StrategyDriver) Handle(session gecko.EventSession, deliverer gecko.OutputDeliverer, ctx gecko.Context) error {
-	responses := make(map[string]gecko.JSONPacket, 0)
-	message := session.Inbound()
+	responses := make(map[string]gecko.ObjectPacket, 0)
+	inbound := session.Inbound()
 	for _, strategy := range d.strategies {
-		target := strategy(message.Data)
+		target := strategy.Do(inbound.MapData())
 		if nil == target {
 			continue
 		}
 		uuid := target.DeviceUUID
 		if ret, err := deliverer.Deliver(uuid, target.Payload); nil != err {
-			responses[uuid] = gecko.JSONPacket{
+			responses[uuid] = gecko.ObjectPacket(map[string]interface{}{
 				"status":  "error",
 				"message": err.Error(),
-			}
+			})
 		} else {
-			responses[uuid] = gecko.JSONPacket{
+			responses[uuid] = gecko.ObjectPacket(map[string]interface{}{
 				"status": "success",
 				"data":   ret,
-			}
+			})
 		}
 	}
 	session.Outbound().AddField("driverResponse", responses)

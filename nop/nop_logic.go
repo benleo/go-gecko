@@ -31,11 +31,11 @@ func (s *NopLogicDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
 }
 
 // 检查是否符合逻辑设备的数据
-func (s *NopLogicDevice) CheckIfMatch(json gecko.JSONPacket) bool {
+func (s *NopLogicDevice) CheckIfMatch(json gecko.ObjectPacket) bool {
 	return true
 }
 
 // 转换返回给设备的数据
-func (s *NopLogicDevice) Transform(json gecko.JSONPacket) (newJson gecko.JSONPacket) {
+func (s *NopLogicDevice) Transform(json gecko.ObjectPacket) (newJson gecko.ObjectPacket) {
 	return json
 }

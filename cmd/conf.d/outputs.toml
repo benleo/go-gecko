@@ -25,15 +25,15 @@
   writeTimeout = "3s"
 
 # 串口输出设备
-[INPUTS.SerialPortOutputDevice]
+[INPUTS.UARTOutputDevice]
   disable = false
-  type = "SerialPortOutputDevice"
+  type = "UARTOutputDevice"
   name = "串口输出类型设备"
   uuid = "com@(0755001002)"
   topic = "/demo/serial/output"
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
-[INPUTS.SerialPortOutputDevice.InitArgs]
+[INPUTS.UARTOutputDevice.InitArgs]
   bufferSize = 64
   serialPort = "COM5"
   baudRate = 115200

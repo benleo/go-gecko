@@ -144,18 +144,8 @@ func (re *Register) showBundles() {
 	})
 }
 
-// Deprecated: Use AddBundleFactory instead.
-func (re *Register) RegisterBundleFactory(typeName string, factory ComponentFactory) {
-	re.AddBundleFactory(typeName, factory)
-}
-
-// Deprecated: Use AddCodecFactory instead.
-func (re *Register) RegisterCodecFactory(typeName string, factory CodecFactory) {
-	re.AddCodecFactory(typeName, factory)
-}
-
 // 注册组件工厂函数
-func (re *Register) AddBundleFactory(typeName string, factory ComponentFactory) {
+func (re *Register) AddFactory(typeName string, factory ComponentFactory) {
 	zlog := ZapSugarLogger
 	if _, ok := re.factories[typeName]; ok {
 		zlog.Warnf("组件类型[%s]，旧的工厂函数将被覆盖为： %s", typeName, utils.GetClassName(factory))
@@ -198,28 +188,28 @@ func (re *Register) ensureUniqueUUID(uuid string) string {
 	return uuid
 }
 
-func (re *Register) factory(componentType string, configItem interface{}) (component interface{}, bType string, config *cfg.Config, ok bool) {
+func (re *Register) factory(cType string, configItem interface{}) (obj interface{}, bType string, config *cfg.Config, ok bool) {
 	zlog := ZapSugarLogger
 	asMap, ok := configItem.(map[string]interface{})
 	if !ok {
-		zlog.Panicf("组件配置信息类型错误: %s", componentType)
+		zlog.Panicf("组件配置信息类型错误: %s", cType)
 	}
 	wrap := cfg.Wrap(asMap)
 	if wrap.MustBool("disable") {
-		zlog.Infof("组件[%s]在配置中禁用", componentType)
-		return nil, componentType, nil, false
+		zlog.Infof("组件[%s]在配置中禁用", cType)
+		return nil, cType, nil, false
 	}
 
 	// 配置选项中，指定 type 字段为类型名称
 	if typeName := wrap.MustString("type"); "" != typeName {
-		componentType = typeName
+		cType = typeName
 	}
 
-	factory, ok := re.findFactory(componentType)
+	factory, ok := re.findFactory(cType)
 	if !ok {
-		zlog.Panicf("组件类型[%s]，没有注册对应的工厂函数", componentType)
+		zlog.Panicf("组件类型[%s]，没有注册对应的工厂函数", cType)
 	}
-	return factory(), componentType, wrap, true
+	return factory(), cType, wrap, true
 }
 
 func (re *Register) register(configs *cfg.Config,
