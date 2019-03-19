@@ -100,7 +100,7 @@ func (d *StrategyDriver) Handle(session gecko.EventSession, deliverer gecko.Outp
 	responses := make(map[string]gecko.MessagePacket, 0)
 	inbound := session.Inbound()
 	for _, strategy := range d.strategies {
-		target := strategy.Do(inbound.MapData())
+		target := strategy.Do(inbound)
 		if nil == target {
 			continue
 		}
