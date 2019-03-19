@@ -28,7 +28,7 @@ type Register struct {
 	stopBeforeHooks  *list.List
 	stopAfterHooks   *list.List
 	// 组件创建工厂函数
-	factories map[string]ComponentFactory
+	factories map[string]Factory
 }
 
 func prepare() *Register {
@@ -46,7 +46,7 @@ func prepare() *Register {
 	re.startAfterHooks = list.New()
 	re.stopBeforeHooks = list.New()
 	re.stopAfterHooks = list.New()
-	re.factories = make(map[string]ComponentFactory)
+	re.factories = make(map[string]Factory)
 	return re
 }
 
@@ -145,7 +145,7 @@ func (re *Register) showBundles() {
 }
 
 // 注册组件工厂函数
-func (re *Register) AddFactory(typeName string, factory ComponentFactory) {
+func (re *Register) AddFactory(typeName string, factory Factory) {
 	zlog := ZapSugarLogger
 	if _, ok := re.factories[typeName]; ok {
 		zlog.Warnf("组件类型[%s]，旧的工厂函数将被覆盖为： %s", typeName, utils.GetClassName(factory))
@@ -170,7 +170,7 @@ func (re *Register) AddCodecFactory(typeName string, factory CodecFactory) {
 }
 
 // 查找指定类型的
-func (re *Register) findFactory(typeName string) (ComponentFactory, bool) {
+func (re *Register) findFactory(typeName string) (Factory, bool) {
 	if f, ok := re.factories[typeName]; ok {
 		return f, true
 	} else {

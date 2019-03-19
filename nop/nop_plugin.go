@@ -12,7 +12,7 @@ func NewNopPlugin() gecko.Plugin {
 	return new(NopPlugin)
 }
 
-func NopPluginFactory() (string, gecko.ComponentFactory) {
+func NopPluginFactory() (string, gecko.Factory) {
 	return "NopPlugin", func() interface{} {
 		return NewNopPlugin()
 	}

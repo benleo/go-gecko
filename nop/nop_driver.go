@@ -9,7 +9,7 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-func NopDriverFactory() (string, gecko.ComponentFactory) {
+func NopDriverFactory() (string, gecko.Factory) {
 	return "NopDriver", func() interface{} {
 		return &NopDriver{
 			AbcDriver: gecko.NewAbcDriver(),

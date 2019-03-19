@@ -15,7 +15,7 @@ func NewNopLogicDevice() gecko.LogicDevice {
 	}
 }
 
-func NopLogicDeviceFactory() (string, gecko.ComponentFactory) {
+func NopLogicDeviceFactory() (string, gecko.Factory) {
 	return "NopLogicDevice", func() interface{} {
 		return NewNopLogicDevice()
 	}

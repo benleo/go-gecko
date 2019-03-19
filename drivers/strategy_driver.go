@@ -9,7 +9,7 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-func StrategyDriverFactory() (string, gecko.ComponentFactory) {
+func StrategyDriverFactory() (string, gecko.Factory) {
 	return "StrategyDriver", func() interface{} {
 		return NewStrategyDriver()
 	}

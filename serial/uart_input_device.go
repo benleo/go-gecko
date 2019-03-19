@@ -7,7 +7,7 @@ import (
 	"github.com/yoojia/go-gecko"
 )
 
-func UARTInputDeviceFactory() (string, gecko.ComponentFactory) {
+func UARTInputDeviceFactory() (string, gecko.Factory) {
 	return "UARTInputDevice", func() interface{} {
 		return NewUARTInputDevice()
 	}

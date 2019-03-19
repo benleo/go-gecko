@@ -46,7 +46,7 @@ type LifeCycle interface {
 }
 
 // 组件创建工厂函数
-type ComponentFactory func() interface{}
+type Factory func() interface{}
 
 // 编码解码工厂函数
 type CodecFactory func() interface{}

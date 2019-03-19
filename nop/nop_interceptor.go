@@ -31,7 +31,7 @@ func NewNopInterceptor() gecko.Interceptor {
 	}
 }
 
-func NopInterceptorFactor() (string, gecko.ComponentFactory) {
+func NopInterceptorFactor() (string, gecko.Factory) {
 	return "NopInterceptor", func() interface{} {
 		return NewNopInterceptor()
 	}

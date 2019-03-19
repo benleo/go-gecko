@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func UARTOutputDeviceFactory() (string, gecko.ComponentFactory) {
+func UARTOutputDeviceFactory() (string, gecko.Factory) {
 	return "UARTOutputDevice", func() interface{} {
 		return NewUARTOutputDevice()
 	}
