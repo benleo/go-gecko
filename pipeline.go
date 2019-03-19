@@ -227,7 +227,6 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 		if nil != err {
 			return nil, errors.WithMessage(err, "Input设备Decode数据出错："+masterUuid)
 		}
-		outputChan := make(chan MessagePacket, 1)
 		attributes := make(map[string]interface{})
 		attributes["@InputDevice.Type"] = utils.GetClassName(masterInput)
 		attributes["@InputDevice.Name"] = masterInput.GetName()
@@ -251,17 +250,18 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 			inputMessage = logic.Transform(inputMessage)
 		}
 		// 发送到Dispatcher调度处理
-		p.dispatcher.StartC() <- &_EventSessionImpl{
-			timestamp:  time.Now(),
-			attrs:      attributes,
-			topic:      inputTopic,
-			uuid:       inputUuid,
-			inbound:    MessagePacket(inputMessage),
-			outbound:   MessagePacket{},
-			outputChan: outputChan,
+		session := &_EventSessionImpl{
+			timestamp: time.Now(),
+			attrs:     attributes,
+			topic:     inputTopic,
+			uuid:      inputUuid,
+			inbound:   MessagePacket(inputMessage),
+			outbound:  MessagePacket{},
+			completed: make(chan MessagePacket, 1),
 		}
+		p.dispatcher.StartC() <- session
 		// 等待处理完成
-		outputMessage := <-outputChan
+		outputMessage := <-session.completed
 		if nil == outputMessage {
 			return nil, errors.New("Input设备发起Deliver请求必须返回结果数据")
 		}
@@ -386,7 +386,7 @@ func (p *Pipeline) output(event EventSession) {
 		p.checkRecover(recover(), "Output-Goroutine内部错误")
 	}()
 	// 返回处理结果
-	event.(*_EventSessionImpl).outputChan <- event.Outbound()
+	event.(*_EventSessionImpl).completed <- event.Outbound()
 }
 
 func (p *Pipeline) checkDefTimeout(msg string, act func(Context)) {
@@ -396,15 +396,16 @@ func (p *Pipeline) checkDefTimeout(msg string, act func(Context)) {
 }
 
 func (p *Pipeline) checkRecover(r interface{}, msg string) {
-	if nil != r {
-		zlog := ZapSugarLogger
-		if err, ok := r.(error); ok {
-			zlog.Errorw(msg, "error", err)
-		}
-		p.context.OnIfFailFast(func() {
-			zlog.Fatal(r)
-		})
+	if nil == r {
+		return
 	}
+	zlog := ZapSugarLogger
+	if err, ok := r.(error); ok {
+		zlog.Errorw(msg, "error", err)
+	}
+	p.context.OnIfFailFast(func() {
+		zlog.Fatal(r)
+	})
 }
 
 func (p *Pipeline) failFastLogger(err error, msg string) {
