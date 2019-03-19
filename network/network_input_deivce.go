@@ -73,3 +73,11 @@ func (d *AbcNetworkInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDe
 func (d *AbcNetworkInputDevice) Socket() *SocketServer {
 	return d.socket
 }
+
+func (d *AbcNetworkInputDevice) VendorName() string {
+	return "GoGecko/Input/" + d.networkType
+}
+
+func (d *AbcNetworkInputDevice) Description() string {
+	return `使用TCP/UDP通信协议的输入虚拟设备，作为服务端接收数据`
+}

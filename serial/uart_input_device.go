@@ -81,3 +81,11 @@ func (d *UARTInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelivere
 		}
 	}
 }
+
+func (d *UARTInputDevice) VendorName() string {
+	return "GoGecko/UART/Input"
+}
+
+func (d *UARTInputDevice) Description() string {
+	return `使用UART串口通信协议的输入虚拟设备，作为主设备接收数据`
+}

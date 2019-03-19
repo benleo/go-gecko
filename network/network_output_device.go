@@ -84,3 +84,11 @@ func (d *AbcNetworkOutputDevice) Process(frame gecko.FramePacket, ctx gecko.Cont
 func (d *AbcNetworkOutputDevice) Socket() *SocketClient {
 	return d.socket
 }
+
+func (d *AbcNetworkOutputDevice) VendorName() string {
+	return "GoGecko/Output/" + d.networkType
+}
+
+func (d *AbcNetworkOutputDevice) Description() string {
+	return `使用TCP/UDP通信协议的输出虚拟设备，作为客户端上报数据`
+}

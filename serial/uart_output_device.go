@@ -71,3 +71,11 @@ func (d *UARTOutputDevice) Process(frame gecko.FramePacket, ctx gecko.Context) (
 		return gecko.FramePacket(buffer[:n]), nil
 	}
 }
+
+func (d *UARTOutputDevice) VendorName() string {
+	return "GoGecko/UART/Output"
+}
+
+func (d *UARTOutputDevice) Description() string {
+	return `使用UART串口通信协议的输出虚拟设备，作为从设备发送数据`
+}
