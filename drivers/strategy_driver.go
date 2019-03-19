@@ -25,7 +25,7 @@ func NewStrategyDriver() *StrategyDriver {
 // 联动目标设备
 type ConnectedDevice struct {
 	DeviceUUID string
-	Payload    gecko.ObjectPacket
+	Payload    gecko.MessagePacket
 }
 
 // 驱动触发策略
@@ -97,7 +97,7 @@ func (d *StrategyDriver) OnInit(args *cfg.Config, ctx gecko.Context) {
 }
 
 func (d *StrategyDriver) Handle(session gecko.EventSession, deliverer gecko.OutputDeliverer, ctx gecko.Context) error {
-	responses := make(map[string]gecko.ObjectPacket, 0)
+	responses := make(map[string]gecko.MessagePacket, 0)
 	inbound := session.Inbound()
 	for _, strategy := range d.strategies {
 		target := strategy.Do(inbound.MapData())
@@ -106,12 +106,12 @@ func (d *StrategyDriver) Handle(session gecko.EventSession, deliverer gecko.Outp
 		}
 		uuid := target.DeviceUUID
 		if ret, err := deliverer.Deliver(uuid, target.Payload); nil != err {
-			responses[uuid] = gecko.ObjectPacket(map[string]interface{}{
+			responses[uuid] = gecko.MessagePacket(map[string]interface{}{
 				"status":  "error",
 				"message": err.Error(),
 			})
 		} else {
-			responses[uuid] = gecko.ObjectPacket(map[string]interface{}{
+			responses[uuid] = gecko.MessagePacket(map[string]interface{}{
 				"status": "success",
 				"data":   ret,
 			})

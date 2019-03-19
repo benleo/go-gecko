@@ -10,7 +10,17 @@ import (
 //
 
 // 对象数据消息包
-type ObjectPacket interface{}
+type MessagePacket map[string]interface{}
+
+func (m MessagePacket) AddField(name string, value interface{}) MessagePacket {
+	m[name] = value
+	return m
+}
+
+func (m MessagePacket) Field(name string) (interface{}, bool) {
+	v, ok := m[name]
+	return v, ok
+}
 
 // 字节数据消息包
 type FramePacket []byte
@@ -21,29 +31,29 @@ type FramePacket []byte
 // 同样，OutputDevice在消息的传递过程中，也需要Encoder和Decoder来转换数据格式；
 
 // 解码器，负责将字节数组转换成JSONPacket对象
-type Decoder func(bytes FramePacket) (ObjectPacket, error)
+type Decoder func(bytes FramePacket) (MessagePacket, error)
 
 // 扩展Decoder的函数
-func (d Decoder) Decode(frame FramePacket) (ObjectPacket, error) {
+func (d Decoder) Decode(frame FramePacket) (MessagePacket, error) {
 	return d(frame)
 }
 
 // 编码器，负责将JSONPacket对象转换成字节数组
-type Encoder func(data ObjectPacket) (FramePacket, error)
+type Encoder func(data MessagePacket) (FramePacket, error)
 
 // 扩展Encoder的函数
-func (e Encoder) Encode(data ObjectPacket) (FramePacket, error) {
+func (e Encoder) Encode(data MessagePacket) (FramePacket, error) {
 	return e(data)
 }
 
 //// 系统默认实现的编码和解码接口
 
-func NopEncoder(_ ObjectPacket) (FramePacket, error) {
+func NopEncoder(_ MessagePacket) (FramePacket, error) {
 	return FramePacket([]byte{}), nil
 }
 
-func NopDecoder(_ FramePacket) (ObjectPacket, error) {
-	return ObjectPacket(struct{}{}), nil
+func NopDecoder(_ FramePacket) (MessagePacket, error) {
+	return MessagePacket(make(map[string]interface{}, 0)), nil
 }
 
 func JSONDefaultDecoderFactory() (string, CodecFactory) {
@@ -53,7 +63,7 @@ func JSONDefaultDecoderFactory() (string, CodecFactory) {
 }
 
 // 默认JSON解码器，将Byte数据解析成map[string]interface{}对象
-func JSONDefaultDecoder(bytes FramePacket) (ObjectPacket, error) {
+func JSONDefaultDecoder(bytes FramePacket) (MessagePacket, error) {
 	m := make(map[string]interface{})
 	err := json.Unmarshal(bytes, &m)
 	return m, errors.Wrap(err, "json default decode failed")
@@ -66,6 +76,6 @@ func JSONDefaultEncoderFactory() (string, CodecFactory) {
 }
 
 // 默认JSON编码器，负责将map[string]interface{}对象解析成Byte数组
-func JSONDefaultEncoder(data ObjectPacket) (FramePacket, error) {
+func JSONDefaultEncoder(data MessagePacket) (FramePacket, error) {
 	return json.Marshal(data)
 }

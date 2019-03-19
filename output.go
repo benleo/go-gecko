@@ -6,11 +6,12 @@ package gecko
 
 // OutputDeliverer，用于向Output设备发送指令请求，并返回Output设备的处理结果。
 // @param uuid 设备UUID地址
-// @param data 指令数据包；
-type OutputDeliverer func(uuid string, data ObjectPacket) (ObjectPacket, error)
+// @param message 指令数据包；其中数据包为系统内部Message格式，将由OutputDevice的Encoder编码器编码成字节数据；
+// @return decodedMessage 响应数据格式；其中数据包为系统内部Message格式，当OutputDevice返回响应消息时，由Decoder解码成系统内部消息格式；
+type OutputDeliverer func(uuid string, message MessagePacket) (decodedMessage MessagePacket, err error)
 
 // @see OutputDeliverer
-func (fn OutputDeliverer) Deliver(uuid string, data ObjectPacket) (ObjectPacket, error) {
+func (fn OutputDeliverer) Deliver(uuid string, data MessagePacket) (decodedMessage MessagePacket, err error) {
 	return fn(uuid, data)
 }
 
@@ -18,7 +19,7 @@ func (fn OutputDeliverer) Deliver(uuid string, data ObjectPacket) (ObjectPacket,
 type OutputDevice interface {
 	VirtualDevice
 	// 设备对象接收控制事件；经设备驱动处理后，返回处理结果事件；
-	Process(frame FramePacket, ctx Context) (FramePacket, error)
+	Process(encodedFrame FramePacket, ctx Context) (rawFrame FramePacket, err error)
 }
 
 ////

@@ -10,11 +10,12 @@ import (
 
 // InputDeliverer，用于Input设备发起输入事件数据，并获取系统处理结果数据；
 // @param topic 输入事件的Topic；
-// @param frame 输入事件数据包；
-type InputDeliverer func(topic string, frame FramePacket) (FramePacket, error)
+// @param frame 输入事件数据包；其中数据包为字节数据格式，将由InputDevice的Decoder解码成系统内部消息格式；
+// @return frame 返回响应数据包；其中数据包将由系统内部调用InputDevice的Encoder编码器将Message编码成字节数据；
+type InputDeliverer func(topic string, rawFrame FramePacket) (encodedFrame FramePacket, err error)
 
-func (fn InputDeliverer) Deliver(topic string, frame FramePacket) (FramePacket, error) {
-	return fn(topic, frame)
+func (fn InputDeliverer) Deliver(topic string, rawFrame FramePacket) (encodedFrame FramePacket, err error) {
+	return fn(topic, rawFrame)
 }
 
 // Input设备是表示向系统输入数据的设备

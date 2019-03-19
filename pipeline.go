@@ -220,27 +220,25 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 	return InputDeliverer(func(topic string, rawFrame FramePacket) (FramePacket, error) {
 		// 从Input设备中读取Decode数据
 		masterUuid := masterInput.GetUuid()
-		inputFrame := rawFrame
-		if nil == inputFrame {
+		if nil == rawFrame {
 			return nil, errors.New("Input设备发起Deliver请求必须携带参数数据")
 		}
-		inputPack, err := masterInput.GetDecoder()(inputFrame)
+		inputMessage, err := masterInput.GetDecoder()(rawFrame)
 		if nil != err {
 			return nil, errors.WithMessage(err, "Input设备Decode数据出错："+masterUuid)
 		}
-		outputCh := make(chan ObjectPacket, 1)
+		outputChan := make(chan MessagePacket, 1)
 		attributes := make(map[string]interface{})
 		attributes["@InputDevice.Type"] = utils.GetClassName(masterInput)
 		attributes["@InputDevice.Name"] = masterInput.GetName()
 
-		toSendUuid := masterUuid
-		toSendTopic := topic
-		toSendPack := inputPack
+		inputUuid := masterUuid
+		inputTopic := topic
 
 		var logic LogicDevice = nil
 		// 查找符合条件的逻辑设备，并转换数据
 		for _, item := range masterInput.GetLogicList() {
-			if item.CheckIfMatch(inputPack) {
+			if item.CheckIfMatch(inputMessage) {
 				logic = item
 				attributes["@InputDevice.Logic.Type"] = utils.GetClassName(logic)
 				attributes["@InputDevice.Logic.Name"] = logic.GetName()
@@ -248,49 +246,49 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 			}
 		}
 		if logic != nil {
-			toSendUuid = logic.GetUuid()
-			toSendTopic = logic.GetTopic()
-			toSendPack = logic.Transform(toSendPack)
+			inputUuid = logic.GetUuid()
+			inputTopic = logic.GetTopic()
+			inputMessage = logic.Transform(inputMessage)
 		}
 		// 发送到Dispatcher调度处理
 		p.dispatcher.StartC() <- &_EventSessionImpl{
 			timestamp:  time.Now(),
 			attrs:      attributes,
-			topic:      toSendTopic,
-			uuid:       toSendUuid,
-			inbound:    newInbound(toSendPack),
-			outbound:   newOutbound(),
-			outputChan: outputCh,
+			topic:      inputTopic,
+			uuid:       inputUuid,
+			inbound:    MessagePacket(inputMessage),
+			outbound:   MessagePacket{},
+			outputChan: outputChan,
 		}
 		// 等待处理完成
-		outputJSON := <-outputCh
-		if nil == outputJSON {
+		outputMessage := <-outputChan
+		if nil == outputMessage {
 			return nil, errors.New("Input设备发起Deliver请求必须返回结果数据")
 		}
-		if outputFrame, err := masterInput.GetEncoder()(outputJSON); nil != err {
+		if encodedFrame, err := masterInput.GetEncoder()(outputMessage); nil != err {
 			return nil, errors.WithMessage(err, "Input设备Encode数据出错："+masterUuid)
 		} else {
-			return FramePacket(outputFrame), nil
+			return FramePacket(encodedFrame), nil
 		}
 	})
 }
 
 // 输出派发函数
 // 根据Driver指定的目标输出设备地址，查找并处理数据包
-func (p *Pipeline) deliverToOutput(uuid string, rawJSON ObjectPacket) (ObjectPacket, error) {
+func (p *Pipeline) deliverToOutput(uuid string, rawJSON MessagePacket) (MessagePacket, error) {
 	if output, ok := p.uuidOutputs[uuid]; ok {
-		inputFrame, encErr := output.GetEncoder().Encode(rawJSON)
+		encodedFrame, encErr := output.GetEncoder().Encode(rawJSON)
 		if nil != encErr {
 			return nil, errors.WithMessage(encErr, "设备Encode数据出错: "+uuid)
 		}
-		retJSON, err := output.Process(inputFrame, p.context)
+		respFrame, err := output.Process(encodedFrame, p.context)
 		if nil != err {
 			return nil, errors.WithMessage(err, "Output设备处理出错: "+uuid)
 		}
-		if json, decErr := output.GetDecoder().Decode(retJSON); nil != decErr {
+		if decodedMessage, decErr := output.GetDecoder().Decode(respFrame); nil != decErr {
 			return nil, errors.WithMessage(encErr, "设备Decode数据出错: "+uuid)
 		} else {
-			return json, nil
+			return decodedMessage, nil
 		}
 	} else {
 		return nil, errors.New("指定地址的Output设备不存在:" + uuid)
@@ -388,7 +386,7 @@ func (p *Pipeline) output(event EventSession) {
 		p.checkRecover(recover(), "Output-Goroutine内部错误")
 	}()
 	// 返回处理结果
-	event.(*_EventSessionImpl).outputChan <- event.Outbound().Data
+	event.(*_EventSessionImpl).outputChan <- event.Outbound()
 }
 
 func (p *Pipeline) checkDefTimeout(msg string, act func(Context)) {
