@@ -256,20 +256,24 @@ func (re *Register) register0(rawType string, item interface{}) (interface{}, *c
 		device.setUuid(required(config.MustString("uuid"),
 			"VirtualDevice[%s]配置项[uuid]是必填参数", componentType))
 
-		encoderName := required(config.MustString("encoder"),
-			"未设置默认Encoder时，Device[%s]配置项[encoder]是必填参数", componentType)
-		if encoder, ok := re.namedEncoders[encoderName]; ok {
-			device.setEncoder(encoder)
-		} else {
-			zlog.Panicf("Encoder[%s]未注册", encoderName)
+		if nil == device.GetEncoder() {
+			name := required(config.MustString("encoder"),
+				"未设置默认Encoder时，Device[%s]配置项[encoder]是必填参数", componentType)
+			if encoder, ok := re.namedEncoders[name]; ok {
+				device.setEncoder(encoder)
+			} else {
+				zlog.Panicf("Encoder[%s]未注册", name)
+			}
 		}
 
-		decoderName := required(config.MustString("decoder"),
-			"未设置默认Decoder时，Device[%s]配置项[decoder]是必填参数", componentType)
-		if decoder, ok := re.namedDecoders[decoderName]; ok {
-			device.setDecoder(decoder)
-		} else {
-			zlog.Panicf("Decoder[%s]未注册", decoderName)
+		if nil == device.GetDecoder() {
+			name := required(config.MustString("decoder"),
+				"未设置默认Decoder时，Device[%s]配置项[decoder]是必填参数", componentType)
+			if decoder, ok := re.namedDecoders[name]; ok {
+				device.setDecoder(decoder)
+			} else {
+				zlog.Panicf("Decoder[%s]未注册", name)
+			}
 		}
 
 		if inputDevice, ok := device.(InputDevice); ok {
