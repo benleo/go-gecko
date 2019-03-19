@@ -250,48 +250,31 @@ func (re *Register) register0(rawType string, item interface{}) (interface{}, *c
 
 	case VirtualDevice:
 		device := component.(VirtualDevice)
-		if name := config.MustString("name"); "" == name {
-			zlog.Panicf("VirtualDevice[%s]配置项[name]是必填参数", componentType)
+		device.setName(required(config.MustString("name"),
+			"VirtualDevice[%s]配置项[name]是必填参数", componentType))
+
+		device.setUuid(required(config.MustString("uuid"),
+			"VirtualDevice[%s]配置项[uuid]是必填参数", componentType))
+
+		encoderName := required(config.MustString("encoder"),
+			"未设置默认Encoder时，Device[%s]配置项[encoder]是必填参数", componentType)
+		if encoder, ok := re.namedEncoders[encoderName]; ok {
+			device.setEncoder(encoder)
 		} else {
-			device.setName(name)
+			zlog.Panicf("Encoder[%s]未注册", encoderName)
 		}
 
-		uuid := config.MustString("uuid")
-		if "" == uuid {
-			zlog.Panicf("VirtualDevice[%s]配置项[uuid]是必填参数", componentType)
-		}
-		device.setUuid(uuid)
-
-		if name := config.MustString("encoder"); "" == name {
-			if nil == device.GetEncoder() {
-				zlog.Panicf("未设置默认Encoder时，Device[%s]配置项[encoder]是必填参数", componentType)
-			}
+		decoderName := required(config.MustString("decoder"),
+			"未设置默认Decoder时，Device[%s]配置项[decoder]是必填参数", componentType)
+		if decoder, ok := re.namedDecoders[decoderName]; ok {
+			device.setDecoder(decoder)
 		} else {
-			if encoder, ok := re.namedEncoders[name]; ok {
-				device.setEncoder(encoder)
-			} else {
-				zlog.Panicf("Encoder[%s]未注册", name)
-			}
-		}
-
-		if name := config.MustString("decoder"); "" == name {
-			if nil == device.GetDecoder() {
-				zlog.Panicf("未设置默认Decoder时，Device[%s]配置项[decoder]是必填参数", componentType)
-			}
-		} else {
-			if decoder, ok := re.namedDecoders[name]; ok {
-				device.setDecoder(decoder)
-			} else {
-				zlog.Panicf("Decoder[%s]未注册", name)
-			}
+			zlog.Panicf("Decoder[%s]未注册", decoderName)
 		}
 
 		if inputDevice, ok := device.(InputDevice); ok {
-			if topic := config.MustString("topic"); "" == topic {
-				zlog.Panicf("Device[%s]配置项[topic]是必填参数", componentType)
-			} else {
-				inputDevice.setTopic(topic)
-			}
+			inputDevice.setTopic(required(config.MustString("topic"),
+				"VirtualDevice[%s]配置项[topic]是必填参数", componentType))
 			re.AddInputDevice(inputDevice)
 		} else if outputDevice, ok := device.(OutputDevice); ok {
 			re.AddOutputDevice(outputDevice)
@@ -300,35 +283,27 @@ func (re *Register) register0(rawType string, item interface{}) (interface{}, *c
 		}
 
 	case LogicDevice:
-		shadow := component.(LogicDevice)
-		if uuid := config.MustString("uuid"); "" != uuid {
-			shadow.setUuid(uuid)
-		} else {
-			zlog.Panicf("ShadowDevice[%s]配置项[uuid]是必填参数", componentType)
-		}
-		if name := config.MustString("name"); "" != name {
-			shadow.setName(name)
-		} else {
-			zlog.Panicf("ShadowDevice[%s]配置项[name]是必填参数", componentType)
-		}
-		if topic := config.MustString("topic"); "" != topic {
-			shadow.setTopic(topic)
-		} else {
-			zlog.Panicf("ShadowDevice[%s]配置项[topic]是必填参数", componentType)
-		}
-		masterUuid := config.MustString("masterUuid")
-		if "" != masterUuid {
-			shadow.setMasterUuid(masterUuid)
-		} else {
-			zlog.Panicf("ShadowDevice[%s]配置项[masterUuid]是必填参数", componentType)
-		}
+		logic := component.(LogicDevice)
+		logic.setUuid(required(config.MustString("uuid"),
+			"LogicDevice[%s]配置项[uuid]是必填参数", componentType))
+
+		logic.setName(required(config.MustString("name"),
+			"LogicDevice[%s]配置项[name]是必填参数", componentType))
+
+		logic.setTopic(required(config.MustString("topic"),
+			"LogicDevice[%s]配置项[topic]是必填参数", componentType))
+
+		masterUuid := required(config.MustString("masterUuid"),
+			"LogicDevice[%s]配置项[masterUuid]是必填参数", componentType)
+		logic.setMasterUuid(masterUuid)
+
 		// Add to input
 		if input, ok := re.uuidInputs[masterUuid]; ok {
-			if err := input.addLogic(shadow); nil != err {
-				zlog.Panic("ShadowDevice挂载到MasterInputDevice发生错误", err)
+			if err := input.addLogic(logic); nil != err {
+				zlog.Panic("LogicDevice挂载到MasterInputDevice发生错误", err)
 			}
 		} else {
-			zlog.Panicf("ShadowDevice[%s]配置项[masterUuid]是没找到对应设备", componentType)
+			zlog.Panicf("LogicDevice[%s]配置项[masterUuid]是没找到对应设备", componentType)
 		}
 
 	default:
@@ -349,4 +324,11 @@ func (re *Register) register0(rawType string, item interface{}) (interface{}, *c
 	}
 
 	return component, config
+}
+
+func required(value, template string, args ...interface{}) string {
+	if "" == value {
+		ZapSugarLogger.Panicf(template, args...)
+	}
+	return value
 }
