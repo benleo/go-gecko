@@ -352,7 +352,8 @@ func (p *Pipeline) handleDriver(session EventSession) {
 		p.checkRecover(recover(), "Driver-Goroutine内部错误")
 	}()
 
-	// 查找匹配的用户驱动，并处理
+	// 查找匹配的用户驱动，并行处理
+	await := new(sync.WaitGroup)
 	for el := p.drivers.Front(); el != nil; el = el.Next() {
 		driver := el.Value.(Driver)
 		match := anyTopicMatches(driver.GetTopicExpr(), session.Topic())
@@ -362,14 +363,19 @@ func (p *Pipeline) handleDriver(session EventSession) {
 				session.Topic(),
 				strconv.FormatBool(match))
 		})
-		if match {
-			err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.context)
-			if nil != err {
+		if !match {
+			return
+		}
+		await.Add(1)
+		go func() {
+			defer await.Done()
+			if err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.context); nil != err {
 				p.failFastLogger(err, "用户驱动发生错误")
 			}
-		}
+		}()
 	}
 	// 输出处理
+	await.Wait()
 	session.AddAttr("驱动过程用时", session.Since())
 	p.output(session)
 }
