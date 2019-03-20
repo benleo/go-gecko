@@ -38,10 +38,10 @@ type EventSession interface {
 	Uuid() string
 
 	// 返回输入端消息对象
-	Inbound() MessagePacket
+	Inbound() *MessagePacket
 
 	// 返回Outbound对象
-	Outbound() MessagePacket
+	Outbound() *MessagePacket
 }
 
 ////
@@ -51,9 +51,9 @@ type _EventSessionImpl struct {
 	attrs     map[string]interface{}
 	topic     string
 	uuid      string
-	inbound   MessagePacket
-	outbound  MessagePacket
-	completed chan MessagePacket
+	inbound   *MessagePacket
+	outbound  *MessagePacket
+	completed chan *MessagePacket
 }
 
 func (s *_EventSessionImpl) Attrs() *cfg.Config {
@@ -87,11 +87,11 @@ func (s *_EventSessionImpl) Uuid() string {
 	return s.uuid
 }
 
-func (s *_EventSessionImpl) Inbound() MessagePacket {
+func (s *_EventSessionImpl) Inbound() *MessagePacket {
 	return s.inbound
 }
 
-func (s *_EventSessionImpl) Outbound() MessagePacket {
+func (s *_EventSessionImpl) Outbound() *MessagePacket {
 	return s.outbound
 }
 
