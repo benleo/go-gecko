@@ -353,7 +353,6 @@ func (p *Pipeline) handleDriver(session EventSession) {
 	}()
 
 	// 查找匹配的用户驱动，并行处理
-	await := new(sync.WaitGroup)
 	for el := p.drivers.Front(); el != nil; el = el.Next() {
 		driver := el.Value.(Driver)
 		match := anyTopicMatches(driver.GetTopicExpr(), session.Topic())
@@ -366,16 +365,13 @@ func (p *Pipeline) handleDriver(session EventSession) {
 		if !match {
 			return
 		}
-		await.Add(1)
-		go func() {
-			defer await.Done()
-			if err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.context); nil != err {
-				p.failFastLogger(err, "用户驱动发生错误")
-			}
-		}()
+		// Drivers不要并行处理：每个输入消息本身已被协程异步调度；在一个Session周期内，它的执行过程应当是串行的。
+		// 如果Driver内部存在与Session无关的异步操作，可以由Driver内部自身实现。
+		if err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.context); nil != err {
+			p.failFastLogger(err, "用户驱动发生错误")
+		}
 	}
 	// 输出处理
-	await.Wait()
 	session.AddAttr("驱动过程用时", session.Since())
 	p.output(session)
 }
