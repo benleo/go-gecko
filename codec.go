@@ -42,15 +42,19 @@ func (m *MessagePacket) SetFrames(b []byte) *MessagePacket {
 	return m
 }
 
-func NewMessagePacketWith(fields map[string]interface{}, body []byte) *MessagePacket {
+func NewMessagePacketWith(fields map[string]interface{}, frames []byte) *MessagePacket {
 	return &MessagePacket{
 		Fields: fields,
-		Frames: body,
+		Frames: frames,
 	}
 }
 
 func NewMessagePacketFields(fields map[string]interface{}) *MessagePacket {
 	return NewMessagePacketWith(fields, nil)
+}
+
+func NewMessagePacketFrames(frames []byte) *MessagePacket {
+	return NewMessagePacketWith(make(map[string]interface{}), frames)
 }
 
 func NewMessagePacket() *MessagePacket {
