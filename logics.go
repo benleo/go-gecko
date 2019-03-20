@@ -23,9 +23,9 @@ type LogicDevice interface {
 	GetTopic() string
 	GetMasterUuid() string
 	// 检查是否符合逻辑设备的数据
-	CheckIfMatch(json MessagePacket) bool
+	CheckIfMatch(json *MessagePacket) bool
 	// 转换输入的数据
-	Transform(pack MessagePacket) (newPack MessagePacket)
+	Transform(pack *MessagePacket) (newPack *MessagePacket)
 }
 
 type AbcLogicDevice struct {

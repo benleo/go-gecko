@@ -8,10 +8,10 @@ package gecko
 // @param uuid 设备UUID地址
 // @param message 指令数据包；其中数据包为系统内部Message格式，将由OutputDevice的Encoder编码器编码成字节数据；
 // @return decodedMessage 响应数据格式；其中数据包为系统内部Message格式，当OutputDevice返回响应消息时，由Decoder解码成系统内部消息格式；
-type OutputDeliverer func(uuid string, message MessagePacket) (decodedMessage MessagePacket, err error)
+type OutputDeliverer func(uuid string, message *MessagePacket) (decodedMessage *MessagePacket, err error)
 
 // @see OutputDeliverer
-func (fn OutputDeliverer) Deliver(uuid string, data MessagePacket) (decodedMessage MessagePacket, err error) {
+func (fn OutputDeliverer) Deliver(uuid string, data *MessagePacket) (decodedMessage *MessagePacket, err error) {
 	return fn(uuid, data)
 }
 

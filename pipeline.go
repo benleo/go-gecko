@@ -227,7 +227,7 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 		if nil != err {
 			return nil, errors.WithMessage(err, "Input设备Decode数据出错："+masterUuid)
 		}
-		outputChan := make(chan MessagePacket, 1)
+		outputChan := make(chan *MessagePacket, 1)
 		attributes := make(map[string]interface{})
 		attributes["@InputDevice.Type"] = utils.GetClassName(masterInput)
 		attributes["@InputDevice.Name"] = masterInput.GetName()
@@ -256,8 +256,8 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 			attrs:      attributes,
 			topic:      inputTopic,
 			uuid:       inputUuid,
-			inbound:    MessagePacket(inputMessage),
-			outbound:   MessagePacket{},
+			inbound:    inputMessage,
+			outbound:   NewMessagePacket(),
 			outputChan: outputChan,
 		}
 		// 等待处理完成
@@ -275,7 +275,7 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 
 // 输出派发函数
 // 根据Driver指定的目标输出设备地址，查找并处理数据包
-func (p *Pipeline) deliverToOutput(uuid string, rawJSON MessagePacket) (MessagePacket, error) {
+func (p *Pipeline) deliverToOutput(uuid string, rawJSON *MessagePacket) (*MessagePacket, error) {
 	if output, ok := p.uuidOutputs[uuid]; ok {
 		encodedFrame, encErr := output.GetEncoder().Encode(rawJSON)
 		if nil != encErr {

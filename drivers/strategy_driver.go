@@ -25,13 +25,13 @@ func NewStrategyDriver() *StrategyDriver {
 // 联动目标设备
 type ConnectedDevice struct {
 	DeviceUUID string
-	Payload    gecko.MessagePacket
+	Payload    *gecko.MessagePacket
 }
 
 // 驱动触发策略
-type DriveStrategy func(event map[string]interface{}) *ConnectedDevice
+type DriveStrategy func(event *gecko.MessagePacket) *ConnectedDevice
 
-func (ds DriveStrategy) Do(event map[string]interface{}) *ConnectedDevice {
+func (ds DriveStrategy) Do(event *gecko.MessagePacket) *ConnectedDevice {
 	return ds(event)
 }
 
@@ -58,27 +58,27 @@ func (d *StrategyDriver) OnInit(args *cfg.Config, ctx gecko.Context) {
 	zlog := gecko.ZapSugarLogger
 
 	strategies.ForEach(func(name string, value interface{}) {
-		rule := cfg.Wrap(value.(map[string]interface{}))
-		matchFields, err := rule.GetStringMapOrDefault("matchEventFields", make(map[string]string, 0))
+		strategy := cfg.Wrap(value.(map[string]interface{}))
+		matchFields, err := strategy.GetStringMapOrDefault("matchFields", make(map[string]string, 0))
 		if err != nil {
-			zlog.Panicf("matchEventFields字段格式错误[TABLE]", err)
+			zlog.Panicf("配置字段[matchFields]格式错误[TABLE]", err)
 		}
-		targetUUID := rule.MustString("targetUUID")
-		targetCommand := rule.MustConfig("targetCommand")
+		uuid := strategy.MustString("uuid")
+		command := strategy.MustConfig("command")
 
-		if 0 == len(matchFields) || "" == targetUUID || targetCommand.IsEmpty() {
-			zlog.Panicf("未正确配置匹配规则： matchFields= %s, targetUUID= %s, targetCommand=%s",
-				matchFields, targetUUID, targetCommand.RefMap())
+		if 0 == len(matchFields) || "" == uuid || command.IsEmpty() {
+			zlog.Panicf("未正确配置匹配规则： matchFields= %s, uuid= %s, command=%s",
+				matchFields, uuid, command.RefMap())
 		} else {
-			zlog.Debugf("联动配置规则： matchFields= %s, targetUUID= %s, targetCommand=%s",
-				matchFields, targetUUID, targetCommand.RefMap())
+			zlog.Debugf("联动配置规则： matchFields= %s, uuid= %s, command=%s",
+				matchFields, uuid, command.RefMap())
 		}
 
-		d.AddDriveStrategy(func(event map[string]interface{}) *ConnectedDevice {
+		d.AddDriveStrategy(func(event *gecko.MessagePacket) *ConnectedDevice {
 			// 检查是否匹配字段
 			matches := true
 			for k, v := range matchFields {
-				if cfg.Value2String(v) == event[k] {
+				if v == cfg.Value2String(event.Field(k)) {
 					matches = false
 					break
 				}
@@ -88,8 +88,8 @@ func (d *StrategyDriver) OnInit(args *cfg.Config, ctx gecko.Context) {
 			}
 
 			return &ConnectedDevice{
-				DeviceUUID: targetUUID,
-				Payload:    targetCommand.RefMap(),
+				DeviceUUID: uuid,
+				Payload:    gecko.NewMessagePacketFields(command.RefMap()),
 			}
 		})
 	})
@@ -97,7 +97,7 @@ func (d *StrategyDriver) OnInit(args *cfg.Config, ctx gecko.Context) {
 }
 
 func (d *StrategyDriver) Handle(session gecko.EventSession, deliverer gecko.OutputDeliverer, ctx gecko.Context) error {
-	responses := make(map[string]gecko.MessagePacket, 0)
+	responses := make(map[string]*gecko.MessagePacket, 0)
 	inbound := session.Inbound()
 	for _, strategy := range d.strategies {
 		target := strategy.Do(inbound)
@@ -106,12 +106,12 @@ func (d *StrategyDriver) Handle(session gecko.EventSession, deliverer gecko.Outp
 		}
 		uuid := target.DeviceUUID
 		if ret, err := deliverer.Deliver(uuid, target.Payload); nil != err {
-			responses[uuid] = gecko.MessagePacket(map[string]interface{}{
+			responses[uuid] = gecko.NewMessagePacketFields(map[string]interface{}{
 				"status":  "error",
 				"message": err.Error(),
 			})
 		} else {
-			responses[uuid] = gecko.MessagePacket(map[string]interface{}{
+			responses[uuid] = gecko.NewMessagePacketFields(map[string]interface{}{
 				"status": "success",
 				"data":   ret,
 			})
