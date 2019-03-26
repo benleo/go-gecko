@@ -3,6 +3,7 @@ package gecko
 import (
 	"encoding/json"
 	"github.com/pkg/errors"
+	"sync"
 )
 
 //
@@ -11,41 +12,52 @@ import (
 
 // 对象数据消息包
 type MessagePacket struct {
-	Fields map[string]interface{}
-	Frames []byte
+	fields *sync.Map
+	frames []byte
+}
+
+func (m *MessagePacket) EachFields(consumer func(name string, value interface{})) {
+	m.fields.Range(func(key, value interface{}) bool {
+		consumer(key.(string), value)
+		return true
+	})
 }
 
 func (m *MessagePacket) AddField(name string, value interface{}) *MessagePacket {
-	m.Fields[name] = value
+	m.fields.Store(name, value)
 	return m
 }
 
 func (m *MessagePacket) GetField(name string) (interface{}, bool) {
-	v, ok := m.Fields[name]
-	return v, ok
+	return m.fields.Load(name)
 }
 
-func (m *MessagePacket) Field(name string) interface{} {
-	return m.Fields[name]
+func (m *MessagePacket) FieldOrNil(name string) interface{} {
+	v, _ := m.fields.Load(name)
+	return v
 }
 
 func (m *MessagePacket) GetFrames() []byte {
-	return m.Frames
+	return m.frames
 }
 
 func (m *MessagePacket) GetFramesStr() string {
-	return string(m.Frames)
+	return string(m.frames)
 }
 
 func (m *MessagePacket) SetFrames(b []byte) *MessagePacket {
-	m.Frames = b
+	m.frames = b
 	return m
 }
 
 func NewMessagePacketWith(fields map[string]interface{}, frames []byte) *MessagePacket {
+	m := new(sync.Map)
+	for k, v := range fields {
+		m.Store(k, v)
+	}
 	return &MessagePacket{
-		Fields: fields,
-		Frames: frames,
+		fields: m,
+		frames: frames,
 	}
 }
 
@@ -133,7 +145,7 @@ func JSONDefaultEncoderFactory() (string, CodecFactory) {
 // 默认JSON编码器，负责将MessagePacket.Fields对象解析成Byte数组
 // 注意：JSON编码器将Fields字段转换成JSON字节数组，忽略Frames字段。
 func JSONDefaultEncoder(msg *MessagePacket) (FramePacket, error) {
-	return json.Marshal(msg.Fields)
+	return json.Marshal(msg.fields)
 }
 
 ////
@@ -151,7 +163,7 @@ func FrameDefaultDecoderFactory() (string, CodecFactory) {
 
 // 字节帧编码器，负责将MessagePacket.Frames转换成FramePacket。其中Fields字段被忽略。
 func FrameDefaultEncoder(msg *MessagePacket) (FramePacket, error) {
-	return msg.Frames, nil
+	return msg.frames, nil
 }
 
 func FrameDefaultEncoderFactory() (string, CodecFactory) {

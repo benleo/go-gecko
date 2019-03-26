@@ -251,7 +251,7 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 		// 发送到Dispatcher调度处理
 		session := &_EventSessionImpl{
 			timestamp: time.Now(),
-			attrs:     attributes,
+			attrs:     new(sync.Map),
 			topic:     inputTopic,
 			uuid:      inputUuid,
 			inbound:   inputMessage,
@@ -331,12 +331,12 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 			// 终止，输出处理
 			session.AddAttr("拦截过程用时", session.Since())
 			p.output(session)
-			return
+			return // 终止后续处理过程
 		} else {
 			p.failFastLogger(err, "拦截器发生错误:"+it.GetName())
 		}
 	}
-	// 继续
+	// 后续处理
 	session.AddAttr("拦截过程用时", session.Since())
 	p.dispatcher.EndC() <- session
 }
@@ -352,37 +352,44 @@ func (p *Pipeline) handleDriver(session EventSession) {
 		p.checkRecover(recover(), "Driver-Goroutine内部错误")
 	}()
 
+	// 输出处理
 	defer func() {
-		// 输出处理
 		session.AddAttr("驱动过程用时", session.Since())
 		p.output(session)
 	}()
+
 	// 查找匹配的用户驱动
+	// Driver通常执行一些硬件驱动、远程事件等耗时操作，它们可以并行处理；
+	// 使用WaitGroup归集后再输出；
+	wg := new(sync.WaitGroup)
 	for el := p.drivers.Front(); el != nil; el = el.Next() {
 		driver := el.Value.(Driver)
 		name := driver.GetName()
 		if anyTopicMatches(driver.GetTopicExpr(), topic) {
-			zlog.Debugf("用户驱动正在处理, Driver: %s, topic: %s", name, topic)
-			// Drivers不要并行处理：每个输入消息本身已被协程异步调度；在一个Session周期内，它的执行过程应当是串行的。
-			// 如果Driver内部存在与Session无关的异步操作，可以由Driver内部自身实现。
-			if err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.context); nil != err {
-				p.failFastLogger(err, "用户驱动发生错误:"+name)
-			}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				zlog.Debugf("用户驱动正在处理, Driver: %s, topic: %s", name, topic)
+				if err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.context); nil != err {
+					p.failFastLogger(err, "用户驱动发生错误:"+name)
+				}
+			}()
 		} else {
 			p.context.OnIfLogV(func() {
 				zlog.Debugf("用户驱动[未匹配], Driver: %s, topic: %s", name, topic)
 			})
 		}
 	}
+	wg.Wait()
 }
 
 func (p *Pipeline) output(event EventSession) {
 	p.context.OnIfLogV(func() {
 		zlog := ZapSugarLogger
 		zlog.Debugf("正在Output调度过程，Topic: %s", event.Topic())
-		event.Attrs().ForEach(func(k string, v interface{}) {
+		for k, v := range event.Attrs() {
 			zlog.Debugf("SessionAttr: %s = %v", k, v)
-		})
+		}
 	})
 	defer func() {
 		p.checkRecover(recover(), "Output-Goroutine内部错误")

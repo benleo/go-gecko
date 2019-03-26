@@ -1,7 +1,7 @@
 package gecko
 
 import (
-	"github.com/parkingwang/go-conf"
+	"sync"
 	"time"
 )
 
@@ -14,7 +14,7 @@ import (
 // EventSession 是每次请求生成的上下文对象，服务于事件请求的整个生命周期。
 type EventSession interface {
 	// 返回属性列表
-	Attrs() *cfg.Config
+	Attrs() map[string]interface{}
 
 	// 添加属性
 	AddAttr(key string, value interface{})
@@ -48,7 +48,7 @@ type EventSession interface {
 
 type _EventSessionImpl struct {
 	timestamp time.Time
-	attrs     map[string]interface{}
+	attrs     *sync.Map
 	topic     string
 	uuid      string
 	inbound   *MessagePacket
@@ -56,22 +56,26 @@ type _EventSessionImpl struct {
 	completed chan *MessagePacket
 }
 
-func (s *_EventSessionImpl) Attrs() *cfg.Config {
-	return cfg.Wrap(s.attrs)
+func (s *_EventSessionImpl) Attrs() map[string]interface{} {
+	m := make(map[string]interface{}, 0)
+	s.attrs.Range(func(key, value interface{}) bool {
+		m[key.(string)] = value
+		return true
+	})
+	return m
 }
 
 func (s *_EventSessionImpl) GetAttr(key string) (interface{}, bool) {
-	v, ok := s.attrs[key]
-	return v, ok
+	return s.attrs.Load(key)
 }
 
-func (s *_EventSessionImpl) AddAttr(name string, value interface{}) {
-	s.attrs[name] = value
+func (s *_EventSessionImpl) AddAttr(key string, value interface{}) {
+	s.attrs.Store(key, value)
 }
 
 func (s *_EventSessionImpl) AddAttrs(attributes map[string]interface{}) {
 	for k, v := range attributes {
-		s.AddAttr(k, v)
+		s.attrs.Store(k, v)
 	}
 }
 
