@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"sort"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -298,8 +297,9 @@ func (p *Pipeline) deliverToOutput(uuid string, rawJSON *MessagePacket) (*Messag
 // 处理拦截器过程
 func (p *Pipeline) handleInterceptor(session EventSession) {
 	zlog := ZapSugarLogger
+	topic := session.Topic()
 	p.context.OnIfLogV(func() {
-		zlog.Debugf("Interceptor调度处理，Topic: %s", session.Topic())
+		zlog.Debugf("正在Interceptor调度过程，Topic: %s", topic)
 	})
 	defer func() {
 		p.checkRecover(recover(), "Interceptor-Goroutine内部错误")
@@ -308,15 +308,14 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 	matches := make(InterceptorSlice, 0)
 	for el := p.interceptors.Front(); el != nil; el = el.Next() {
 		interceptor := el.Value.(Interceptor)
-		match := anyTopicMatches(interceptor.GetTopicExpr(), session.Topic())
-		p.context.OnIfLogV(func() {
-			zlog.Debugf("拦截器调度： interceptor[%s], topic: %s, match: %s",
-				utils.GetClassName(interceptor),
-				session.Topic(),
-				strconv.FormatBool(match))
-		})
-		if match {
+		intName := utils.GetClassName(interceptor)
+		if anyTopicMatches(interceptor.GetTopicExpr(), topic) {
 			matches = append(matches, interceptor)
+			zlog.Debugf("拦截器正在处理： int[%s], topic: %s", intName, topic)
+		} else {
+			p.context.OnIfLogV(func() {
+				zlog.Debugf("拦截器[未匹配]： int[%s], topic: %s", intName, topic)
+			})
 		}
 	}
 	sort.Sort(matches)
@@ -345,24 +344,24 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 // 处理驱动执行过程
 func (p *Pipeline) handleDriver(session EventSession) {
 	zlog := ZapSugarLogger
+	topic := session.Topic()
 	p.context.OnIfLogV(func() {
-		zlog.Debugf("Driver调度处理，Topic: %s", session.Topic())
+		zlog.Debugf("正在Driver调度过程，Topic: %s", topic)
 	})
 	defer func() {
 		p.checkRecover(recover(), "Driver-Goroutine内部错误")
 	}()
 
-	// 查找匹配的用户驱动，并行处理
+	// 查找匹配的用户驱动
 	for el := p.drivers.Front(); el != nil; el = el.Next() {
 		driver := el.Value.(Driver)
-		match := anyTopicMatches(driver.GetTopicExpr(), session.Topic())
-		p.context.OnIfLogV(func() {
-			zlog.Debugf("用户驱动处理： driver[%s], topic: %s, match: %s",
-				utils.GetClassName(driver),
-				session.Topic(),
-				strconv.FormatBool(match))
-		})
-		if !match {
+		driverName := utils.GetClassName(driver)
+		if anyTopicMatches(driver.GetTopicExpr(), topic) {
+			zlog.Debugf("用户驱动正在处理： driver[%s], topic: %s", driverName, topic)
+		} else {
+			p.context.OnIfLogV(func() {
+				zlog.Debugf("用户驱动[未匹配]： driver[%s], topic: %s", driverName, topic)
+			})
 			return
 		}
 		// Drivers不要并行处理：每个输入消息本身已被协程异步调度；在一个Session周期内，它的执行过程应当是串行的。
@@ -379,7 +378,7 @@ func (p *Pipeline) handleDriver(session EventSession) {
 func (p *Pipeline) output(event EventSession) {
 	p.context.OnIfLogV(func() {
 		zlog := ZapSugarLogger
-		zlog.Debugf("Output调度处理，Topic: %s", event.Topic())
+		zlog.Debugf("正在Output调度过程，Topic: %s", event.Topic())
 		event.Attrs().ForEach(func(k string, v interface{}) {
 			zlog.Debugf("SessionAttr: %s = %v", k, v)
 		})
