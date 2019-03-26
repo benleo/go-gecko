@@ -50,6 +50,9 @@ func (p *Pipeline) Init(config *cfg.Config) {
 	p.context = ctx
 	gecko := p.context.gecko()
 	capacity := gecko.GetInt64OrDefault("eventsCapacity", 8)
+	if capacity <= 0 {
+		capacity = 1
+	}
 	zlog.Infof("事件通道容量： %d", capacity)
 	p.dispatcher = NewDispatcher(int(capacity))
 	p.dispatcher.SetStartHandler(p.handleInterceptor)
@@ -200,10 +203,6 @@ func (p *Pipeline) AwaitTermination() {
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	<-ch
 	ZapSugarLogger.Info("接收到系统停止信号")
-}
-
-func (p *Pipeline) init() {
-
 }
 
 // 准备运行环境，初始化相关组件
