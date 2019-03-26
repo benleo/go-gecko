@@ -231,6 +231,9 @@ func (re *Register) register(configs *cfg.Config,
 		component, config := re.register0(rawType, item)
 		// 初始化0
 		args := config.MustConfig("InitArgs")
+		if nil == args {
+			return
+		}
 		if init, ok := component.(Initial); ok {
 			initFn(init, args)
 		} else
