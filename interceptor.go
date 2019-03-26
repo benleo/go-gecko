@@ -13,6 +13,7 @@ var ErrInterceptorDropped = errors.New("INTERCEPTOR_DROPPED")
 // 负责对触发器发起的事件进行拦截处理，不符合规则的事件将被中断，丢弃。
 type Interceptor interface {
 	NeedTopicFilter
+	NeedName
 	// Interceptor可设置优先级
 	GetPriority() int
 	setPriority(p int)
@@ -23,8 +24,17 @@ type Interceptor interface {
 // Interceptor抽象实现
 type AbcInterceptor struct {
 	Interceptor
+	name     string
 	priority int
 	topics   []*TopicExpr
+}
+
+func (ai *AbcInterceptor) setName(name string) {
+	ai.name = name
+}
+
+func (ai *AbcInterceptor) GetName() string {
+	return ai.name
 }
 
 func (ai *AbcInterceptor) GetPriority() int {

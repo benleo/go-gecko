@@ -227,8 +227,8 @@ func (re *Register) register(configs *cfg.Config,
 	structInitFn func(component StructuredInitial, args *cfg.Config)) {
 
 	// 组件初始化。由外部函数处理，减少不必要的依赖注入
-	configs.ForEach(func(rawType string, item interface{}) {
-		component, config := re.register0(rawType, item)
+	configs.ForEach(func(keyAsTypeName string, item interface{}) {
+		component, config := re.register0(keyAsTypeName, item)
 		if nil == component || config == nil {
 			return
 		}
@@ -247,9 +247,9 @@ func (re *Register) register(configs *cfg.Config,
 	})
 }
 
-func (re *Register) register0(rawType string, item interface{}) (interface{}, *cfg.Config) {
+func (re *Register) register0(keyAsTypeName string, item interface{}) (interface{}, *cfg.Config) {
 	zlog := ZapSugarLogger
-	component, componentType, config, ok := re.factory(rawType, item)
+	component, componentType, config, ok := re.factory(keyAsTypeName, item)
 	if !ok {
 		return nil, nil
 	}
@@ -257,20 +257,31 @@ func (re *Register) register0(rawType string, item interface{}) (interface{}, *c
 	switch component.(type) {
 
 	case Driver:
-		re.AddDriver(component.(Driver))
+		driver := component.(Driver)
+		re.AddDriver(driver)
+		if name := config.MustString("name"); "" != name {
+			driver.setName(name)
+		} else {
+			driver.setName(keyAsTypeName)
+		}
 
 	case Interceptor:
 		it := component.(Interceptor)
 		it.setPriority(int(config.MustInt64("priority")))
+		if name := config.MustString("name"); "" != name {
+			it.setName(name)
+		} else {
+			it.setName(keyAsTypeName)
+		}
 		re.AddInterceptor(it)
 
 	case VirtualDevice:
 		device := component.(VirtualDevice)
 		device.setName(required(config.MustString("name"),
-			"VirtualDevice[%s]配置项[name]是必填参数", componentType))
+			"VirtualDevice[%s::%s]配置项[name]是必填参数", componentType, keyAsTypeName))
 
 		device.setUuid(required(config.MustString("uuid"),
-			"VirtualDevice[%s]配置项[uuid]是必填参数", componentType))
+			"VirtualDevice[%s::%s]配置项[uuid]是必填参数", componentType, keyAsTypeName))
 
 		if nil == device.GetEncoder() {
 			name := required(config.MustString("encoder"),
@@ -330,7 +341,7 @@ func (re *Register) register0(rawType string, item interface{}) (interface{}, *c
 		if plg, ok := component.(Plugin); ok {
 			re.AddPlugin(plg)
 		} else {
-			zlog.Panicf("未支持的组件类型：%s. 你是否没有实现某个函数接口？", componentType)
+			zlog.Panicf("未支持的组件类型：[%s::%s]. 你是否没有实现某个函数接口？", componentType, keyAsTypeName)
 		}
 	}
 

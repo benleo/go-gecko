@@ -9,20 +9,25 @@ import "github.com/parkingwang/go-conf"
 type VirtualDevice interface {
 	// 内部函数
 	setUuid(uuid string)
-	setName(name string)
 	setDecoder(decoder Decoder)
 	setEncoder(encoder Encoder)
 	// 公开可访问函数
 	GetUuid() string
-	GetName() string
 	GetDecoder() Decoder
 	GetEncoder() Encoder
+	NeedName
 }
 
 // 初始化接口提供一个初始化组件的Interface。
 type Initial interface {
 	// 通用类型的组件初始化函数。
 	OnInit(config *cfg.Config, context Context)
+}
+
+// 组件命名
+type NeedName interface {
+	setName(name string)
+	GetName() string
 }
 
 // 初始化接口。

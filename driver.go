@@ -9,6 +9,7 @@ package gecko
 // 控制下一级输出设备。最典型的例子是：Driver接收到门禁刷卡ID后，驱动门锁开关设备；
 type Driver interface {
 	NeedTopicFilter
+	NeedName
 	// 处理外部请求，返回响应结果。
 	// 在Driver内部，可以通过 OutputDeliverer 来控制其它设备。
 	Handle(session EventSession, deliverer OutputDeliverer, ctx Context) error
@@ -18,9 +19,17 @@ type Driver interface {
 
 type AbcDriver struct {
 	Driver
+	name   string
 	topics []*TopicExpr
 }
 
+func (ad *AbcDriver) setName(name string) {
+	ad.name = name
+}
+
+func (ad *AbcDriver) GetName() string {
+	return ad.name
+}
 func (ad *AbcDriver) setTopics(topics []string) {
 	for _, t := range topics {
 		ad.topics = append(ad.topics, newTopicExpr(t))

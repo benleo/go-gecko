@@ -308,13 +308,13 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 	matches := make(InterceptorSlice, 0)
 	for el := p.interceptors.Front(); el != nil; el = el.Next() {
 		interceptor := el.Value.(Interceptor)
-		intName := utils.GetClassName(interceptor)
+		name := interceptor.GetName()
 		if anyTopicMatches(interceptor.GetTopicExpr(), topic) {
 			matches = append(matches, interceptor)
-			zlog.Debugf("拦截器正在处理： int[%s], topic: %s", intName, topic)
+			zlog.Debugf("拦截器正在处理, Int: %s, topic: %s", name, topic)
 		} else {
 			p.context.OnIfLogV(func() {
-				zlog.Debugf("拦截器[未匹配]： int[%s], topic: %s", intName, topic)
+				zlog.Debugf("拦截器[未匹配], Int: %s, topic: %s", name, topic)
 			})
 		}
 	}
@@ -326,14 +326,14 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 			continue
 		}
 		if err == ErrInterceptorDropped {
-			zlog.Debugf("拦截器中断事件： %s", err.Error())
+			zlog.Debugf("拦截器[%s]中断事件： %s", it.GetName(), err.Error())
 			session.Outbound().AddField("error", "InterceptorDropped")
 			// 终止，输出处理
 			session.AddAttr("拦截过程用时", session.Since())
 			p.output(session)
 			return
 		} else {
-			p.failFastLogger(err, "拦截器发生错误")
+			p.failFastLogger(err, "拦截器发生错误:"+it.GetName())
 		}
 	}
 	// 继续
@@ -355,19 +355,19 @@ func (p *Pipeline) handleDriver(session EventSession) {
 	// 查找匹配的用户驱动
 	for el := p.drivers.Front(); el != nil; el = el.Next() {
 		driver := el.Value.(Driver)
-		driverName := utils.GetClassName(driver)
+		name := driver.GetName()
 		if anyTopicMatches(driver.GetTopicExpr(), topic) {
-			zlog.Debugf("用户驱动正在处理： driver[%s], topic: %s", driverName, topic)
+			zlog.Debugf("用户驱动正在处理, Driver: %s, topic: %s", name, topic)
 		} else {
 			p.context.OnIfLogV(func() {
-				zlog.Debugf("用户驱动[未匹配]： driver[%s], topic: %s", driverName, topic)
+				zlog.Debugf("用户驱动[未匹配], Driver: %s, topic: %s", name, topic)
 			})
 			return
 		}
 		// Drivers不要并行处理：每个输入消息本身已被协程异步调度；在一个Session周期内，它的执行过程应当是串行的。
 		// 如果Driver内部存在与Session无关的异步操作，可以由Driver内部自身实现。
 		if err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.context); nil != err {
-			p.failFastLogger(err, "用户驱动发生错误")
+			p.failFastLogger(err, "用户驱动发生错误:"+name)
 		}
 	}
 	// 输出处理
