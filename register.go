@@ -229,6 +229,9 @@ func (re *Register) register(configs *cfg.Config,
 	// 组件初始化。由外部函数处理，减少不必要的依赖注入
 	configs.ForEach(func(rawType string, item interface{}) {
 		component, config := re.register0(rawType, item)
+		if nil == component || config == nil {
+			return
+		}
 		// 初始化0
 		args := config.MustConfig("InitArgs")
 		if nil == args {
@@ -248,7 +251,7 @@ func (re *Register) register0(rawType string, item interface{}) (interface{}, *c
 	zlog := ZapSugarLogger
 	component, componentType, config, ok := re.factory(rawType, item)
 	if !ok {
-		return nil, config
+		return nil, nil
 	}
 
 	switch component.(type) {
