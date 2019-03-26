@@ -117,17 +117,13 @@ func (re *Register) showBundles() {
 	zlog := ZapSugarLogger
 	zlog.Infof("已加载 Interceptors: %d", re.interceptors.Len())
 	utils.ForEach(re.interceptors, func(it interface{}) {
-		zlog.Info("  -> Interceptor: " + utils.GetClassName(it))
+		zlog.Infof("  -> Interceptor: [%s::%s]", utils.GetClassName(it), it.(NeedName).GetName())
 	})
 
 	zlog.Infof("已加载 InputDevices: %d", re.inputs.Len())
 	utils.ForEach(re.inputs, func(it interface{}) {
-		name := utils.GetClassName(it)
-		if vi, ok := it.(VendorInfo); ok {
-			zlog.Infof("  -> InputDevice: %s ## %s", name, vi.Description())
-		} else {
-			zlog.Info("  -> InputDevice: " + name)
-		}
+		typeName := utils.GetClassName(it)
+		zlog.Infof("  -> InputDevice: [%s::%s]", typeName, it.(NeedName).GetName())
 		for _, shadow := range it.(InputDevice).GetLogicList() {
 			zlog.Info("    --> Logic: " + utils.GetClassName(shadow))
 		}
@@ -135,17 +131,13 @@ func (re *Register) showBundles() {
 
 	zlog.Infof("已加载OutputDevices: %d", re.outputs.Len())
 	utils.ForEach(re.outputs, func(it interface{}) {
-		name := utils.GetClassName(it)
-		if vi, ok := it.(VendorInfo); ok {
-			zlog.Infof("  -> OutputDevice: %s ## %s", name, vi.Description())
-		} else {
-			zlog.Info("  -> OutputDevice: " + name)
-		}
+		typeName := utils.GetClassName(it)
+		zlog.Infof("  -> OutputDevice: [%s::%s]", typeName, it.(NeedName).GetName())
 	})
 
 	zlog.Infof("已加载 Drivers: %d", re.drivers.Len())
 	utils.ForEach(re.drivers, func(it interface{}) {
-		zlog.Info("  -> Driver: " + utils.GetClassName(it))
+		zlog.Infof("  -> Driver: [%s::%s]", utils.GetClassName(it), it.(NeedName).GetName())
 	})
 
 	zlog.Infof("已加载 Plugins: %d", re.plugins.Len())
