@@ -49,7 +49,7 @@ func (p *Pipeline) Init(config *cfg.Config) {
 	ctx := p.newGeckoContext(config)
 	p.context = ctx
 	gecko := p.context.gecko()
-	capacity := gecko.GetInt64OrDefault("eventsCapacity", 8)
+	capacity := gecko.GetInt64OrDefault("eventsCapacity", 64)
 	if capacity <= 0 {
 		capacity = 1
 	}
