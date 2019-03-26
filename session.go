@@ -47,13 +47,13 @@ type EventSession interface {
 ////
 
 type _EventSessionImpl struct {
-	timestamp  time.Time
-	attrs      map[string]interface{}
-	topic      string
-	uuid       string
-	inbound    *MessagePacket
-	outbound   *MessagePacket
-	outputChan chan<- *MessagePacket
+	timestamp time.Time
+	attrs     map[string]interface{}
+	topic     string
+	uuid      string
+	inbound   *MessagePacket
+	outbound  *MessagePacket
+	completed chan *MessagePacket
 }
 
 func (s *_EventSessionImpl) Attrs() *cfg.Config {

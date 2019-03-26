@@ -227,7 +227,6 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 		if nil != err {
 			return nil, errors.WithMessage(err, "Input设备Decode数据出错："+masterUuid)
 		}
-		outputChan := make(chan *MessagePacket, 1)
 		attributes := make(map[string]interface{})
 		attributes["@InputDevice.Type"] = utils.GetClassName(masterInput)
 		attributes["@InputDevice.Name"] = masterInput.GetName()
@@ -251,17 +250,18 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 			inputMessage = logic.Transform(inputMessage)
 		}
 		// 发送到Dispatcher调度处理
-		p.dispatcher.StartC() <- &_EventSessionImpl{
-			timestamp:  time.Now(),
-			attrs:      attributes,
-			topic:      inputTopic,
-			uuid:       inputUuid,
-			inbound:    inputMessage,
-			outbound:   NewMessagePacket(),
-			outputChan: outputChan,
+		session := &_EventSessionImpl{
+			timestamp: time.Now(),
+			attrs:     attributes,
+			topic:     inputTopic,
+			uuid:      inputUuid,
+			inbound:   inputMessage,
+			outbound:  NewMessagePacket(),
+			completed: make(chan *MessagePacket, 1),
 		}
+		p.dispatcher.StartC() <- session
 		// 等待处理完成
-		outputMessage := <-outputChan
+		outputMessage := <-session.completed
 		if nil == outputMessage {
 			return nil, errors.New("Input设备发起Deliver请求必须返回结果数据")
 		}
@@ -353,7 +353,6 @@ func (p *Pipeline) handleDriver(session EventSession) {
 	}()
 
 	// 查找匹配的用户驱动，并行处理
-	await := new(sync.WaitGroup)
 	for el := p.drivers.Front(); el != nil; el = el.Next() {
 		driver := el.Value.(Driver)
 		match := anyTopicMatches(driver.GetTopicExpr(), session.Topic())
@@ -366,16 +365,13 @@ func (p *Pipeline) handleDriver(session EventSession) {
 		if !match {
 			return
 		}
-		await.Add(1)
-		go func() {
-			defer await.Done()
-			if err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.context); nil != err {
-				p.failFastLogger(err, "用户驱动发生错误")
-			}
-		}()
+		// Drivers不要并行处理：每个输入消息本身已被协程异步调度；在一个Session周期内，它的执行过程应当是串行的。
+		// 如果Driver内部存在与Session无关的异步操作，可以由Driver内部自身实现。
+		if err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.context); nil != err {
+			p.failFastLogger(err, "用户驱动发生错误")
+		}
 	}
 	// 输出处理
-	await.Wait()
 	session.AddAttr("驱动过程用时", session.Since())
 	p.output(session)
 }
@@ -392,7 +388,7 @@ func (p *Pipeline) output(event EventSession) {
 		p.checkRecover(recover(), "Output-Goroutine内部错误")
 	}()
 	// 返回处理结果
-	event.(*_EventSessionImpl).outputChan <- event.Outbound()
+	event.(*_EventSessionImpl).completed <- event.Outbound()
 }
 
 func (p *Pipeline) checkDefTimeout(msg string, act func(Context)) {
@@ -402,15 +398,16 @@ func (p *Pipeline) checkDefTimeout(msg string, act func(Context)) {
 }
 
 func (p *Pipeline) checkRecover(r interface{}, msg string) {
-	if nil != r {
-		zlog := ZapSugarLogger
-		if err, ok := r.(error); ok {
-			zlog.Errorw(msg, "error", err)
-		}
-		p.context.OnIfFailFast(func() {
-			zlog.Fatal(r)
-		})
+	if nil == r {
+		return
 	}
+	zlog := ZapSugarLogger
+	if err, ok := r.(error); ok {
+		zlog.Errorw(msg, "error", err)
+	}
+	p.context.OnIfFailFast(func() {
+		zlog.Fatal(r)
+	})
 }
 
 func (p *Pipeline) failFastLogger(err error, msg string) {
