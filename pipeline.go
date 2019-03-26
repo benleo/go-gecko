@@ -352,27 +352,28 @@ func (p *Pipeline) handleDriver(session EventSession) {
 		p.checkRecover(recover(), "Driver-Goroutine内部错误")
 	}()
 
+	defer func() {
+		// 输出处理
+		session.AddAttr("驱动过程用时", session.Since())
+		p.output(session)
+	}()
 	// 查找匹配的用户驱动
 	for el := p.drivers.Front(); el != nil; el = el.Next() {
 		driver := el.Value.(Driver)
 		name := driver.GetName()
 		if anyTopicMatches(driver.GetTopicExpr(), topic) {
 			zlog.Debugf("用户驱动正在处理, Driver: %s, topic: %s", name, topic)
+			// Drivers不要并行处理：每个输入消息本身已被协程异步调度；在一个Session周期内，它的执行过程应当是串行的。
+			// 如果Driver内部存在与Session无关的异步操作，可以由Driver内部自身实现。
+			if err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.context); nil != err {
+				p.failFastLogger(err, "用户驱动发生错误:"+name)
+			}
 		} else {
 			p.context.OnIfLogV(func() {
 				zlog.Debugf("用户驱动[未匹配], Driver: %s, topic: %s", name, topic)
 			})
-			return
-		}
-		// Drivers不要并行处理：每个输入消息本身已被协程异步调度；在一个Session周期内，它的执行过程应当是串行的。
-		// 如果Driver内部存在与Session无关的异步操作，可以由Driver内部自身实现。
-		if err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.context); nil != err {
-			p.failFastLogger(err, "用户驱动发生错误:"+name)
 		}
 	}
-	// 输出处理
-	session.AddAttr("驱动过程用时", session.Since())
-	p.output(session)
 }
 
 func (p *Pipeline) output(event EventSession) {
