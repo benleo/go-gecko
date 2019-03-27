@@ -1,6 +1,8 @@
 package gecko
 
 import (
+	"github.com/parkingwang/go-conf"
+	"github.com/yoojia/go-gecko/utils"
 	"sync"
 	"time"
 )
@@ -9,21 +11,92 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-////
-
-// EventSession 是每次请求生成的上下文对象，服务于事件请求的整个生命周期。
-type EventSession interface {
-	// 返回属性列表
+type Attributes interface {
+	// 返回属性列表. 只读属性
 	Attrs() map[string]interface{}
 
 	// 添加属性
 	AddAttr(key string, value interface{})
 
-	// 添加多个属性。相同Key的属性将被覆盖。
-	AddAttrs(attributes map[string]interface{})
-
 	// 获取属性
 	GetAttr(key string) (interface{}, bool)
+
+	// 获取属性值, 如果不存在,返回 nil
+	GetAttrOrNil(key string) interface{}
+
+	// 获取String类型属性
+	GetAttrString(key string) (string, bool)
+
+	// 获取Int64类型的属性
+	GetAttrInt64(key string) (int64, bool)
+
+	// 判断属性是否存在
+	HasAttr(key string) bool
+}
+
+type attributesMap struct {
+	Attributes
+	values *sync.Map
+}
+
+func (a *attributesMap) Attrs() map[string]interface{} {
+	rom := make(map[string]interface{})
+	a.values.Range(func(key, value interface{}) bool {
+		rom[key.(string)] = value
+		return true
+	})
+	return rom
+}
+
+func (a *attributesMap) AddAttr(key string, value interface{}) {
+	a.values.Store(key, value)
+}
+
+func (a *attributesMap) GetAttr(key string) (interface{}, bool) {
+	return a.values.Load(key)
+}
+
+func (a *attributesMap) GetAttrOrNil(key string) interface{} {
+	v, ok := a.values.Load(key)
+	if ok {
+		return v
+	} else {
+		return nil
+	}
+}
+
+func (a *attributesMap) GetAttrString(key string) (string, bool) {
+	val, ok := a.values.Load(key)
+	if ok {
+		return cfg.Value2String(val), true
+	} else {
+		return "", false
+	}
+}
+
+func (a *attributesMap) GetAttrInt64(key string) (int64, bool) {
+	val, ok := a.values.Load(key)
+	if ok {
+		return utils.AnyToInt64(val)
+	} else {
+		return 0, false
+	}
+}
+
+func (a *attributesMap) HasAttr(key string) bool {
+	_, ok := a.values.Load(key)
+	return ok
+}
+
+func newMapAttributes() *attributesMap {
+	return &attributesMap{values: new(sync.Map)}
+}
+
+////
+
+// EventSession 是每次请求生成的上下文对象，服务于事件请求的整个生命周期。
+type EventSession interface {
+	Attributes
 
 	// 创建的时间戳
 	Timestamp() time.Time
@@ -48,35 +121,12 @@ type EventSession interface {
 
 type _EventSessionImpl struct {
 	timestamp time.Time
-	attrs     *sync.Map
+	*attributesMap
 	topic     string
 	uuid      string
 	inbound   *MessagePacket
 	outbound  *MessagePacket
 	completed chan *MessagePacket
-}
-
-func (s *_EventSessionImpl) Attrs() map[string]interface{} {
-	m := make(map[string]interface{}, 0)
-	s.attrs.Range(func(key, value interface{}) bool {
-		m[key.(string)] = value
-		return true
-	})
-	return m
-}
-
-func (s *_EventSessionImpl) GetAttr(key string) (interface{}, bool) {
-	return s.attrs.Load(key)
-}
-
-func (s *_EventSessionImpl) AddAttr(key string, value interface{}) {
-	s.attrs.Store(key, value)
-}
-
-func (s *_EventSessionImpl) AddAttrs(attributes map[string]interface{}) {
-	for k, v := range attributes {
-		s.attrs.Store(k, v)
-	}
 }
 
 func (s *_EventSessionImpl) Timestamp() time.Time {

@@ -249,13 +249,13 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 		}
 		// 发送到Dispatcher调度处理
 		session := &_EventSessionImpl{
-			timestamp: time.Now(),
-			attrs:     new(sync.Map),
-			topic:     inputTopic,
-			uuid:      inputUuid,
-			inbound:   inputMessage,
-			outbound:  NewMessagePacket(),
-			completed: make(chan *MessagePacket, 1),
+			attributesMap: newMapAttributes(),
+			timestamp:     time.Now(),
+			topic:         inputTopic,
+			uuid:          inputUuid,
+			inbound:       inputMessage,
+			outbound:      NewMessagePacket(),
+			completed:     make(chan *MessagePacket, 1),
 		}
 		p.dispatcher.StartC() <- session
 		// 等待处理完成
