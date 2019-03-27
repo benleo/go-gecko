@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/parkingwang/go-conf"
 	"github.com/pkg/errors"
-	"github.com/yoojia/go-gecko/utils"
 	"sync"
 )
 
@@ -88,7 +87,12 @@ func (a *fieldsMap) GetFieldString(key string) (string, bool) {
 func (a *fieldsMap) GetFieldInt64(key string) (int64, bool) {
 	val, ok := a.fields.Load(key)
 	if ok {
-		return utils.AnyToInt64(val)
+		str := cfg.Value2String(val)
+		if v, err := cfg.Value(str).Int64(); nil != err {
+			return 0, false
+		} else {
+			return v, true
+		}
 	} else {
 		return 0, false
 	}
