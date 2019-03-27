@@ -2,7 +2,9 @@ package gecko
 
 import (
 	"encoding/json"
+	"github.com/parkingwang/go-conf"
 	"github.com/pkg/errors"
+	"github.com/yoojia/go-gecko/utils"
 	"sync"
 )
 
@@ -10,31 +12,101 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-// 对象数据消息包
-type MessagePacket struct {
-	fields *sync.Map
-	frames []byte
+type Fields interface {
+	// 迭代
+	RangeFields(consumer func(name string, value interface{}))
+
+	// 返回属性列表. 只读属性
+	GetFields() map[string]interface{}
+
+	// 添加属性
+	AddField(key string, value interface{})
+
+	// 获取属性
+	GetField(key string) (interface{}, bool)
+
+	// 获取属性值, 如果不存在,返回 nil
+	GetFieldOrNil(key string) interface{}
+
+	// 获取String类型属性
+	GetFieldString(key string) (string, bool)
+
+	// 获取Int64类型的属性
+	GetFieldInt64(key string) (int64, bool)
+
+	// 判断属性是否存在
+	HasField(key string) bool
 }
 
-func (m *MessagePacket) EachFields(consumer func(name string, value interface{})) {
-	m.fields.Range(func(key, value interface{}) bool {
+type fieldsMap struct {
+	Fields
+	fields *sync.Map
+}
+
+func (a *fieldsMap) RangeFields(consumer func(name string, value interface{})) {
+	a.fields.Range(func(key, value interface{}) bool {
 		consumer(key.(string), value)
 		return true
 	})
 }
 
-func (m *MessagePacket) AddField(name string, value interface{}) *MessagePacket {
-	m.fields.Store(name, value)
-	return m
+func (a *fieldsMap) GetFields() map[string]interface{} {
+	rom := make(map[string]interface{})
+	a.fields.Range(func(key, value interface{}) bool {
+		rom[key.(string)] = value
+		return true
+	})
+	return rom
 }
 
-func (m *MessagePacket) GetField(name string) (interface{}, bool) {
-	return m.fields.Load(name)
+func (a *fieldsMap) AddField(key string, value interface{}) {
+	a.fields.Store(key, value)
 }
 
-func (m *MessagePacket) FieldOrNil(name string) interface{} {
-	v, _ := m.fields.Load(name)
-	return v
+func (a *fieldsMap) GetField(key string) (interface{}, bool) {
+	return a.fields.Load(key)
+}
+
+func (a *fieldsMap) GetFieldOrNil(key string) interface{} {
+	v, ok := a.fields.Load(key)
+	if ok {
+		return v
+	} else {
+		return nil
+	}
+}
+
+func (a *fieldsMap) GetFieldString(key string) (string, bool) {
+	val, ok := a.fields.Load(key)
+	if ok {
+		return cfg.Value2String(val), true
+	} else {
+		return "", false
+	}
+}
+
+func (a *fieldsMap) GetFieldInt64(key string) (int64, bool) {
+	val, ok := a.fields.Load(key)
+	if ok {
+		return utils.AnyToInt64(val)
+	} else {
+		return 0, false
+	}
+}
+
+func (a *fieldsMap) HasField(key string) bool {
+	_, ok := a.fields.Load(key)
+	return ok
+}
+
+func newMapFields() *fieldsMap {
+	return &fieldsMap{fields: new(sync.Map)}
+}
+
+// 对象数据消息包
+type MessagePacket struct {
+	*fieldsMap
+	frames []byte
 }
 
 func (m *MessagePacket) GetFrames() []byte {
@@ -51,13 +123,13 @@ func (m *MessagePacket) SetFrames(b []byte) *MessagePacket {
 }
 
 func NewMessagePacketWith(fields map[string]interface{}, frames []byte) *MessagePacket {
-	m := new(sync.Map)
+	m := newMapFields()
 	for k, v := range fields {
-		m.Store(k, v)
+		m.fields.Store(k, v)
 	}
 	return &MessagePacket{
-		fields: m,
-		frames: frames,
+		fieldsMap: m,
+		frames:    frames,
 	}
 }
 
