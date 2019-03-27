@@ -77,8 +77,9 @@ func (d *StrategyDriver) OnInit(args *cfg.Config, ctx gecko.Context) {
 		d.AddDriveStrategy(func(event *gecko.MessagePacket) *ConnectedDevice {
 			// 检查是否匹配字段
 			matches := true
-			for k, v := range matchFields {
-				if v == cfg.Value2String(event.FieldOrNil(k)) {
+			for key, excepted := range matchFields {
+				value, ok := event.GetFieldString(key)
+				if ok && excepted != value {
 					matches = false
 					break
 				}
