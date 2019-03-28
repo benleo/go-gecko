@@ -88,8 +88,12 @@ func (a *attributesMap) HasAttr(key string) bool {
 	return ok
 }
 
-func newMapAttributes() *attributesMap {
-	return &attributesMap{values: new(sync.Map)}
+func newMapAttributesWith(attrs map[string]interface{}) *attributesMap {
+	am := &attributesMap{values: new(sync.Map)}
+	for k, v := range attrs {
+		am.values.Store(k, v)
+	}
+	return am
 }
 
 ////

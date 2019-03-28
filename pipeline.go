@@ -249,7 +249,7 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 		}
 		// 发送到Dispatcher调度处理
 		session := &_EventSessionImpl{
-			attributesMap: newMapAttributes(),
+			attributesMap: newMapAttributesWith(attributes),
 			timestamp:     time.Now(),
 			topic:         inputTopic,
 			uuid:          inputUuid,
