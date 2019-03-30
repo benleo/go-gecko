@@ -1,7 +1,6 @@
 package nop
 
 import (
-	"github.com/parkingwang/go-conf"
 	"github.com/yoojia/go-gecko"
 )
 
@@ -26,7 +25,7 @@ type NopLogicDevice struct {
 	gecko.Initial
 }
 
-func (s *NopLogicDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
+func (s *NopLogicDevice) OnInit(config map[string]interface{}, ctx gecko.Context) {
 	// nop
 }
 

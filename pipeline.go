@@ -2,10 +2,10 @@ package gecko
 
 import (
 	"context"
-	"github.com/parkingwang/go-conf"
 	"github.com/pkg/errors"
 	"github.com/yoojia/go-gecko/structs"
 	"github.com/yoojia/go-gecko/utils"
+	"github.com/yoojia/go-value"
 	"os"
 	"os/signal"
 	"sort"
@@ -44,12 +44,12 @@ type Pipeline struct {
 }
 
 // 初始化Pipeline
-func (p *Pipeline) Init(config *cfg.Config) {
+func (p *Pipeline) Init(config map[string]interface{}) {
 	zlog := ZapSugarLogger
 	ctx := p.newGeckoContext(config)
 	p.context = ctx
 	gecko := p.context.gecko()
-	capacity := gecko.GetInt64OrDefault("eventsCapacity", 64)
+	capacity := value.Of(gecko["eventsCapacity"]).Int64OrDefault(100)
 	if capacity <= 0 {
 		capacity = 1
 	}
@@ -61,11 +61,11 @@ func (p *Pipeline) Init(config *cfg.Config) {
 	go p.dispatcher.Serve(p.shutdownCtx)
 
 	// 初始化组件：根据配置文件指定项目
-	initFn := func(it Initial, args *cfg.Config) {
+	initFn := func(it Initial, args map[string]interface{}) {
 		it.OnInit(args, p.context)
 	}
 	// 使用结构化的参数来初始化
-	structInitFn := func(it StructuredInitial, args *cfg.Config) {
+	structInitFn := func(it StructuredInitial, args map[string]interface{}) {
 		structConfig := it.StructuredConfig()
 		m2sDecoder, err := structs.NewDecoder(&structs.DecoderConfig{
 			TagName: "toml",
@@ -74,41 +74,41 @@ func (p *Pipeline) Init(config *cfg.Config) {
 		if nil != err {
 			zlog.Panic("无法创建Map2Struct解码器", err)
 		}
-		if err := m2sDecoder.Decode(args.RefMap()); nil != err {
+		if err := m2sDecoder.Decode(args); nil != err {
 			zlog.Panic("Map2Struct解码出错", err)
 		}
 		it.Init(structConfig, p.context)
 	}
 
-	if ctx.cfgPlugins.IsEmpty() {
+	if 0 == len(ctx.cfgPlugins) {
 		zlog.Warn("警告：未配置任何[Plugin]组件")
 	} else {
 		p.register(ctx.cfgPlugins, initFn, structInitFn)
 	}
-	if ctx.cfgOutputs.IsEmpty() {
+	if 0 == len(ctx.cfgOutputs) {
 		zlog.Fatal("严重：未配置任何[OutputDevice]组件")
 	} else {
 		p.register(ctx.cfgOutputs, initFn, structInitFn)
 	}
-	if ctx.cfgInterceptors.IsEmpty() {
+	if 0 == len(ctx.cfgInterceptors) {
 		zlog.Warn("警告：未配置任何[Interceptor]组件")
 	} else {
 		p.register(ctx.cfgInterceptors, initFn, structInitFn)
 	}
-	if ctx.cfgDrivers.IsEmpty() {
+	if 0 == len(ctx.cfgDrivers) {
 		zlog.Warn("警告：未配置任何[Driver]组件")
 	} else {
 		p.register(ctx.cfgDrivers, initFn, structInitFn)
 	}
-	if ctx.cfgInputs.IsEmpty() {
+	if 0 == len(ctx.cfgInputs) {
 		zlog.Fatal("严重：未配置任何[InputDevice]组件")
 	} else {
 		p.register(ctx.cfgInputs, initFn, structInitFn)
 	}
-	if !ctx.cfgLogics.IsEmpty() {
-		p.register(ctx.cfgLogics, initFn, structInitFn)
-	} else {
+	if 0 == len(ctx.cfgLogics) {
 		zlog.Warn("警告：未配置任何[LogicDevice]组件")
+	} else {
+		p.register(ctx.cfgLogics, initFn, structInitFn)
 	}
 	// show
 	p.showBundles()
@@ -425,16 +425,16 @@ func (p *Pipeline) failFastLogger(err error, msg string) {
 	}
 }
 
-func (p *Pipeline) newGeckoContext(config *cfg.Config) *_GeckoContext {
+func (p *Pipeline) newGeckoContext(config map[string]interface{}) *_GeckoContext {
 	return &_GeckoContext{
-		cfgGeckos:       config.MustConfig("GECKO"),
-		cfgGlobals:      config.MustConfig("GLOBALS"),
-		cfgInterceptors: config.MustConfig("INTERCEPTORS"),
-		cfgDrivers:      config.MustConfig("DRIVERS"),
-		cfgOutputs:      config.MustConfig("OUTPUTS"),
-		cfgInputs:       config.MustConfig("INPUTS"),
-		cfgPlugins:      config.MustConfig("PLUGINS"),
-		cfgLogics:       config.MustConfig("LOGICS"),
+		cfgGeckos:       utils.ToMap(config["GECKO"]),
+		cfgGlobals:      utils.ToMap(config["GLOBALS"]),
+		cfgInterceptors: utils.ToMap(config["INTERCEPTORS"]),
+		cfgDrivers:      utils.ToMap(config["DRIVERS"]),
+		cfgOutputs:      utils.ToMap(config["OUTPUTS"]),
+		cfgInputs:       utils.ToMap(config["INPUTS"]),
+		cfgPlugins:      utils.ToMap(config["PLUGINS"]),
+		cfgLogics:       utils.ToMap(config["LOGICS"]),
 		scopedKV:        make(map[interface{}]interface{}),
 		plugins:         p.plugins,
 		interceptors:    p.interceptors,

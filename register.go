@@ -2,8 +2,8 @@ package gecko
 
 import (
 	"container/list"
-	"github.com/parkingwang/go-conf"
 	"github.com/yoojia/go-gecko/utils"
+	"github.com/yoojia/go-value"
 )
 
 //
@@ -190,20 +190,19 @@ func (re *Register) ensureUniqueUUID(uuid string) string {
 	return uuid
 }
 
-func (re *Register) factory(cType string, configItem interface{}) (obj interface{}, bType string, config *cfg.Config, ok bool) {
+func (re *Register) factory(cType string, configItem interface{}) (obj interface{}, typeName string, config map[string]interface{}, ok bool) {
 	zlog := ZapSugarLogger
 	asMap, ok := configItem.(map[string]interface{})
 	if !ok {
 		zlog.Panicf("组件配置信息类型错误: %s", cType)
 	}
-	wrap := cfg.Wrap(asMap)
-	if wrap.MustBool("disable") {
+	if value.Of(asMap["disable"]).MustBool() {
 		zlog.Infof("组件[%s]在配置中禁用", cType)
 		return nil, cType, nil, false
 	}
 
 	// 配置选项中，指定 type 字段为类型名称
-	if typeName := wrap.MustString("type"); "" != typeName {
+	if typeName := value.Of(asMap["type"]).String(); "" != typeName {
 		cType = typeName
 	}
 
@@ -211,35 +210,34 @@ func (re *Register) factory(cType string, configItem interface{}) (obj interface
 	if !ok {
 		zlog.Panicf("组件类型[%s]，没有注册对应的工厂函数", cType)
 	}
-	return factory(), cType, wrap, true
+	return factory(), cType, asMap, true
 }
 
-func (re *Register) register(configs *cfg.Config,
-	initFn func(component Initial, args *cfg.Config),
-	structInitFn func(component StructuredInitial, args *cfg.Config)) {
-
+func (re *Register) register(
+	configs map[string]interface{},
+	initFn func(component Initial, args map[string]interface{}),
+	structInitFn func(component StructuredInitial, args map[string]interface{})) {
 	// 组件初始化。由外部函数处理，减少不必要的依赖注入
-	configs.ForEach(func(keyAsTypeName string, item interface{}) {
+	for keyAsTypeName, item := range configs {
 		component, config := re.register0(keyAsTypeName, item)
 		if nil == component || config == nil {
-			return
+			continue
 		}
 		// 初始化0
-		args := config.MustConfig("InitArgs")
+		args := utils.ToMap(config["InitArgs"])
 		if nil == args {
-			return
+			continue
 		}
 		if init, ok := component.(Initial); ok {
 			initFn(init, args)
-		} else
-		// 初始化1
-		if init, ok := component.(StructuredInitial); ok {
+		} else if init, ok := component.(StructuredInitial); ok {
 			structInitFn(init, args)
 		}
-	})
+	}
+
 }
 
-func (re *Register) register0(keyAsTypeName string, item interface{}) (interface{}, *cfg.Config) {
+func (re *Register) register0(keyAsTypeName string, item interface{}) (interface{}, map[string]interface{}) {
 	zlog := ZapSugarLogger
 	component, componentType, config, ok := re.factory(keyAsTypeName, item)
 	if !ok {
@@ -251,7 +249,7 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 	case Driver:
 		driver := component.(Driver)
 		re.AddDriver(driver)
-		if name := config.MustString("name"); "" != name {
+		if name := value.Of(config["name"]).String(); "" != name {
 			driver.setName(name)
 		} else {
 			driver.setName(keyAsTypeName)
@@ -259,8 +257,8 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 
 	case Interceptor:
 		it := component.(Interceptor)
-		it.setPriority(int(config.MustInt64("priority")))
-		if name := config.MustString("name"); "" != name {
+		it.setPriority(int(value.Of(config["priority"]).MustInt64()))
+		if name := value.Of(config["name"]).String(); "" != name {
 			it.setName(name)
 		} else {
 			it.setName(keyAsTypeName)
@@ -269,34 +267,34 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 
 	case VirtualDevice:
 		device := component.(VirtualDevice)
-		device.setName(required(config.MustString("name"),
+		device.setName(required(value.Of(config["name"]).String(),
 			"VirtualDevice[%s::%s]配置项[name]是必填参数", componentType, keyAsTypeName))
 
-		device.setUuid(required(config.MustString("uuid"),
+		device.setUuid(required(value.Of(config["uuid"]).String(),
 			"VirtualDevice[%s::%s]配置项[uuid]是必填参数", componentType, keyAsTypeName))
 
 		if nil == device.GetEncoder() {
-			name := required(config.MustString("encoder"),
+			encoder := required(value.Of(config["encoder"]).String(),
 				"未设置默认Encoder时，Device[%s]配置项[encoder]是必填参数", componentType)
-			if encoder, ok := re.namedEncoders[name]; ok {
+			if encoder, ok := re.namedEncoders[encoder]; ok {
 				device.setEncoder(encoder)
 			} else {
-				zlog.Panicf("Encoder[%s]未注册", name)
+				zlog.Panicf("Encoder[%s]未注册", encoder)
 			}
 		}
 
 		if nil == device.GetDecoder() {
-			name := required(config.MustString("decoder"),
+			decoder := required(value.Of(config["decoder"]).String(),
 				"未设置默认Decoder时，Device[%s]配置项[decoder]是必填参数", componentType)
-			if decoder, ok := re.namedDecoders[name]; ok {
+			if decoder, ok := re.namedDecoders[decoder]; ok {
 				device.setDecoder(decoder)
 			} else {
-				zlog.Panicf("Decoder[%s]未注册", name)
+				zlog.Panicf("Decoder[%s]未注册", decoder)
 			}
 		}
 
 		if inputDevice, ok := device.(InputDevice); ok {
-			inputDevice.setTopic(required(config.MustString("topic"),
+			inputDevice.setTopic(required(value.Of(config["topic"]).String(),
 				"VirtualDevice[%s]配置项[topic]是必填参数", componentType))
 			re.AddInputDevice(inputDevice)
 		} else if outputDevice, ok := device.(OutputDevice); ok {
@@ -307,16 +305,16 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 
 	case LogicDevice:
 		logic := component.(LogicDevice)
-		logic.setUuid(required(config.MustString("uuid"),
+		logic.setUuid(required(value.Of(config["uuid"]).String(),
 			"LogicDevice[%s]配置项[uuid]是必填参数", componentType))
 
-		logic.setName(required(config.MustString("name"),
+		logic.setName(required(value.Of(config["name"]).String(),
 			"LogicDevice[%s]配置项[name]是必填参数", componentType))
 
-		logic.setTopic(required(config.MustString("topic"),
+		logic.setTopic(required(value.Of(config["topic"]).String(),
 			"LogicDevice[%s]配置项[topic]是必填参数", componentType))
 
-		masterUuid := required(config.MustString("masterUuid"),
+		masterUuid := required(value.Of(config["masterUuid"]).String(),
 			"LogicDevice[%s]配置项[masterUuid]是必填参数", componentType)
 		logic.setMasterUuid(masterUuid)
 
@@ -339,8 +337,8 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 
 	// Interceptor / Driver 需要Topic过滤
 	if tf, ok := component.(NeedTopicFilter); ok {
-		if topics, err := config.MustStringArray("topics"); nil != err || 0 == len(topics) {
-			zlog.Panicw("配置项中[topics]必须是字符串数组", "type", componentType, "error", err)
+		if topics := utils.ToStringArray(config["topics"]); 0 == len(topics) {
+			zlog.Panicw("配置项中[topics]必须是字符串数组", "type", componentType)
 		} else {
 			tf.setTopics(topics)
 		}

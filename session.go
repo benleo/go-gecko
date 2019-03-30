@@ -2,7 +2,7 @@ package gecko
 
 import (
 	"github.com/parkingwang/go-conf"
-	"github.com/yoojia/go-gecko/utils"
+	"github.com/yoojia/go-value"
 	"sync"
 	"time"
 )
@@ -77,7 +77,7 @@ func (a *attributesMap) GetAttrString(key string) (string, bool) {
 func (a *attributesMap) GetAttrInt64(key string) (int64, bool) {
 	val, ok := a.values.Load(key)
 	if ok {
-		return utils.AnyToInt64(val)
+		return value.Of(val).ToInt64()
 	} else {
 		return 0, false
 	}

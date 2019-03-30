@@ -1,15 +1,15 @@
 package serial
 
 import (
-	"github.com/parkingwang/go-conf"
 	"github.com/tarm/serial"
+	"github.com/yoojia/go-value"
 	"strings"
 	"time"
 )
 
-func getSerialConfig(config *cfg.Config, timeout time.Duration) *serial.Config {
+func getSerialConfig(config map[string]interface{}, timeout time.Duration) *serial.Config {
 	parity := serial.ParityNone
-	switch strings.ToUpper(config.MustString("parity")) {
+	switch strings.ToUpper(value.Of(config["parity"]).String()) {
 	case "N", "NONE":
 		parity = serial.ParityNone
 	case "O", "ODD":
@@ -25,11 +25,11 @@ func getSerialConfig(config *cfg.Config, timeout time.Duration) *serial.Config {
 		parity = serial.ParityNone
 	}
 	return &serial.Config{
-		Name:        config.MustString("serialPort"),
-		Baud:        int(config.MustInt64("baudRate")),
-		Size:        byte(config.MustInt64("dataBit")),
+		Name:        value.Of(config["serialPort"]).String(),
+		Baud:        int(value.Of(config["baudRate"]).MustInt64()),
+		Size:        byte(value.Of(config["dataBit"]).MustInt64()),
 		Parity:      parity,
-		StopBits:    serial.StopBits(config.MustInt64("stopBits")),
+		StopBits:    serial.StopBits(value.Of(config["stopBits"]).MustInt64()),
 		ReadTimeout: timeout,
 	}
 }

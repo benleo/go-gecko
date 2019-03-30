@@ -1,17 +1,17 @@
 package gecko
 
 import (
-	"github.com/parkingwang/go-conf"
+	"github.com/yoojia/go-gecko/utils"
 )
 
 // Bootstrap提供一个启动入口
 func Bootstrap(prepare func(pipeline *Pipeline)) {
 	log := ZapSugarLogger
-	config, err := cfg.LoadConfig("conf.d")
+	config, err := utils.LoadConfig("conf.d")
 	if nil != err {
 		log.Panicw("加载配置文件出错", "err", err)
 	}
-	if config.IsEmpty() {
+	if 0 == len(config) {
 		log.Panic("没有任何配置信息")
 	}
 	pipeline := SharedPipeline()

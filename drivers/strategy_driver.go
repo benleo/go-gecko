@@ -38,7 +38,7 @@ func (ds DriveStrategy) Do(event *gecko.MessagePacket) *ConnectedDevice {
 // 策略驱动Driver
 type StrategyDriver struct {
 	*gecko.AbcDriver
-	initArgs   *cfg.Config
+	initArgs   map[string]interface{}
 	strategies []DriveStrategy
 }
 
@@ -47,11 +47,11 @@ func (d *StrategyDriver) AddDriveStrategy(strategy DriveStrategy) {
 	d.strategies = append(d.strategies, strategy)
 }
 
-func (d *StrategyDriver) GetInitArgs() *cfg.Config {
+func (d *StrategyDriver) GetInitArgs() map[string]interface{} {
 	return d.initArgs
 }
 
-func (d *StrategyDriver) OnInit(args *cfg.Config, ctx gecko.Context) {
+func (d *StrategyDriver) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	d.initArgs = args
 
 	strategies := args.MustConfig("strategies")

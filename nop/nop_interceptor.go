@@ -1,7 +1,6 @@
 package nop
 
 import (
-	"github.com/parkingwang/go-conf"
 	"github.com/yoojia/go-gecko"
 )
 
@@ -14,7 +13,7 @@ type NopInterceptor struct {
 	gecko.Initial
 }
 
-func (ni *NopInterceptor) OnInit(config *cfg.Config, ctx gecko.Context) {
+func (ni *NopInterceptor) OnInit(config map[string]interface{}, ctx gecko.Context) {
 
 }
 
