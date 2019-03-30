@@ -3,6 +3,7 @@ package drivers
 import (
 	"github.com/parkingwang/go-conf"
 	"github.com/yoojia/go-gecko"
+	"github.com/yoojia/go-gecko/utils"
 )
 
 //
@@ -54,10 +55,8 @@ func (d *StrategyDriver) GetInitArgs() map[string]interface{} {
 func (d *StrategyDriver) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	d.initArgs = args
 
-	strategies := args.MustConfig("strategies")
 	zlog := gecko.ZapSugarLogger
-
-	strategies.ForEach(func(name string, value interface{}) {
+	for _, value := range utils.ToMap(args["strategies"]) {
 		strategy := cfg.Wrap(value.(map[string]interface{}))
 		matchFields, err := strategy.GetStringMapOrDefault("matchFields", make(map[string]string, 0))
 		if err != nil {
@@ -93,7 +92,7 @@ func (d *StrategyDriver) OnInit(args map[string]interface{}, ctx gecko.Context) 
 				Payload:    gecko.NewMessagePacketFields(command.RefMap()),
 			}
 		})
-	})
+	}
 
 }
 

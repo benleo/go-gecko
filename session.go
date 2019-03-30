@@ -1,7 +1,6 @@
 package gecko
 
 import (
-	"github.com/parkingwang/go-conf"
 	"github.com/yoojia/go-value"
 	"sync"
 	"time"
@@ -68,7 +67,7 @@ func (a *attributesMap) GetAttrOrNil(key string) interface{} {
 func (a *attributesMap) GetAttrString(key string) (string, bool) {
 	val, ok := a.values.Load(key)
 	if ok {
-		return cfg.Value2String(val), true
+		return value.Of(val).String(), true
 	} else {
 		return "", false
 	}
