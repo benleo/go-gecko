@@ -23,7 +23,7 @@ type TopicExpr struct {
 
 // 判断当前Topic与外部Topic是否匹配
 func (t *TopicExpr) matches(topic string) bool {
-	ss := strings.Split(topic, "/")
+	ss := strings.Split(topic, "/")[1:]
 	if len(t.exprs) > len(ss) {
 		return false
 	}
@@ -39,6 +39,6 @@ func (t *TopicExpr) matches(topic string) bool {
 
 func newTopicExpr(expr string) *TopicExpr {
 	return &TopicExpr{
-		exprs: strings.Split(expr, "/"),
+		exprs: strings.Split(expr, "/")[1:],
 	}
 }

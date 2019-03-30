@@ -2,7 +2,6 @@ module github.com/yoojia/go-gecko
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
-	github.com/parkingwang/go-conf v2.2.2+incompatible
 	github.com/pelletier/go-toml v1.2.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/stretchr/testify v1.3.0 // indirect
