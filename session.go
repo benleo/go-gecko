@@ -39,12 +39,12 @@ type attributesMap struct {
 }
 
 func (a *attributesMap) Attrs() map[string]interface{} {
-	rom := make(map[string]interface{})
+	out := make(map[string]interface{})
 	a.values.Range(func(key, value interface{}) bool {
-		rom[key.(string)] = value
+		out[key.(string)] = value
 		return true
 	})
-	return rom
+	return out
 }
 
 func (a *attributesMap) AddAttr(key string, value interface{}) {
@@ -56,8 +56,7 @@ func (a *attributesMap) GetAttr(key string) (interface{}, bool) {
 }
 
 func (a *attributesMap) GetAttrOrNil(key string) interface{} {
-	v, ok := a.values.Load(key)
-	if ok {
+	if v, ok := a.values.Load(key); ok {
 		return v
 	} else {
 		return nil
@@ -65,8 +64,7 @@ func (a *attributesMap) GetAttrOrNil(key string) interface{} {
 }
 
 func (a *attributesMap) GetAttrString(key string) (string, bool) {
-	val, ok := a.values.Load(key)
-	if ok {
+	if val, ok := a.values.Load(key); ok {
 		return value.Of(val).String(), true
 	} else {
 		return "", false
@@ -74,8 +72,7 @@ func (a *attributesMap) GetAttrString(key string) (string, bool) {
 }
 
 func (a *attributesMap) GetAttrInt64(key string) (int64, bool) {
-	val, ok := a.values.Load(key)
-	if ok {
+	if val, ok := a.values.Load(key); ok {
 		return value.Of(val).ToInt64()
 	} else {
 		return 0, false

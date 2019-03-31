@@ -111,7 +111,7 @@ func (p *Pipeline) Init(config map[string]interface{}) {
 		p.register(ctx.cfgLogics, initFn, structInitFn)
 	}
 	// show
-	p.showBundles()
+	p.showComponents()
 }
 
 // 启动Pipeline

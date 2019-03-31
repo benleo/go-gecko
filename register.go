@@ -113,7 +113,7 @@ func (re *Register) AddStopAfterHook(hook HookFunc) {
 	re.startAfterHooks.PushBack(hook)
 }
 
-func (re *Register) showBundles() {
+func (re *Register) showComponents() {
 	zlog := ZapSugarLogger
 	zlog.Infof("已加载 Interceptors: %d", re.interceptors.Len())
 	utils.ForEach(re.interceptors, func(it interface{}) {
@@ -190,33 +190,37 @@ func (re *Register) ensureUniqueUUID(uuid string) string {
 	return uuid
 }
 
-func (re *Register) factory(cType string, configItem interface{}) (obj interface{}, typeName string, config map[string]interface{}, ok bool) {
+func (re *Register) factory(rawType string, rawCfg interface{}) (obj interface{}, typeName string, config map[string]interface{}, ok bool) {
 	zlog := ZapSugarLogger
-	asMap, ok := configItem.(map[string]interface{})
+	config, ok = rawCfg.(map[string]interface{})
 	if !ok {
-		zlog.Panicf("组件配置信息类型错误: %s", cType)
+		zlog.Panicf("组件配置信息类型错误: %s", rawType)
+		return nil, rawType, nil, false
 	}
-	if value.Of(asMap["disable"]).MustBool() {
-		zlog.Infof("组件[%s]在配置中禁用", cType)
-		return nil, cType, nil, false
+
+	if value.Of(config["disable"]).MustBool() {
+		zlog.Infof("组件[%s]在配置中禁用", rawType)
+		return nil, rawType, nil, false
 	}
 
 	// 配置选项中，指定 type 字段为类型名称
-	if typeName := value.Of(asMap["type"]).String(); "" != typeName {
-		cType = typeName
+	if typeName := value.Of(config["type"]).String(); "" != typeName {
+		rawType = typeName
 	}
 
-	factory, ok := re.findFactory(cType)
-	if !ok {
-		zlog.Panicf("组件类型[%s]，没有注册对应的工厂函数", cType)
+	factory, found := re.findFactory(rawType)
+	if !found {
+		zlog.Panicf("组件类型[%s]，没有注册对应的工厂函数", rawType)
+		return nil, rawType, nil, false
+	} else {
+		return factory(), rawType, config, true
 	}
-	return factory(), cType, asMap, true
 }
 
 func (re *Register) register(
 	configs map[string]interface{},
-	initFn func(component Initial, args map[string]interface{}),
-	structInitFn func(component StructuredInitial, args map[string]interface{})) {
+	initFn func(initial Initial, args map[string]interface{}),
+	structInitFn func(initial StructuredInitial, args map[string]interface{})) {
 	// 组件初始化。由外部函数处理，减少不必要的依赖注入
 	for keyAsTypeName, item := range configs {
 		component, config := re.register0(keyAsTypeName, item)
@@ -243,13 +247,13 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 	if !ok {
 		return nil, nil
 	}
-
+	name := value.Of(config["name"]).String()
 	switch component.(type) {
 
 	case Driver:
 		driver := component.(Driver)
 		re.AddDriver(driver)
-		if name := value.Of(config["name"]).String(); "" != name {
+		if "" != name {
 			driver.setName(name)
 		} else {
 			driver.setName(keyAsTypeName)
@@ -258,7 +262,7 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 	case Interceptor:
 		it := component.(Interceptor)
 		it.setPriority(int(value.Of(config["priority"]).MustInt64()))
-		if name := value.Of(config["name"]).String(); "" != name {
+		if "" != name {
 			it.setName(name)
 		} else {
 			it.setName(keyAsTypeName)
@@ -267,7 +271,7 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 
 	case VirtualDevice:
 		device := component.(VirtualDevice)
-		device.setName(required(value.Of(config["name"]).String(),
+		device.setName(required(name,
 			"VirtualDevice[%s::%s]配置项[name]是必填参数", componentType, keyAsTypeName))
 
 		device.setUuid(required(value.Of(config["uuid"]).String(),
@@ -308,7 +312,7 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 		logic.setUuid(required(value.Of(config["uuid"]).String(),
 			"LogicDevice[%s]配置项[uuid]是必填参数", componentType))
 
-		logic.setName(required(value.Of(config["name"]).String(),
+		logic.setName(required(name,
 			"LogicDevice[%s]配置项[name]是必填参数", componentType))
 
 		logic.setTopic(required(value.Of(config["topic"]).String(),
