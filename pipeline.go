@@ -35,21 +35,18 @@ func SharedPipeline() *Pipeline {
 // Pipeline管理内部组件，处理事件。
 type Pipeline struct {
 	*Register
-	context Context
+	geckoContext Context
 	// 事件派发
-	dispatcher *Dispatcher
-	// Pipeline关闭的信号控制
-	shutdownCtx  context.Context
-	shutdownFunc context.CancelFunc
+	dispatcher     *Dispatcher
+	dispatchCtx    context.Context
+	dispatchCancel context.CancelFunc
 }
 
 // 初始化Pipeline
 func (p *Pipeline) Init(config map[string]interface{}) {
 	zlog := ZapSugarLogger
-	ctx := p.newGeckoContext(config)
-	p.context = ctx
-	gecko := p.context.gecko()
-	capacity := value.Of(gecko["eventsCapacity"]).Int64OrDefault(100)
+	p.geckoContext = p.newGeckoContext(config)
+	capacity := value.Of(p.geckoContext.gecko()["eventsCapacity"]).Int64OrDefault(100)
 	if capacity <= 0 {
 		capacity = 1
 	}
@@ -58,11 +55,9 @@ func (p *Pipeline) Init(config map[string]interface{}) {
 	p.dispatcher.SetStartHandler(p.handleInterceptor)
 	p.dispatcher.SetEndHandler(p.handleDriver)
 
-	go p.dispatcher.Serve(p.shutdownCtx)
-
 	// 初始化组件：根据配置文件指定项目
 	initFn := func(it Initial, args map[string]interface{}) {
-		it.OnInit(args, p.context)
+		it.OnInit(args, p.geckoContext)
 	}
 	// 使用结构化的参数来初始化
 	structInitFn := func(it StructuredInitial, args map[string]interface{}) {
@@ -77,9 +72,10 @@ func (p *Pipeline) Init(config map[string]interface{}) {
 		if err := m2sDecoder.Decode(args); nil != err {
 			zlog.Panic("Map2Struct解码出错", err)
 		}
-		it.Init(structConfig, p.context)
+		it.Init(structConfig, p.geckoContext)
 	}
 
+	ctx := p.geckoContext.(*_GeckoContext)
 	if 0 == len(ctx.cfgPlugins) {
 		zlog.Warn("警告：未配置任何[Plugin]组件")
 	} else {
@@ -118,49 +114,36 @@ func (p *Pipeline) Init(config map[string]interface{}) {
 func (p *Pipeline) Start() {
 	zlog := ZapSugarLogger
 	zlog.Info("Pipeline启动...")
+	// Dispatcher运行
+	go p.dispatcher.Serve(p.dispatchCtx)
+
 	// Hook first
-	utils.ForEach(p.startBeforeHooks, func(it interface{}) {
-		it.(HookFunc)(p)
-	})
-	defer func() {
-		utils.ForEach(p.startAfterHooks, func(it interface{}) {
-			it.(HookFunc)(p)
-		})
-		zlog.Info("Pipeline启动...OK")
-	}()
-
-	startFn := func(component interface{}) {
-		if starts, ok := component.(LifeCycle); ok {
-			p.context.CheckTimeout(utils.GetClassName(component)+".Start", DefaultLifeCycleTimeout, func() {
-				starts.OnStart(p.context)
-			})
-		}
-	}
-
+	utils.ForEach(p.startBeforeHooks, func(it interface{}) { it.(HookFunc)(p) })
 	// Plugins
-	utils.ForEach(p.plugins, startFn)
+	utils.ForEach(p.plugins, p.callStartFunc)
 	// Outputs
-	utils.ForEach(p.outputs, startFn)
+	utils.ForEach(p.outputs, p.callStartFunc)
 	// Drivers
-	utils.ForEach(p.drivers, startFn)
+	utils.ForEach(p.drivers, p.callStartFunc)
 	// Inputs
-	utils.ForEach(p.inputs, startFn)
+	utils.ForEach(p.inputs, p.callStartFunc)
 	// Then, Serve inputs
 	utils.ForEach(p.inputs, func(it interface{}) {
 		input := it.(InputDevice)
-		deliverer := p.newInputDeliverer(input)
+		uuid := input.GetUuid()
 		go func() {
-			uuid := input.GetUuid()
 			defer zlog.Debugf("InputDevice已经停止：%s", uuid)
-			err := input.Serve(p.context, deliverer)
-			if nil != err {
-				zlog.Errorw("InputDevice服务运行错误",
-					"uuid", uuid,
+			if err := input.Serve(p.geckoContext, p.newInputDeliverer(input)); nil != err {
+				zlog.Errorw("InputDevice服务运行错误", "uuid", uuid,
 					"error", err,
 					"class", utils.GetClassName(input))
 			}
 		}()
 	})
+	// Hook After
+	utils.ForEach(p.startAfterHooks, func(it interface{}) { it.(HookFunc)(p) })
+
+	zlog.Info("Pipeline启动...OK")
 }
 
 // 停止Pipeline
@@ -168,33 +151,21 @@ func (p *Pipeline) Stop() {
 	zlog := ZapSugarLogger
 	zlog.Info("Pipeline停止...")
 	// Hook first
-	utils.ForEach(p.stopBeforeHooks, func(it interface{}) {
-		it.(HookFunc)(p)
-	})
-	defer func() {
-		utils.ForEach(p.stopAfterHooks, func(it interface{}) {
-			it.(HookFunc)(p)
-		})
-		// 最终发起关闭信息
-		p.shutdownFunc()
-		zlog.Info("Pipeline停止...OK")
-	}()
-
-	stopFn := func(component interface{}) {
-		if stops, ok := component.(LifeCycle); ok {
-			p.context.CheckTimeout(utils.GetClassName(component)+".Stop", DefaultLifeCycleTimeout, func() {
-				stops.OnStop(p.context)
-			})
-		}
-	}
+	utils.ForEach(p.stopBeforeHooks, func(it interface{}) { it.(HookFunc)(p) })
 	// Inputs
-	utils.ForEach(p.inputs, stopFn)
+	utils.ForEach(p.inputs, p.callStopFunc)
 	// Drivers
-	utils.ForEach(p.drivers, stopFn)
+	utils.ForEach(p.drivers, p.callStopFunc)
 	// Outputs
-	utils.ForEach(p.outputs, stopFn)
+	utils.ForEach(p.outputs, p.callStopFunc)
 	// Plugins
-	utils.ForEach(p.plugins, stopFn)
+	utils.ForEach(p.plugins, p.callStopFunc)
+	// Hook After
+	utils.ForEach(p.stopAfterHooks, func(it interface{}) { it.(HookFunc)(p) })
+
+	zlog.Info("Pipeline停止...OK")
+	// 最终发起Dispatch关闭信息
+	p.dispatchCancel()
 }
 
 // 等待系统终止信息
@@ -207,7 +178,7 @@ func (p *Pipeline) AwaitTermination() {
 
 // 准备运行环境，初始化相关组件
 func (p *Pipeline) prepareEnv() {
-	p.shutdownCtx, p.shutdownFunc = context.WithCancel(context.Background())
+	p.dispatchCtx, p.dispatchCancel = context.WithCancel(context.Background())
 }
 
 // 创建InputDeliverer函数
@@ -279,7 +250,7 @@ func (p *Pipeline) deliverToOutput(uuid string, rawJSON *MessagePacket) (*Messag
 		if nil != encErr {
 			return nil, errors.WithMessage(encErr, "设备Encode数据出错: "+uuid)
 		}
-		respFrame, err := output.Process(encodedFrame, p.context)
+		respFrame, err := output.Process(encodedFrame, p.geckoContext)
 		if nil != err {
 			return nil, errors.WithMessage(err, "Output设备处理出错: "+uuid)
 		}
@@ -297,7 +268,7 @@ func (p *Pipeline) deliverToOutput(uuid string, rawJSON *MessagePacket) (*Messag
 func (p *Pipeline) handleInterceptor(session EventSession) {
 	zlog := ZapSugarLogger
 	topic := session.Topic()
-	p.context.OnIfLogV(func() {
+	p.geckoContext.OnIfLogV(func() {
 		zlog.Debugf("正在Interceptor调度过程，Topic: %s", topic)
 	})
 	// 查找匹配的拦截器，按优先级排序并处理
@@ -309,7 +280,7 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 			matches = append(matches, interceptor)
 			zlog.Debugf("拦截器正在处理, Int: %s, topic: %s", name, topic)
 		} else {
-			p.context.OnIfLogV(func() {
+			p.geckoContext.OnIfLogV(func() {
 				zlog.Debugf("拦截器[未匹配], Int: %s, topic: %s", name, topic)
 			})
 		}
@@ -321,7 +292,7 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 	}()
 	for _, it := range matches {
 		itName := it.GetName()
-		err := it.Handle(session, p.context)
+		err := it.Handle(session, p.geckoContext)
 		session.AddAttr("@Interceptor.Cost."+itName, session.Since())
 		if err == nil {
 			continue
@@ -346,7 +317,7 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 func (p *Pipeline) handleDriver(session EventSession) {
 	zlog := ZapSugarLogger
 	topic := session.Topic()
-	p.context.OnIfLogV(func() {
+	p.geckoContext.OnIfLogV(func() {
 		zlog.Debugf("正在Driver调度过程，Topic: %s", topic)
 	})
 	defer func() {
@@ -371,13 +342,13 @@ func (p *Pipeline) handleDriver(session EventSession) {
 			go func() {
 				defer wg.Done()
 				zlog.Debugf("用户驱动正在处理, Driver: %s, topic: %s", driName, topic)
-				if err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.context); nil != err {
+				if err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.geckoContext); nil != err {
 					p.failFastLogger(err, "用户驱动发生错误:"+driName)
 				}
 				session.AddAttr("Driver.Cost."+driName, session.Since())
 			}()
 		} else {
-			p.context.OnIfLogV(func() {
+			p.geckoContext.OnIfLogV(func() {
 				zlog.Debugf("用户驱动[未匹配], Driver: %s, topic: %s", driName, topic)
 			})
 		}
@@ -386,7 +357,7 @@ func (p *Pipeline) handleDriver(session EventSession) {
 }
 
 func (p *Pipeline) output(event EventSession) {
-	p.context.OnIfLogV(func() {
+	p.geckoContext.OnIfLogV(func() {
 		zlog := ZapSugarLogger
 		zlog.Debugf("正在Output调度过程，Topic: %s", event.Topic())
 		for k, v := range event.Attrs() {
@@ -398,8 +369,8 @@ func (p *Pipeline) output(event EventSession) {
 }
 
 func (p *Pipeline) checkDefTimeout(msg string, act func(Context)) {
-	p.context.CheckTimeout(msg, DefaultLifeCycleTimeout, func() {
-		act(p.context)
+	p.geckoContext.CheckTimeout(msg, DefaultLifeCycleTimeout, func() {
+		act(p.geckoContext)
 	})
 }
 
@@ -411,14 +382,14 @@ func (p *Pipeline) checkRecover(r interface{}, msg string) {
 	if err, ok := r.(error); ok {
 		zlog.Errorw(msg, "error", err)
 	}
-	p.context.OnIfFailFast(func() {
+	p.geckoContext.OnIfFailFast(func() {
 		zlog.Fatal(r)
 	})
 }
 
 func (p *Pipeline) failFastLogger(err error, msg string) {
 	zlog := ZapSugarLogger
-	if p.context.IsFailFastEnabled() {
+	if p.geckoContext.IsFailFastEnabled() {
 		zlog.Fatalw(msg, "error", err)
 	} else {
 		zlog.Errorw(msg, "error", err)
@@ -441,6 +412,22 @@ func (p *Pipeline) newGeckoContext(config map[string]interface{}) *_GeckoContext
 		drivers:         p.drivers,
 		outputs:         p.outputs,
 		inputs:          p.inputs,
+	}
+}
+
+func (p *Pipeline) callStopFunc(component interface{}) {
+	if stops, ok := component.(LifeCycle); ok {
+		p.geckoContext.CheckTimeout(utils.GetClassName(component)+".Stop", DefaultLifeCycleTimeout, func() {
+			stops.OnStop(p.geckoContext)
+		})
+	}
+}
+
+func (p *Pipeline) callStartFunc(component interface{}) {
+	if stops, ok := component.(LifeCycle); ok {
+		p.geckoContext.CheckTimeout(utils.GetClassName(component)+".Start", DefaultLifeCycleTimeout, func() {
+			stops.OnStart(p.geckoContext)
+		})
 	}
 }
 
