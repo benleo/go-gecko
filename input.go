@@ -21,6 +21,7 @@ func (fn InputDeliverer) Deliver(topic string, rawFrame FramePacket) (encodedFra
 // Input设备是表示向系统输入数据的设备
 type InputDevice interface {
 	VirtualDevice
+	LifeCycle
 	// 输入设备都具有一个Topic
 	setTopic(topic string)
 	GetTopic() string
@@ -28,8 +29,8 @@ type InputDevice interface {
 	addLogic(device LogicDevice) error
 	GetLogicList() []LogicDevice
 
-	// 监听设备的输入数据。如果设备发生错误，返回错误信息。
-	// 发生错误后，后导致输入设备循环中断。
+	// Serve 函数是设备的监听服务函数。它被一个单独协程启动，并阻塞运行；
+	// 如果此函数返回错误，系统终止所在协程。
 	Serve(ctx Context, deliverer InputDeliverer) error
 }
 
