@@ -2,8 +2,8 @@ package gecko
 
 import (
 	"container/list"
-	"github.com/parkingwang/go-conf"
 	"github.com/yoojia/go-gecko/utils"
+	"github.com/yoojia/go-value"
 	"time"
 )
 
@@ -43,7 +43,7 @@ type Context interface {
 	NodeId() string
 
 	// 返回Global配置项
-	GlobalConfig() *cfg.Config
+	GlobalConfig() map[string]interface{}
 
 	// Globals中是否开启了 loggingVerbose 标记位
 	IsVerboseEnabled() bool
@@ -65,7 +65,7 @@ type Context interface {
 	////
 
 	// 返回Gecko的配置
-	gecko() *cfg.Config
+	gecko() map[string]interface{}
 
 	// 返回分布式ID生成器的WorkerId
 	workerId() int64
@@ -74,14 +74,14 @@ type Context interface {
 ///
 
 type _GeckoContext struct {
-	cfgGeckos       *cfg.Config
-	cfgGlobals      *cfg.Config
-	cfgInterceptors *cfg.Config
-	cfgDrivers      *cfg.Config
-	cfgOutputs      *cfg.Config
-	cfgInputs       *cfg.Config
-	cfgLogics       *cfg.Config
-	cfgPlugins      *cfg.Config
+	cfgGeckos       map[string]interface{}
+	cfgGlobals      map[string]interface{}
+	cfgInterceptors map[string]interface{}
+	cfgDrivers      map[string]interface{}
+	cfgOutputs      map[string]interface{}
+	cfgInputs       map[string]interface{}
+	cfgLogics       map[string]interface{}
+	cfgPlugins      map[string]interface{}
 	scopedKV        map[interface{}]interface{}
 	plugins         *list.List
 	interceptors    *list.List
@@ -90,12 +90,16 @@ type _GeckoContext struct {
 	inputs          *list.List
 }
 
-func (c *_GeckoContext) gecko() *cfg.Config {
+func (c *_GeckoContext) gecko() map[string]interface{} {
 	return c.cfgGeckos
 }
 
 func (c *_GeckoContext) workerId() int64 {
-	return c.cfgGeckos.GetInt64OrDefault("workerId", 0)
+	if workerId, ok := c.cfgGeckos["workerId"]; ok {
+		return value.Of(workerId).MustInt64()
+	} else {
+		return 0
+	}
 }
 
 func (c *_GeckoContext) Version() string {
@@ -140,30 +144,30 @@ func (c *_GeckoContext) GetScoped(key interface{}) interface{} {
 
 func (c *_GeckoContext) CheckTimeout(msg string, timeout time.Duration, action func()) {
 	t := time.AfterFunc(timeout, func() {
-		ZapSugarLogger.Errorw("指令执行时间太长", "action", msg, "timeout", timeout.String())
+		ZapSugarLogger.Warnf("指令执行时间太长", "action", msg, "timeout", timeout.String())
 	})
 	defer t.Stop()
 	action()
 }
 
-func (c *_GeckoContext) GlobalConfig() *cfg.Config {
+func (c *_GeckoContext) GlobalConfig() map[string]interface{} {
 	return c.cfgGlobals
 }
 
 func (c *_GeckoContext) Domain() string {
-	return c.cfgGeckos.MustString("domain")
+	return value.Of(c.cfgGeckos["domain"]).String()
 }
 
 func (c *_GeckoContext) NodeId() string {
-	return c.cfgGeckos.MustString("nodeId")
+	return value.Of(c.cfgGeckos["nodeId"]).String()
 }
 
 func (c *_GeckoContext) IsVerboseEnabled() bool {
-	return c.cfgGlobals.MustBool("loggingVerbose")
+	return value.Of(c.cfgGeckos["loggingVerbose"]).MustBool()
 }
 
 func (c *_GeckoContext) IsFailFastEnabled() bool {
-	return c.cfgGlobals.GetBoolOrDefault("failFastEnable", false)
+	return value.Of(c.cfgGeckos["failFastEnable"]).MustBool()
 }
 
 func (c *_GeckoContext) OnIfLogV(fun func()) {

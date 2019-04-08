@@ -2,8 +2,8 @@ package gecko
 
 import (
 	"encoding/json"
-	"github.com/parkingwang/go-conf"
 	"github.com/pkg/errors"
+	"github.com/yoojia/go-value"
 	"sync"
 )
 
@@ -78,7 +78,7 @@ func (a *fieldsMap) GetFieldOrNil(key string) interface{} {
 func (a *fieldsMap) GetFieldString(key string) (string, bool) {
 	val, ok := a.fields.Load(key)
 	if ok {
-		return cfg.Value2String(val), true
+		return value.ToString(val), true
 	} else {
 		return "", false
 	}
@@ -87,12 +87,7 @@ func (a *fieldsMap) GetFieldString(key string) (string, bool) {
 func (a *fieldsMap) GetFieldInt64(key string) (int64, bool) {
 	val, ok := a.fields.Load(key)
 	if ok {
-		str := cfg.Value2String(val)
-		if v, err := cfg.Value(str).Int64(); nil != err {
-			return 0, false
-		} else {
-			return v, true
-		}
+		return value.ToInt64(val)
 	} else {
 		return 0, false
 	}

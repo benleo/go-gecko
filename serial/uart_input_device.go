@@ -2,9 +2,9 @@ package serial
 
 import (
 	"context"
-	"github.com/parkingwang/go-conf"
 	"github.com/tarm/serial"
 	"github.com/yoojia/go-gecko"
+	"github.com/yoojia/go-value"
 )
 
 func UARTInputDeviceFactory() (string, gecko.Factory) {
@@ -30,8 +30,8 @@ type UARTInputDevice struct {
 	closeFunc    context.CancelFunc
 }
 
-func (d *UARTInputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
-	d.bufferSize = int(config.MustInt64("bufferSize"))
+func (d *UARTInputDevice) OnInit(config map[string]interface{}, ctx gecko.Context) {
+	d.bufferSize = int(value.Of(config["bufferSize"]).MustInt64())
 	// 如果设置Read超时，port.Read方法会启用NonBlocking读模式。
 	// 此处设置为0，使用阻塞读模式。
 	d.config = getSerialConfig(config, 0)

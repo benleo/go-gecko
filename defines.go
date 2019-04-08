@@ -1,7 +1,5 @@
 package gecko
 
-import "github.com/parkingwang/go-conf"
-
 //
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 
@@ -21,7 +19,7 @@ type VirtualDevice interface {
 // 初始化接口提供一个初始化组件的Interface。
 type Initial interface {
 	// 通用类型的组件初始化函数。
-	OnInit(config *cfg.Config, context Context)
+	OnInit(config map[string]interface{}, context Context)
 }
 
 // 组件命名

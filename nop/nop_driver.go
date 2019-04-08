@@ -1,7 +1,6 @@
 package nop
 
 import (
-	"github.com/parkingwang/go-conf"
 	"github.com/yoojia/go-gecko"
 )
 
@@ -24,7 +23,7 @@ type NopDriver struct {
 	gecko.LifeCycle
 }
 
-func (du *NopDriver) OnInit(config *cfg.Config, ctx gecko.Context) {
+func (du *NopDriver) OnInit(config map[string]interface{}, ctx gecko.Context) {
 	gecko.ZapLogger.Debug("初始化...")
 }
 

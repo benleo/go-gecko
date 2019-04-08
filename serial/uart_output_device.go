@@ -1,9 +1,9 @@
 package serial
 
 import (
-	"github.com/parkingwang/go-conf"
 	"github.com/tarm/serial"
 	"github.com/yoojia/go-gecko"
+	"github.com/yoojia/go-value"
 	"time"
 )
 
@@ -28,8 +28,8 @@ type UARTOutputDevice struct {
 	bufferSize int
 }
 
-func (d *UARTOutputDevice) OnInit(config *cfg.Config, ctx gecko.Context) {
-	d.bufferSize = int(config.MustInt64("bufferSize"))
+func (d *UARTOutputDevice) OnInit(config map[string]interface{}, ctx gecko.Context) {
+	d.bufferSize = int(value.Of(config["bufferSize"]).MustInt64())
 	d.config = getSerialConfig(config, time.Millisecond*100)
 }
 

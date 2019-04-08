@@ -3,6 +3,7 @@ package drivers
 import (
 	"github.com/parkingwang/go-conf"
 	"github.com/yoojia/go-gecko"
+	"github.com/yoojia/go-gecko/utils"
 )
 
 //
@@ -38,7 +39,7 @@ func (ds DriveStrategy) Do(event *gecko.MessagePacket) *ConnectedDevice {
 // 策略驱动Driver
 type StrategyDriver struct {
 	*gecko.AbcDriver
-	initArgs   *cfg.Config
+	initArgs   map[string]interface{}
 	strategies []DriveStrategy
 }
 
@@ -47,17 +48,15 @@ func (d *StrategyDriver) AddDriveStrategy(strategy DriveStrategy) {
 	d.strategies = append(d.strategies, strategy)
 }
 
-func (d *StrategyDriver) GetInitArgs() *cfg.Config {
+func (d *StrategyDriver) GetInitArgs() map[string]interface{} {
 	return d.initArgs
 }
 
-func (d *StrategyDriver) OnInit(args *cfg.Config, ctx gecko.Context) {
+func (d *StrategyDriver) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	d.initArgs = args
 
-	strategies := args.MustConfig("strategies")
 	zlog := gecko.ZapSugarLogger
-
-	strategies.ForEach(func(name string, value interface{}) {
+	for _, value := range utils.ToMap(args["strategies"]) {
 		strategy := cfg.Wrap(value.(map[string]interface{}))
 		matchFields, err := strategy.GetStringMapOrDefault("matchFields", make(map[string]string, 0))
 		if err != nil {
@@ -93,7 +92,7 @@ func (d *StrategyDriver) OnInit(args *cfg.Config, ctx gecko.Context) {
 				Payload:    gecko.NewMessagePacketFields(command.RefMap()),
 			}
 		})
-	})
+	}
 
 }
 
