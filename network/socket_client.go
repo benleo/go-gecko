@@ -2,7 +2,9 @@ package network
 
 import (
 	"github.com/pkg/errors"
+	"github.com/yoojia/go-gecko"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -10,6 +12,13 @@ import (
 type SocketClient struct {
 	conn   net.Conn
 	config SocketConfig
+	chLock *sync.Mutex
+}
+
+func NewSocketClient() *SocketClient {
+	return &SocketClient{
+		chLock: new(sync.Mutex),
+	}
 }
 
 func (s *SocketClient) Init(config SocketConfig) {
@@ -76,4 +85,19 @@ func (s *SocketClient) Send(data []byte) (n int, err error) {
 		return 0, errors.WithMessage(err, "Set write timeout failed")
 	}
 	return s.conn.Write(data)
+}
+
+// Execute 是一个线程安全的Send-Receive原子操作
+func (s *SocketClient) Execute(frame []byte) ([]byte, error) {
+	s.chLock.Lock()
+	defer s.chLock.Unlock()
+	buffer := make([]byte, s.BufferSize())
+	if _, err := s.Send(frame); nil != err {
+		return nil, err
+	}
+	if n, err := s.Receive(buffer); nil != err {
+		return nil, err
+	} else {
+		return gecko.FramePacket(buffer[:n]), nil
+	}
 }
