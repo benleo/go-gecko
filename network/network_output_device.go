@@ -32,14 +32,14 @@ func (d *AbcNetworkOutputDevice) StructuredConfig() interface{} {
 
 func (d *AbcNetworkOutputDevice) Init(structConfig interface{}, ctx gecko.Context) {
 	config := structConfig.(*NetConfig)
-	zlog := gecko.ZapSugarLogger
+
 	read, err := time.ParseDuration(config.ReadTimeout)
 	if nil != err {
-		zlog.Panic(err)
+		log.Panic(err)
 	}
 	write, err := time.ParseDuration(config.WriteTimeout)
 	if nil != err {
-		zlog.Panic(err)
+		log.Panic(err)
 	}
 	d.socket.Init(SocketConfig{
 		Type:         d.networkType,
@@ -51,14 +51,13 @@ func (d *AbcNetworkOutputDevice) Init(structConfig interface{}, ctx gecko.Contex
 }
 
 func (d *AbcNetworkOutputDevice) OnStart(ctx gecko.Context) {
-	zlog := gecko.ZapSugarLogger
 	config := d.socket.Config()
 	if !config.IsValid() {
-		zlog.Panicw("未设置网络通讯地址和网络类型", "address", config.Addr, "type", config.Type)
+		log.Panicw("未设置网络通讯地址和网络类型", "address", config.Addr, "type", config.Type)
 	}
-	zlog.Infof("使用%s客户端模式，远程地址： %s", config.Type, config.Addr)
+	log.Infof("使用%s客户端模式，远程地址： %s", config.Type, config.Addr)
 	if err := d.socket.Open(); nil != err {
-		zlog.Errorf("客户端连接失败： %s", config.Addr)
+		log.Errorf("客户端连接失败： %s", config.Addr)
 	}
 }
 

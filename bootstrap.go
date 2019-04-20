@@ -6,7 +6,6 @@ import (
 
 // Bootstrap提供一个启动入口
 func Bootstrap(prepare func(pipeline *Pipeline)) {
-	log := ZapSugarLogger
 	config, err := utils.LoadConfig("conf.d")
 	if nil != err {
 		log.Panicw("加载配置文件出错", "err", err)

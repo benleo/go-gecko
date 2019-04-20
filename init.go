@@ -3,6 +3,7 @@ package gecko
 import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"sync"
 )
 
 var _ZapLoggerConfig = zap.Config{
@@ -29,6 +30,7 @@ var _ZapLoggerConfig = zap.Config{
 
 var ZapLogger = NewZapLogger()
 var ZapSugarLogger = NewZapSugarLogger()
+var log = ZapSugarLogger
 
 func ZapLoggerConfig() zap.Config {
 	return _ZapLoggerConfig
@@ -41,4 +43,19 @@ func NewZapLogger() *zap.Logger {
 
 func NewZapSugarLogger() *zap.SugaredLogger {
 	return ZapLogger.Sugar()
+}
+
+/////////////////
+
+var gSharedPipeline = &Pipeline{
+	Register: newRegister(),
+}
+var gPrepareEnv = new(sync.Once)
+
+// 全局Pipeline对象
+func SharedPipeline() *Pipeline {
+	gPrepareEnv.Do(func() {
+		gSharedPipeline.prepareEnv()
+	})
+	return gSharedPipeline
 }

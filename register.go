@@ -31,7 +31,7 @@ type Register struct {
 	factories map[string]Factory
 }
 
-func prepare() *Register {
+func newRegister() *Register {
 	re := new(Register)
 	re.uuidOutputs = make(map[string]OutputDevice)
 	re.uuidInputs = make(map[string]InputDevice)
@@ -53,7 +53,7 @@ func prepare() *Register {
 // 添加Encoder
 func (re *Register) AddEncoder(name string, encoder Encoder) {
 	if _, ok := re.namedEncoders[name]; ok {
-		ZapSugarLogger.Panicw("Encoder类型重复", "type", name)
+		log.Panicw("Encoder类型重复", "type", name)
 	} else {
 		re.namedEncoders[name] = encoder
 	}
@@ -62,7 +62,7 @@ func (re *Register) AddEncoder(name string, encoder Encoder) {
 // 添加Decoder
 func (re *Register) AddDecoder(name string, decoder Decoder) {
 	if _, ok := re.namedDecoders[name]; ok {
-		ZapSugarLogger.Panicw("Decoder类型重复", "type", name)
+		log.Panicw("Decoder类型重复", "type", name)
 	} else {
 		re.namedDecoders[name] = decoder
 	}
@@ -114,45 +114,43 @@ func (re *Register) AddStopAfterHook(hook HookFunc) {
 }
 
 func (re *Register) showComponents() {
-	zlog := ZapSugarLogger
-	zlog.Infof("已加载 Interceptors: %d", re.interceptors.Len())
+	log.Infof("已加载 Interceptors: %d", re.interceptors.Len())
 	utils.ForEach(re.interceptors, func(it interface{}) {
-		zlog.Infof("  -> Interceptor: [%s::%s]", utils.GetClassName(it), it.(NeedName).GetName())
+		log.Infof("  -> Interceptor: [%s::%s]", utils.GetClassName(it), it.(NeedName).GetName())
 	})
 
-	zlog.Infof("已加载 InputDevices: %d", re.inputs.Len())
+	log.Infof("已加载 InputDevices: %d", re.inputs.Len())
 	utils.ForEach(re.inputs, func(it interface{}) {
 		typeName := utils.GetClassName(it)
-		zlog.Infof("  -> InputDevice: [%s::%s]", typeName, it.(NeedName).GetName())
+		log.Infof("  -> InputDevice: [%s::%s]", typeName, it.(NeedName).GetName())
 		for _, shadow := range it.(InputDevice).GetLogicList() {
-			zlog.Info("    --> Logic: " + utils.GetClassName(shadow))
+			log.Info("    --> Logic: " + utils.GetClassName(shadow))
 		}
 	})
 
-	zlog.Infof("已加载OutputDevices: %d", re.outputs.Len())
+	log.Infof("已加载OutputDevices: %d", re.outputs.Len())
 	utils.ForEach(re.outputs, func(it interface{}) {
 		typeName := utils.GetClassName(it)
-		zlog.Infof("  -> OutputDevice: [%s::%s]", typeName, it.(NeedName).GetName())
+		log.Infof("  -> OutputDevice: [%s::%s]", typeName, it.(NeedName).GetName())
 	})
 
-	zlog.Infof("已加载 Drivers: %d", re.drivers.Len())
+	log.Infof("已加载 Drivers: %d", re.drivers.Len())
 	utils.ForEach(re.drivers, func(it interface{}) {
-		zlog.Infof("  -> Driver: [%s::%s]", utils.GetClassName(it), it.(NeedName).GetName())
+		log.Infof("  -> Driver: [%s::%s]", utils.GetClassName(it), it.(NeedName).GetName())
 	})
 
-	zlog.Infof("已加载 Plugins: %d", re.plugins.Len())
+	log.Infof("已加载 Plugins: %d", re.plugins.Len())
 	utils.ForEach(re.plugins, func(it interface{}) {
-		zlog.Info("  -> Plugin: " + utils.GetClassName(it))
+		log.Info("  -> Plugin: " + utils.GetClassName(it))
 	})
 }
 
 // 注册组件工厂函数
 func (re *Register) AddFactory(typeName string, factory Factory) {
-	zlog := ZapSugarLogger
 	if _, ok := re.factories[typeName]; ok {
-		zlog.Warnf("组件类型[%s]，旧的工厂函数将被覆盖为： %s", typeName, utils.GetClassName(factory))
+		log.Warnf("组件类型[%s]，旧的工厂函数将被覆盖为： %s", typeName, utils.GetClassName(factory))
 	}
-	zlog.Infof("正在注册组件工厂函数： %s", typeName)
+	log.Infof("正在注册组件工厂函数： %s", typeName)
 	re.factories[typeName] = factory
 }
 
@@ -167,7 +165,7 @@ func (re *Register) AddCodecFactory(typeName string, factory CodecFactory) {
 		re.AddEncoder(typeName, codec.(Encoder))
 
 	default:
-		ZapSugarLogger.Panicf("未知的编/解码类型[%s]，工厂函数： %s", typeName, utils.GetClassName(factory))
+		log.Panicf("未知的编/解码类型[%s]，工厂函数： %s", typeName, utils.GetClassName(factory))
 	}
 }
 
@@ -181,25 +179,23 @@ func (re *Register) findFactory(typeName string) (Factory, bool) {
 }
 
 func (re *Register) ensureUniqueUUID(uuid string) string {
-	zlog := ZapSugarLogger
 	if _, ok := re.uuidInputs[uuid]; ok {
-		zlog.Panicf("设备UUID重复[Input]：%s", uuid)
+		log.Panicf("设备UUID重复[Input]：%s", uuid)
 	} else if _, ok := re.uuidOutputs[uuid]; ok {
-		zlog.Panicf("设备UUID重复[Output]：%s", uuid)
+		log.Panicf("设备UUID重复[Output]：%s", uuid)
 	}
 	return uuid
 }
 
 func (re *Register) factory(rawType string, rawCfg interface{}) (obj interface{}, typeName string, config map[string]interface{}, ok bool) {
-	zlog := ZapSugarLogger
 	config, ok = rawCfg.(map[string]interface{})
 	if !ok {
-		zlog.Panicf("组件配置信息类型错误: %s", rawType)
+		log.Panicf("组件配置信息类型错误: %s", rawType)
 		return nil, rawType, nil, false
 	}
 
 	if value.Of(config["disable"]).MustBool() {
-		zlog.Infof("组件[%s]在配置中禁用", rawType)
+		log.Infof("组件[%s]在配置中禁用", rawType)
 		return nil, rawType, nil, false
 	}
 
@@ -210,7 +206,7 @@ func (re *Register) factory(rawType string, rawCfg interface{}) (obj interface{}
 
 	factory, found := re.findFactory(rawType)
 	if !found {
-		zlog.Panicf("组件类型[%s]，没有注册对应的工厂函数", rawType)
+		log.Panicf("组件类型[%s]，没有注册对应的工厂函数", rawType)
 		return nil, rawType, nil, false
 	} else {
 		return factory(), rawType, config, true
@@ -242,7 +238,6 @@ func (re *Register) register(
 }
 
 func (re *Register) register0(keyAsTypeName string, item interface{}) (interface{}, map[string]interface{}) {
-	zlog := ZapSugarLogger
 	component, componentType, config, ok := re.factory(keyAsTypeName, item)
 	if !ok {
 		return nil, nil
@@ -283,7 +278,7 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 			if encoder, ok := re.namedEncoders[encoder]; ok {
 				device.setEncoder(encoder)
 			} else {
-				zlog.Panicf("Encoder[%s]未注册", encoder)
+				log.Panicf("Encoder[%s]未注册", encoder)
 			}
 		}
 
@@ -293,7 +288,7 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 			if decoder, ok := re.namedDecoders[decoder]; ok {
 				device.setDecoder(decoder)
 			} else {
-				zlog.Panicf("Decoder[%s]未注册", decoder)
+				log.Panicf("Decoder[%s]未注册", decoder)
 			}
 		}
 
@@ -304,7 +299,7 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 		} else if outputDevice, ok := device.(OutputDevice); ok {
 			re.AddOutputDevice(outputDevice)
 		} else {
-			zlog.Panicf("未知VirtualDevice类型： %s", utils.GetClassName(device))
+			log.Panicf("未知VirtualDevice类型： %s", utils.GetClassName(device))
 		}
 
 	case LogicDevice:
@@ -325,24 +320,24 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 		// Add to input
 		if input, ok := re.uuidInputs[masterUuid]; ok {
 			if err := input.addLogic(logic); nil != err {
-				zlog.Panic("LogicDevice挂载到MasterInputDevice发生错误", err)
+				log.Panic("LogicDevice挂载到MasterInputDevice发生错误", err)
 			}
 		} else {
-			zlog.Panicf("LogicDevice[%s]配置项[masterUuid]是没找到对应设备", componentType)
+			log.Panicf("LogicDevice[%s]配置项[masterUuid]是没找到对应设备", componentType)
 		}
 
 	default:
 		if plg, ok := component.(Plugin); ok {
 			re.AddPlugin(plg)
 		} else {
-			zlog.Panicf("未支持的组件类型：[%s::%s]. 你是否没有实现某个函数接口？", componentType, keyAsTypeName)
+			log.Panicf("未支持的组件类型：[%s::%s]. 你是否没有实现某个函数接口？", componentType, keyAsTypeName)
 		}
 	}
 
 	// Interceptor / Driver 需要Topic过滤
 	if tf, ok := component.(NeedTopicFilter); ok {
 		if topics := utils.ToStringArray(config["topics"]); 0 == len(topics) {
-			zlog.Panicw("配置项中[topics]必须是字符串数组", "type", componentType)
+			log.Panicw("配置项中[topics]必须是字符串数组", "type", componentType)
 		} else {
 			tf.setTopics(topics)
 		}
@@ -353,7 +348,7 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 
 func required(value, template string, args ...interface{}) string {
 	if "" == value {
-		ZapSugarLogger.Panicf(template, args...)
+		log.Panicf(template, args...)
 	}
 	return value
 }

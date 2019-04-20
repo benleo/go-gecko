@@ -34,10 +34,9 @@ func (d *UARTOutputDevice) OnInit(config map[string]interface{}, ctx gecko.Conte
 }
 
 func (d *UARTOutputDevice) OnStart(ctx gecko.Context) {
-	zlog := gecko.ZapSugarLogger
-	zlog.Debugf("打开串口设备: %s", d.config.Name)
+	log.Debugf("打开串口设备: %s", d.config.Name)
 	if port, err := serial.OpenPort(d.config); nil != err {
-		zlog.Fatalf("打开串口设备发生错误", err)
+		log.Fatalf("打开串口设备发生错误", err)
 	} else {
 		d.port = port
 	}
@@ -46,7 +45,7 @@ func (d *UARTOutputDevice) OnStart(ctx gecko.Context) {
 func (d *UARTOutputDevice) OnStop(ctx gecko.Context) {
 	if nil != d.port {
 		if err := d.port.Close(); nil != err {
-			gecko.ZapSugarLogger.Fatalf("关闭串口设备发生错误", err)
+			log.Fatalf("关闭串口设备发生错误", err)
 		}
 	}
 }

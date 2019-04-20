@@ -119,7 +119,7 @@ type EventSession interface {
 
 ////
 
-type _EventSessionImpl struct {
+type _EventSession struct {
 	timestamp time.Time
 	*attributesMap
 	topic     string
@@ -129,26 +129,26 @@ type _EventSessionImpl struct {
 	completed chan *MessagePacket
 }
 
-func (s *_EventSessionImpl) Timestamp() time.Time {
+func (s *_EventSession) Timestamp() time.Time {
 	return s.timestamp
 }
 
-func (s *_EventSessionImpl) Topic() string {
+func (s *_EventSession) Topic() string {
 	return s.topic
 }
 
-func (s *_EventSessionImpl) Uuid() string {
+func (s *_EventSession) Uuid() string {
 	return s.uuid
 }
 
-func (s *_EventSessionImpl) Inbound() *MessagePacket {
+func (s *_EventSession) Inbound() *MessagePacket {
 	return s.inbound
 }
 
-func (s *_EventSessionImpl) Outbound() *MessagePacket {
+func (s *_EventSession) Outbound() *MessagePacket {
 	return s.outbound
 }
 
-func (s *_EventSessionImpl) Since() time.Duration {
+func (s *_EventSession) Since() time.Duration {
 	return time.Since(s.Timestamp())
 }

@@ -3,7 +3,6 @@ package network
 import (
 	"context"
 	"github.com/pkg/errors"
-	"github.com/yoojia/go-gecko"
 	"net"
 	"strings"
 	"sync/atomic"
@@ -51,7 +50,7 @@ func (ss *SocketServer) BufferSize() uint {
 func (ss *SocketServer) Serve(handler FrameHandler) error {
 	networkType := ss.config.Type
 	networkAddr := ss.config.Addr
-	gecko.ZapSugarLogger.Debugf("启动服务端：Type=%s, Addr=%s", networkType, networkAddr)
+	log.Debugf("启动服务端：Type=%s, Addr=%s", networkType, networkAddr)
 	if strings.HasPrefix(networkType, "udp") {
 		if conn, err := OpenUdpConn(networkAddr); nil != err {
 			return err
@@ -74,7 +73,7 @@ func (ss *SocketServer) udpServeLoop(udpConn *net.UDPConn, handler FrameHandler)
 	go func() {
 		<-ss.shutdown.Done()
 		if err := udpConn.Close(); nil != err {
-			gecko.ZapSugarLogger.Errorf("UDP服务端关闭时发生错误", err)
+			log.Errorf("UDP服务端关闭时发生错误", err)
 		}
 	}()
 	err := ss.rwLoop("udp", udpConn, handler)
@@ -86,12 +85,10 @@ func (ss *SocketServer) udpServeLoop(udpConn *net.UDPConn, handler FrameHandler)
 }
 
 func (ss *SocketServer) tcpServeLoop(server net.Listener, handler FrameHandler) error {
-	zlog := gecko.ZapSugarLogger
-
 	serve := func(clientAddr net.Addr, clientConn net.Conn) {
 		err := ss.rwLoop("tcp", clientConn, handler)
 		if nil != err && atomic.LoadInt32(&ss.state) == StateReady {
-			zlog.Errorf("客户端中止通讯循环: %s", err)
+			log.Errorf("客户端中止通讯循环: %s", err)
 		}
 	}
 
@@ -103,7 +100,7 @@ func (ss *SocketServer) tcpServeLoop(server net.Listener, handler FrameHandler) 
 			select {
 			case <-ss.shutdown.Done():
 				if err := server.Close(); nil != err {
-					zlog.Errorf("TCP服务端关闭时发生错误", err)
+					log.Errorf("TCP服务端关闭时发生错误", err)
 				}
 				return nil
 			default:
@@ -126,7 +123,7 @@ func (ss *SocketServer) tcpServeLoop(server net.Listener, handler FrameHandler) 
 			}
 		}
 		addr := conn.RemoteAddr()
-		zlog.Debugf("接受客户端连接: %s", addr)
+		log.Debugf("接受客户端连接: %s", addr)
 		go serve(addr, conn)
 	}
 }
@@ -136,9 +133,8 @@ func (ss *SocketServer) rwLoop(protoType string, conn net.Conn, userHandler Fram
 	if "udp" == protoType {
 		listenAddr = conn.LocalAddr()
 	}
-	zlog := gecko.ZapSugarLogger
-	zlog.Debugf("开启数据通讯循环[%s]：%s", protoType, listenAddr)
-	defer zlog.Debugf("中止数据通讯循环[%s]: %s", protoType, listenAddr)
+	log.Debugf("开启数据通讯循环[%s]：%s", protoType, listenAddr)
+	defer log.Debugf("中止数据通讯循环[%s]: %s", protoType, listenAddr)
 
 	readFrame := func(c net.Conn, buf []byte, proto string) (n int, clientAddr net.Addr, err error) {
 		if "udp" == proto {
@@ -178,7 +174,7 @@ func (ss *SocketServer) rwLoop(protoType string, conn net.Conn, userHandler Fram
 
 		data, err := userHandler(clientAddr, buffer[:n])
 		if err != nil {
-			zlog.Errorw("用户处理函数内部错误", "err", err)
+			log.Errorw("用户处理函数内部错误", "err", err)
 			continue
 		}
 		if len(data) <= 0 {

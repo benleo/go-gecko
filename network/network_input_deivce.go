@@ -33,14 +33,13 @@ func (d *AbcNetworkInputDevice) StructuredConfig() interface{} {
 
 func (d *AbcNetworkInputDevice) Init(structConfig interface{}, ctx gecko.Context) {
 	config := structConfig.(*NetConfig)
-	zlog := gecko.ZapSugarLogger
 	read, err := time.ParseDuration(config.ReadTimeout)
 	if nil != err {
-		zlog.Panic(err)
+		log.Panic(err)
 	}
 	write, err := time.ParseDuration(config.WriteTimeout)
 	if nil != err {
-		zlog.Panic(err)
+		log.Panic(err)
 	}
 	d.socket.Init(SocketConfig{
 		Type:         d.networkType,
@@ -52,12 +51,11 @@ func (d *AbcNetworkInputDevice) Init(structConfig interface{}, ctx gecko.Context
 }
 
 func (d *AbcNetworkInputDevice) OnStart(ctx gecko.Context) {
-	zlog := gecko.ZapSugarLogger
 	config := d.socket.Config()
 	if !config.IsValid() {
-		zlog.Panicw("未设置网络通讯地址和网络类型", "address", config.Addr, "type", config.Type)
+		log.Panicw("未设置网络通讯地址和网络类型", "address", config.Addr, "type", config.Type)
 	}
-	zlog.Infof("使用%s服务模式，绑定地址：%s", config.Type, config.Addr)
+	log.Infof("使用%s服务模式，绑定地址：%s", config.Type, config.Addr)
 }
 
 func (d *AbcNetworkInputDevice) OnStop(ctx gecko.Context) {

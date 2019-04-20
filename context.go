@@ -11,7 +11,7 @@ import (
 // Author: 陈哈哈 chenyongjia@parkingwang.com, yoojiachen@gmail.com
 //
 
-var Version = "v1.3"
+var Version = "v1.5"
 
 // Context 提供一些全局性质的函数
 type Context interface {
