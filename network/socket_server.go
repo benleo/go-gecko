@@ -107,6 +107,7 @@ func (ss *SocketServer) tcpServeLoop(server net.Listener, handler FrameHandler) 
 				}
 				return nil
 			default:
+				// nop
 			}
 			// Accept超时，则适当延时
 			if IsNetTempErr(err) {
@@ -121,7 +122,6 @@ func (ss *SocketServer) tcpServeLoop(server net.Listener, handler FrameHandler) 
 				time.Sleep(delay)
 				continue
 			} else {
-
 				return err
 			}
 		}
