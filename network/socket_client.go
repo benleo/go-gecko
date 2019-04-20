@@ -35,14 +35,16 @@ func (s *SocketClient) BufferSize() uint {
 
 // Open 创建数据连接
 func (s *SocketClient) Open() error {
-	if "tcp" == s.config.Type {
+	switch s.config.Type {
+	case "tcp", "TCP":
 		if conn, err := net.Dial("tcp", s.config.Addr); nil != err {
 			return errors.WithMessage(err, "TCP dial failed")
 		} else {
 			s.conn = conn
 			return nil
 		}
-	} else if "udp" == s.config.Type {
+
+	case "udp", "UDP":
 		if addr, err := net.ResolveUDPAddr("udp", s.config.Addr); nil != err {
 			return errors.WithMessage(err, "Resolve udp address failed")
 		} else if conn, err := net.DialUDP("udp", nil, addr); nil != err {
@@ -51,7 +53,8 @@ func (s *SocketClient) Open() error {
 			s.conn = conn
 			return nil
 		}
-	} else {
+
+	default:
 		return errors.New("Unknown network type: " + s.config.Type)
 	}
 }
