@@ -64,7 +64,7 @@ func (d *ScriptDriver) Handle(session gecko.EventSession, deliverer gecko.Output
 	L.Push(L.GetGlobal("main"))
 
 	// Param 1
-	req := L.NewTable()
+	req := L.CreateTable(0, 4) // 0 arr, 4 Hash
 	req.RawSet(lua.LString("attrs"), mapToLTable(session.Attrs()))
 	req.RawSet(lua.LString("topic"), lua.LString(session.Topic()))
 	req.RawSet(lua.LString("uuid"), lua.LString(session.Uuid()))
