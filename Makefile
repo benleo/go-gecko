@@ -1,6 +1,6 @@
 # Binary name
 BINARY=go-gecko
-VERSION=G1-0.4
+VERSION=G1-1.5
 
 GITTAG=`git rev-parse --short HEAD`
 BUILD_TIME=`date +%FT%T%z`

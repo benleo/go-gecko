@@ -133,7 +133,7 @@ func (c *_GeckoContext) GetPlugins() *list.List {
 
 func (c *_GeckoContext) PutScoped(key interface{}, value interface{}) {
 	if _, ok := c.scopedKV[key]; ok {
-		ZapSugarLogger.Panicw("ScopedKey 不可重复，Key已存在", "key", key)
+		log.Panicw("ScopedKey 不可重复，Key已存在", "key", key)
 	}
 	c.scopedKV[key] = value
 }
@@ -144,7 +144,7 @@ func (c *_GeckoContext) GetScoped(key interface{}) interface{} {
 
 func (c *_GeckoContext) CheckTimeout(msg string, timeout time.Duration, action func()) {
 	t := time.AfterFunc(timeout, func() {
-		ZapSugarLogger.Warnf("指令执行时间太长", "action", msg, "timeout", timeout.String())
+		log.Warnf("指令执行时间太长", "action", msg, "timeout", timeout.String())
 	})
 	defer t.Stop()
 	action()
