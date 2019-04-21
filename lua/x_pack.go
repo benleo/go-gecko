@@ -5,11 +5,11 @@ import (
 	"github.com/yuin/gopher-lua"
 )
 
-func packToTable(pack *gecko.MessagePacket, l *lua.LState) *lua.LTable {
+func messageToLTable(pack *gecko.MessagePacket, l *lua.LState) *lua.LTable {
 	t := l.NewTable()
 	return t
 }
 
-func tableToPack(table *lua.LTable, l *lua.LState) *gecko.MessagePacket {
+func lTableToMessage(table *lua.LTable, l *lua.LState) *gecko.MessagePacket {
 	return nil
 }
