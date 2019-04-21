@@ -6,3 +6,13 @@
   ]
 [DRIVERS.NopUdpDriver.InitArgs]
   foo = "bar"
+
+
+[DRIVERS.ScriptDriver]
+  disable = false
+  type = "ScriptDriver"
+  topics = [
+    "#"
+  ]
+[DRIVERS.ScriptDriver.InitArgs]
+  script = "./scripts/hello.lua"

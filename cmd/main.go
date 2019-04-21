@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/yoojia/go-gecko"
+	"github.com/yoojia/go-gecko/lua"
 	"github.com/yoojia/go-gecko/network"
 	"github.com/yoojia/go-gecko/nop"
 	"github.com/yoojia/go-gecko/serial"
@@ -14,6 +15,8 @@ func main() {
 		// 通常使用这个函数来注册组件工厂函数
 		pipeline.AddCodecFactory(gecko.JSONDefaultEncoderFactory())
 		pipeline.AddCodecFactory(gecko.JSONDefaultDecoderFactory())
+
+		pipeline.AddFactory(lua.ScriptDriverFactory())
 
 		pipeline.AddFactory(network.UDPInputDeviceFactory())
 		pipeline.AddFactory(network.UDPOutputDeviceFactory())
