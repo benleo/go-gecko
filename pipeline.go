@@ -279,7 +279,7 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 			matches = append(matches, interceptor)
 		} else {
 			p.context.OnIfLogV(func() {
-				log.Debugf("拦截器[未匹配], Int: %s, topic: %s", name, topic)
+				log.Debugf("拦截器[未匹配], Name: %s, topic: %s", name, topic)
 			})
 		}
 	}
@@ -288,11 +288,13 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 	defer func() {
 		p.checkRecover(recover(), "Interceptor-Goroutine内部错误")
 	}()
+
 	for _, it := range matches {
 		itName := it.GetName()
-		log.Debugf("拦截器[处理中], Int: %s, topic: %s", itName, topic)
+		log.Debugf("拦截器[处理中], Name: %s, topic: %s", itName, topic)
+		start := time.Now()
 		err := it.Handle(session, p.context)
-		session.AddAttr("@Interceptor.Cost."+itName, session.Since())
+		session.AddAttr("@Interceptor.Cost."+itName, time.Since(start))
 		if err == nil {
 			continue
 		}
@@ -300,7 +302,7 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 			log.Debugf("拦截器[%s]中断事件： %s", itName, err.Error())
 			session.Outbound().AddField("error", "InterceptorDropped")
 			// 终止，输出处理
-			session.AddAttr("@Interceptor.Cost.TOTAL", session.Since())
+			session.AddAttr("@Interceptor.Cost.SINCE", session.Since())
 			p.output(session)
 			return // 终止后续处理过程
 		} else {
@@ -308,7 +310,7 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 		}
 	}
 	// 后续处理
-	session.AddAttr("@Interceptor.Cost.TOTAL", session.Since())
+	session.AddAttr("@Interceptor.Cost.SINCE", session.Since())
 	p.dispatcher.EndC() <- session
 }
 
@@ -324,7 +326,7 @@ func (p *Pipeline) handleDriver(session EventSession) {
 
 	// 输出处理
 	defer func() {
-		session.AddAttr("Driver.Cost.TOTAL", session.Since())
+		session.AddAttr("Driver.Cost.SINCE", session.Since())
 		p.output(session)
 	}()
 
@@ -339,11 +341,12 @@ func (p *Pipeline) handleDriver(session EventSession) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
+				start := time.Now()
 				log.Debugf("用户驱动[处理中], Driver: %s, topic: %s", driName, topic)
 				if err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.context); nil != err {
 					p.failFastLogger(err, "用户驱动发生错误:"+driName)
 				}
-				session.AddAttr("Driver.Cost."+driName, session.Since())
+				session.AddAttr("Driver.Cost."+driName, time.Since(start))
 			}()
 		} else {
 			p.context.OnIfLogV(func() {
