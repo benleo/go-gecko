@@ -121,7 +121,7 @@ func (p *Pipeline) Start() {
 		})
 		if len(hits) > 1 {
 			for _, dr := range hits {
-				log.Error("Topic被多个Driver处理, Driver: %s, Topic: %s", dr.GetName(), topic)
+				log.Errorf("Topic被多个Driver处理, Driver: %s, Topic: %s", dr.GetName(), topic)
 			}
 			log.Panicf("禁止多个Driver处理相同的Topic")
 		}
