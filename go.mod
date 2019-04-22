@@ -1,4 +1,4 @@
-module github.com/yoojia/go-gecko
+module github.com/yoojia/go-gecko/v2
 
 require (
 	github.com/BurntSushi/toml v0.3.1
