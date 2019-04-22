@@ -197,11 +197,11 @@ func (p *Pipeline) Stop() {
 	utils.ForEach(p.stopAfterHooks, func(it interface{}) { it.(HookFunc)(p) })
 
 	log.Info("Pipeline停止...OK")
-	// 最终发起Dispatch关闭信息
+	// 最终发起Dispatch停止信号
 	p.dispatchCancel()
 }
 
-// 等待系统终止信息
+// 等待系统停止信号
 func (p *Pipeline) AwaitTermination() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
@@ -272,7 +272,7 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 		p.geckoContext.OnIfLogV(func() {
 			for k, v := range session.Attrs().Map() {
 				if '@' == k[0] {
-					log.Debugf("||-> SessionAttr: %s = %v", k, v)
+					log.Debugf("||-> Session属性 %s = %v", k, v)
 				}
 			}
 		})
@@ -484,7 +484,7 @@ func (p *Pipeline) newGeckoContext(config map[string]interface{}) *_GeckoContext
 
 func (p *Pipeline) callStopFunc(component interface{}) {
 	if stops, ok := component.(LifeCycle); ok {
-		p.geckoContext.CheckTimeout(utils.GetClassName(component)+".Stop", DefaultLifeCycleTimeout, func() {
+		p.geckoContext.CheckTimeout(utils.GetClassName(component)+".停止", DefaultLifeCycleTimeout, func() {
 			stops.OnStop(p.geckoContext)
 		})
 	}
@@ -492,7 +492,7 @@ func (p *Pipeline) callStopFunc(component interface{}) {
 
 func (p *Pipeline) callStartFunc(component interface{}) {
 	if stops, ok := component.(LifeCycle); ok {
-		p.geckoContext.CheckTimeout(utils.GetClassName(component)+".Start", DefaultLifeCycleTimeout, func() {
+		p.geckoContext.CheckTimeout(utils.GetClassName(component)+".启动", DefaultLifeCycleTimeout, func() {
 			stops.OnStart(p.geckoContext)
 		})
 	}
