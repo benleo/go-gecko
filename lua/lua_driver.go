@@ -53,9 +53,9 @@ func (d *ScriptDriver) Drive(attrs gecko.Attributes, topic string, uuid string, 
 	// 调用Lua脚本
 	L := d.L
 	// 先函数，后参数，正序入栈:
-	// Lua的函数原型： function main(request, deliverFn) (response, error)
+	// Lua的函数原型： function driver(request, deliverFn) (response, error)
 	// 先压入函数
-	L.Push(L.GetGlobal("main"))
+	L.Push(L.GetGlobal("driver"))
 	// Param 1
 	req := L.CreateTable(0, 4) // 0 arr, 4 Hash
 	req.RawSet(lua.LString("attrs"), mapToLTable(attrs.Map()))
