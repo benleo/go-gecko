@@ -21,7 +21,7 @@ const DefaultLifeCycleTimeout = time.Second * 3
 // Pipeline管理内部组件，处理事件。
 type Pipeline struct {
 	*Register
-	geckoContext Context
+	context Context
 	// 事件派发
 	interceptorChan chan *session
 	driverChan      chan *session
@@ -33,10 +33,10 @@ type Pipeline struct {
 
 // 初始化Pipeline
 func (p *Pipeline) Init(config map[string]interface{}) {
-	p.geckoContext = p.newGeckoContext(config)
-	p.geckoContext.prepare()
+	p.context = p.newGeckoContext(config)
+	p.context.prepare()
 
-	capacity := value.Of(p.geckoContext.gecko()["eventsCapacity"]).Int64OrDefault(64)
+	capacity := value.Of(p.context.gecko()["eventsCapacity"]).Int64OrDefault(64)
 	if capacity <= 0 {
 		capacity = 1
 	}
@@ -47,7 +47,7 @@ func (p *Pipeline) Init(config map[string]interface{}) {
 
 	// 初始化组件：根据配置文件指定项目
 	initFn := func(it Initial, args map[string]interface{}) {
-		it.OnInit(args, p.geckoContext)
+		it.OnInit(args, p.context)
 	}
 	// 使用结构化的参数来初始化
 	structInitFn := func(it StructuredInitial, args map[string]interface{}) {
@@ -62,10 +62,10 @@ func (p *Pipeline) Init(config map[string]interface{}) {
 		if err := m2sDecoder.Decode(args); nil != err {
 			log.Panic("Map2Struct解码出错", err)
 		}
-		it.Init(structConfig, p.geckoContext)
+		it.Init(structConfig, p.context)
 	}
 
-	ctx := p.geckoContext.(*_GeckoContext)
+	ctx := p.context.(*_GeckoContext)
 	if 0 == len(ctx.cfgPlugins) {
 		log.Warn("警告：未配置任何[Plugin]组件")
 	} else {
@@ -165,8 +165,9 @@ func (p *Pipeline) Start() {
 		uuid := input.GetUuid()
 		go func() {
 			defer log.Debugf("InputDevice已经停止：%s", uuid)
-			if err := input.Serve(p.geckoContext, p.newInputDeliverer(input)); nil != err {
-				log.Errorw("InputDevice服务运行错误", "uuid", uuid,
+			if err := input.Serve(p.context, p.newInputDeliverer(input)); nil != err {
+				log.Errorw("InputDevice服务运行错误",
+					"uuid", uuid,
 					"error", err,
 					"class", utils.GetClassName(input))
 			}
@@ -269,7 +270,7 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 			return nil, errors.New("Input设备发起Deliver请求必须返回结果数据")
 		}
 		// 输出调度Attr数据
-		p.geckoContext.OnIfLogV(func() {
+		p.context.OnIfLogV(func() {
 			for k, v := range session.Attrs().Map() {
 				if '@' == k[0] {
 					log.Debugf("||-> Session属性 %s = %v", k, v)
@@ -292,7 +293,7 @@ func (p *Pipeline) deliverToOutput(uuid string, rawJSON *MessagePacket) (*Messag
 		if nil != encErr {
 			return nil, errors.WithMessage(encErr, "设备Encode数据出错: "+uuid)
 		}
-		respFrame, err := output.Process(encodedFrame, p.geckoContext)
+		respFrame, err := output.Process(encodedFrame, p.context)
 		if nil != err {
 			return nil, errors.WithMessage(err, "Output设备处理出错: "+uuid)
 		}
@@ -309,7 +310,7 @@ func (p *Pipeline) deliverToOutput(uuid string, rawJSON *MessagePacket) (*Messag
 // 处理拦截器过程
 func (p *Pipeline) doInterceptor(session *session) {
 	topic := session.Topic()
-	p.geckoContext.OnIfLogV(func() {
+	p.context.OnIfLogV(func() {
 		log.Debugf("正在Interceptor调度过程，Topic: %s", topic)
 	})
 	// 查找匹配的拦截器，按优先级排序并处理
@@ -319,10 +320,9 @@ func (p *Pipeline) doInterceptor(session *session) {
 		name := interceptor.GetName()
 		if anyTopicMatches(interceptor.GetTopicExpr(), topic) {
 			matches = append(matches, interceptor)
-			log.Debugf("拦截器正在处理, Int: %s, topic: %s", name, topic)
 		} else {
-			p.geckoContext.OnIfLogV(func() {
-				log.Debugf("拦截器[未匹配], Int: %s, topic: %s", name, topic)
+			p.context.OnIfLogV(func() {
+				log.Debugf("拦截器[未匹配], Name: %s, topic: %s", name, topic)
 			})
 		}
 	}
@@ -331,10 +331,11 @@ func (p *Pipeline) doInterceptor(session *session) {
 	defer func() {
 		p.checkRecover(recover(), "Interceptor-Goroutine内部错误")
 	}()
+
 	for _, it := range matches {
 		itName := it.GetName()
 		start := time.Now()
-		err := it.Handle(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(), p.geckoContext)
+		err := it.Handle(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(), p.context)
 		session.Attrs().Add("@Interceptor.Cost."+itName, time.Since(start))
 		if err == nil {
 			continue
@@ -360,10 +361,9 @@ func (p *Pipeline) doInterceptor(session *session) {
 // 处理驱动执行过程
 func (p *Pipeline) doDriver(session *session) {
 	topic := session.Topic()
-	p.geckoContext.OnIfLogV(func() {
-		log.Debugf("正在Driver调度过程，Topic: %s", topic)
+	p.context.OnIfLogV(func() {
+		log.Debugf("Driver调度，Topic: %s", topic)
 	})
-
 	// 查找匹配的用户驱动
 	var driver Driver
 	for el := p.drivers.Front(); el != nil; el = el.Next() {
@@ -373,7 +373,7 @@ func (p *Pipeline) doDriver(session *session) {
 			// 只匹配一个Driver
 			break
 		} else {
-			p.geckoContext.OnIfLogV(func() {
+			p.context.OnIfLogV(func() {
 				log.Debugf("用户驱动[未匹配], Driver: %s, topic: %s", d.GetName(), topic)
 			})
 		}
@@ -388,7 +388,7 @@ func (p *Pipeline) doDriver(session *session) {
 		}()
 		start := time.Now()
 		outbound, err := driver.Drive(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
-			OutputDeliverer(p.deliverToOutput), p.geckoContext)
+			OutputDeliverer(p.deliverToOutput), p.context)
 		session.Attrs().Add("@Driver.Cost."+driName, time.Since(start))
 
 		if nil != err {
@@ -407,7 +407,7 @@ func (p *Pipeline) doDriver(session *session) {
 // 处理驱动执行过程
 func (p *Pipeline) doTrigger(session *session) {
 	topic := session.Topic()
-	p.geckoContext.OnIfLogV(func() {
+	p.context.OnIfLogV(func() {
 		log.Debugf("正在Trigger调度过程，Topic: %s", topic)
 	})
 	// 查找匹配的用户触发器, 并发处理
@@ -421,13 +421,13 @@ func (p *Pipeline) doTrigger(session *session) {
 				// Driver 处理
 				log.Debugf("用户触发器正在处理, Trigger: %s, topic: %s", trigger.GetName(), topic)
 				err := trigger.Touch(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
-					OutputDeliverer(p.deliverToOutput), p.geckoContext)
+					OutputDeliverer(p.deliverToOutput), p.context)
 				if nil != err {
 					p.failFastLogger(err, "用户触发器发生错误:"+trigger.GetName())
 				}
 			}()
 		} else {
-			p.geckoContext.OnIfLogV(func() {
+			p.context.OnIfLogV(func() {
 				log.Debugf("用户触发器[未匹配], Trigger: %s, topic: %s", trigger.GetName(), topic)
 			})
 		}
@@ -436,8 +436,8 @@ func (p *Pipeline) doTrigger(session *session) {
 }
 
 func (p *Pipeline) checkDefTimeout(msg string, fn func(Context)) {
-	p.geckoContext.CheckTimeout(msg, DefaultLifeCycleTimeout, func() {
-		fn(p.geckoContext)
+	p.context.CheckTimeout(msg, DefaultLifeCycleTimeout, func() {
+		fn(p.context)
 	})
 }
 
@@ -448,13 +448,13 @@ func (p *Pipeline) checkRecover(r interface{}, msg string) {
 	if err, ok := r.(error); ok {
 		log.Errorw(msg, "error", err)
 	}
-	p.geckoContext.OnIfFailFast(func() {
+	p.context.OnIfFailFast(func() {
 		log.Fatal(r)
 	})
 }
 
 func (p *Pipeline) failFastLogger(err error, msg string) {
-	if p.geckoContext.IsFailFastEnabled() {
+	if p.context.IsFailFastEnabled() {
 		log.Fatalw(msg, "error", err)
 	} else {
 		log.Errorw(msg, "error", err)
@@ -484,16 +484,16 @@ func (p *Pipeline) newGeckoContext(config map[string]interface{}) *_GeckoContext
 
 func (p *Pipeline) callStopFunc(component interface{}) {
 	if stops, ok := component.(LifeCycle); ok {
-		p.geckoContext.CheckTimeout(utils.GetClassName(component)+".停止", DefaultLifeCycleTimeout, func() {
-			stops.OnStop(p.geckoContext)
+		p.context.CheckTimeout(utils.GetClassName(component)+".停止", DefaultLifeCycleTimeout, func() {
+			stops.OnStop(p.context)
 		})
 	}
 }
 
 func (p *Pipeline) callStartFunc(component interface{}) {
 	if stops, ok := component.(LifeCycle); ok {
-		p.geckoContext.CheckTimeout(utils.GetClassName(component)+".启动", DefaultLifeCycleTimeout, func() {
-			stops.OnStart(p.geckoContext)
+		p.context.CheckTimeout(utils.GetClassName(component)+".启动", DefaultLifeCycleTimeout, func() {
+			stops.OnStart(p.context)
 		})
 	}
 }

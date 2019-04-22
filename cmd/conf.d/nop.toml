@@ -28,10 +28,19 @@
   disable = false
   type = "NopDriver"
   topics = [
-    "/demo/#"
+    "/test/#"
   ]
 [DRIVERS.NopUdpDriver.InitArgs]
   foo = "bar"
+
+[DRIVERS.ScriptDriver]
+  disable = false
+  type = "ScriptDriver"
+  topics = [
+    "/demo/nop/input/+"
+  ]
+[DRIVERS.ScriptDriver.InitArgs]
+  script = "./scripts/test.lua"
 
 [TRIGGERS.NopTrigger]
   disable = false

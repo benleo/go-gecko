@@ -44,7 +44,12 @@ func (d *NopInputDevice) OnStop(ctx gecko.Context) {
 
 func (d *NopInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 	for t := range d.ticker.C {
-		deliverer.Deliver(d.GetTopic(), []byte(fmt.Sprintf(`{"timestamp": %d}`, t.UnixNano())))
+		out, err := deliverer.Deliver(d.GetTopic(), []byte(fmt.Sprintf(`{"timestamp": %d}`, t.UnixNano())))
+		if nil != err {
+			log.Error(err)
+		} else {
+			log.Debug(out)
+		}
 	}
 	return nil
 }

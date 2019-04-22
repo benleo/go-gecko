@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/pkg/errors"
 	"github.com/yoojia/go-value"
-	"sync"
 )
 
 //
@@ -39,35 +38,34 @@ type Fields interface {
 
 type fieldsMap struct {
 	Fields
-	fields *sync.Map
+	data map[string]interface{}
 }
 
 func (a *fieldsMap) RangeFields(consumer func(name string, value interface{})) {
-	a.fields.Range(func(key, value interface{}) bool {
-		consumer(key.(string), value)
-		return true
-	})
+	for k, v := range a.data {
+		consumer(k, v)
+	}
 }
 
 func (a *fieldsMap) GetFields() map[string]interface{} {
 	rom := make(map[string]interface{})
-	a.fields.Range(func(key, value interface{}) bool {
-		rom[key.(string)] = value
-		return true
-	})
+	for k, v := range a.data {
+		rom[k] = v
+	}
 	return rom
 }
 
 func (a *fieldsMap) AddField(key string, value interface{}) {
-	a.fields.Store(key, value)
+	a.data[key] = value
 }
 
 func (a *fieldsMap) GetField(key string) (interface{}, bool) {
-	return a.fields.Load(key)
+	v, ok := a.data[key]
+	return v, ok
 }
 
 func (a *fieldsMap) GetFieldOrNil(key string) interface{} {
-	v, ok := a.fields.Load(key)
+	v, ok := a.data[key]
 	if ok {
 		return v
 	} else {
@@ -76,7 +74,7 @@ func (a *fieldsMap) GetFieldOrNil(key string) interface{} {
 }
 
 func (a *fieldsMap) GetFieldString(key string) (string, bool) {
-	val, ok := a.fields.Load(key)
+	val, ok := a.data[key]
 	if ok {
 		return value.ToString(val), true
 	} else {
@@ -85,7 +83,7 @@ func (a *fieldsMap) GetFieldString(key string) (string, bool) {
 }
 
 func (a *fieldsMap) GetFieldInt64(key string) (int64, bool) {
-	val, ok := a.fields.Load(key)
+	val, ok := a.data[key]
 	if ok {
 		return value.ToInt64(val)
 	} else {
@@ -94,12 +92,12 @@ func (a *fieldsMap) GetFieldInt64(key string) (int64, bool) {
 }
 
 func (a *fieldsMap) HasField(key string) bool {
-	_, ok := a.fields.Load(key)
+	_, ok := a.data[key]
 	return ok
 }
 
 func newMapFields() *fieldsMap {
-	return &fieldsMap{fields: new(sync.Map)}
+	return &fieldsMap{data: make(map[string]interface{})}
 }
 
 // 对象数据消息包
@@ -124,7 +122,7 @@ func (m *MessagePacket) SetFrames(b []byte) *MessagePacket {
 func NewMessagePacketWith(fields map[string]interface{}, frames []byte) *MessagePacket {
 	m := newMapFields()
 	for k, v := range fields {
-		m.fields.Store(k, v)
+		m.data[k] = v
 	}
 	return &MessagePacket{
 		fieldsMap: m,
@@ -216,7 +214,7 @@ func JSONDefaultEncoderFactory() (string, CodecFactory) {
 // 默认JSON编码器，负责将MessagePacket.Fields对象解析成Byte数组
 // 注意：JSON编码器将Fields字段转换成JSON字节数组，忽略Frames字段。
 func JSONDefaultEncoder(msg *MessagePacket) (FramePacket, error) {
-	return json.Marshal(msg.fields)
+	return json.Marshal(msg.data)
 }
 
 ////

@@ -63,7 +63,7 @@ func (d *AbcNetworkOutputDevice) OnStart(ctx gecko.Context) {
 
 func (d *AbcNetworkOutputDevice) OnStop(ctx gecko.Context) {
 	if err := d.socket.Close(); nil != err {
-		gecko.ZapSugarLogger.Error("客户端断开连接发生错误", err)
+		log.Error("客户端断开连接发生错误", err)
 	}
 }
 
