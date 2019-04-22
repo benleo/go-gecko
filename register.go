@@ -146,6 +146,11 @@ func (re *Register) showComponents() {
 		log.Infof("  -> Driver: [%s::%s]", utils.GetClassName(it), it.(NeedName).GetName())
 	})
 
+	log.Infof("已加载 Triggers: %d", re.triggers.Len())
+	utils.ForEach(re.triggers, func(it interface{}) {
+		log.Infof("  -> Trigger: [%s::%s]", utils.GetClassName(it), it.(NeedName).GetName())
+	})
+
 	log.Infof("已加载 Plugins: %d", re.plugins.Len())
 	utils.ForEach(re.plugins, func(it interface{}) {
 		log.Info("  -> Plugin: " + utils.GetClassName(it))

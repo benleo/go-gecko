@@ -23,7 +23,10 @@ type Pipeline struct {
 	*Register
 	geckoContext Context
 	// 事件派发
-	dispatcher     *Dispatcher
+	interceptorChan chan *session
+	driverChan      chan *session
+	triggerChan     chan *session
+	//
 	dispatchCtx    context.Context
 	dispatchCancel context.CancelFunc
 }
@@ -31,14 +34,16 @@ type Pipeline struct {
 // 初始化Pipeline
 func (p *Pipeline) Init(config map[string]interface{}) {
 	p.geckoContext = p.newGeckoContext(config)
-	capacity := value.Of(p.geckoContext.gecko()["eventsCapacity"]).Int64OrDefault(100)
+	p.geckoContext.prepare()
+
+	capacity := value.Of(p.geckoContext.gecko()["eventsCapacity"]).Int64OrDefault(64)
 	if capacity <= 0 {
 		capacity = 1
 	}
 	log.Infof("事件通道容量： %d", capacity)
-	p.dispatcher = NewDispatcher(int(capacity))
-	p.dispatcher.SetStartHandler(p.handleInterceptor)
-	p.dispatcher.SetEndHandler(p.handleSession)
+	p.interceptorChan = make(chan *session, capacity)
+	p.driverChan = make(chan *session, capacity)
+	p.triggerChan = make(chan *session, capacity)
 
 	// 初始化组件：根据配置文件指定项目
 	initFn := func(it Initial, args map[string]interface{}) {
@@ -104,7 +109,24 @@ func (p *Pipeline) Init(config map[string]interface{}) {
 func (p *Pipeline) Start() {
 	log.Info("Pipeline启动...")
 	// Dispatcher运行
-	go p.dispatcher.Serve(p.dispatchCtx)
+	go func() {
+		for {
+			select {
+			case <-p.dispatchCtx.Done():
+				return
+
+			case s := <-p.interceptorChan:
+				go p.doInterceptor(s)
+
+			case s := <-p.driverChan:
+				go p.doDriver(s)
+
+			case s := <-p.triggerChan:
+				go p.doTrigger(s)
+
+			}
+		}
+	}()
 
 	// Hook first
 	utils.ForEach(p.startBeforeHooks, func(it interface{}) { it.(HookFunc)(p) })
@@ -211,7 +233,7 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 			inputMessage = logic.Transform(inputMessage)
 		}
 		// 发送到Dispatcher调度处理
-		session := &_Session{
+		session := &session{
 			attrs:     newMapAttributesWith(attributes),
 			timestamp: time.Now(),
 			topic:     inputTopic,
@@ -219,10 +241,12 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 			inbound:   inputMessage,
 			outbound:  make(chan *MessagePacket, 1),
 		}
-		p.dispatcher.StartC() <- session
-		// 等待处理完成
-		outputMessage := <-session.outbound
-		if nil == outputMessage {
+
+		// 传递给interceptor通道来处理,并等待Session处理完成
+		p.interceptorChan <- session
+		// 等待
+		output := <-session.outbound
+		if nil == output {
 			return nil, errors.New("Input设备发起Deliver请求必须返回结果数据")
 		}
 		// 输出调度数据
@@ -231,7 +255,7 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 				log.Debugf("||-> SessionAttr: %s = %v", k, v)
 			}
 		})
-		if encodedFrame, err := masterInput.GetEncoder()(outputMessage); nil != err {
+		if encodedFrame, err := masterInput.GetEncoder()(output); nil != err {
 			return nil, errors.WithMessage(err, "Input设备Encode数据出错："+masterUuid)
 		} else {
 			return FramePacket(encodedFrame), nil
@@ -262,7 +286,7 @@ func (p *Pipeline) deliverToOutput(uuid string, rawJSON *MessagePacket) (*Messag
 }
 
 // 处理拦截器过程
-func (p *Pipeline) handleInterceptor(session session) {
+func (p *Pipeline) doInterceptor(session *session) {
 	topic := session.Topic()
 	p.geckoContext.OnIfLogV(func() {
 		log.Debugf("正在Interceptor调度过程，Topic: %s", topic)
@@ -306,23 +330,18 @@ func (p *Pipeline) handleInterceptor(session session) {
 	}
 	// 后续处理
 	session.Attrs().Add("@Interceptor.Cost.TOTAL", session.Since())
-	p.dispatcher.EndC() <- session
-}
-
-func (p *Pipeline) handleSession(session session) {
-	p.doDriver(session)
-	go p.doTrigger(session)
+	// 1. Driver驱动处理
+	// 2. Trigger触发处理
+	p.driverChan <- session
+	p.triggerChan <- session
 }
 
 // 处理驱动执行过程
-func (p *Pipeline) doDriver(session session) {
+func (p *Pipeline) doDriver(session *session) {
 	topic := session.Topic()
 	p.geckoContext.OnIfLogV(func() {
 		log.Debugf("正在Driver调度过程，Topic: %s", topic)
 	})
-	defer func() {
-		p.checkRecover(recover(), "Driver-Goroutine内部错误")
-	}()
 
 	// 查找匹配的用户驱动
 	var driver Driver
@@ -343,9 +362,11 @@ func (p *Pipeline) doDriver(session session) {
 		driName := driver.GetName()
 		// Driver 处理
 		log.Debugf("用户驱动正在处理, Driver: %s, topic: %s", driName, topic)
-
+		defer func() {
+			p.checkRecover(recover(), "Driver-Goroutine内部错误:"+driName)
+		}()
 		start := time.Now()
-		outbound, err := driver.Handle(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
+		outbound, err := driver.Drive(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
 			OutputDeliverer(p.deliverToOutput), p.geckoContext)
 		session.Attrs().Add("@Driver.Cost."+driName, time.Since(start))
 
@@ -363,23 +384,22 @@ func (p *Pipeline) doDriver(session session) {
 }
 
 // 处理驱动执行过程
-func (p *Pipeline) doTrigger(session session) {
+func (p *Pipeline) doTrigger(session *session) {
 	topic := session.Topic()
 	p.geckoContext.OnIfLogV(func() {
 		log.Debugf("正在Trigger调度过程，Topic: %s", topic)
 	})
-	defer func() {
-		p.checkRecover(recover(), "Trigger-Goroutine内部错误")
-	}()
-
 	// 查找匹配的用户触发器, 并发处理
-	for el := p.drivers.Front(); el != nil; el = el.Next() {
+	for el := p.triggers.Front(); el != nil; el = el.Next() {
 		trigger := el.Value.(Trigger)
 		if anyTopicMatches(trigger.GetTopicExpr(), topic) {
 			go func() {
+				defer func() {
+					p.checkRecover(recover(), "Trigger-Goroutine内部错误:"+trigger.GetName())
+				}()
 				// Driver 处理
 				log.Debugf("用户触发器正在处理, Trigger: %s, topic: %s", trigger.GetName(), topic)
-				err := trigger.Handle(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
+				err := trigger.Touch(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
 					OutputDeliverer(p.deliverToOutput), p.geckoContext)
 				if nil != err {
 					p.failFastLogger(err, "用户触发器发生错误:"+trigger.GetName())

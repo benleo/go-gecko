@@ -90,31 +90,7 @@ func newMapAttributesWith(attrs map[string]interface{}) *AttrMap {
 ////
 
 // session 是每次请求生成的上下文对象，服务于事件请求的整个生命周期。
-type session interface {
-	Attrs() Attributes
-
-	// 创建的时间戳
-	Timestamp() time.Time
-
-	// 从创建起始，到当前时间的用时
-	Since() time.Duration
-
-	// 当前事件的Topic
-	Topic() string
-
-	// 当前事件的设备地址
-	Uuid() string
-
-	// 返回输入端消息对象
-	GetInbound() *MessagePacket
-
-	// 返回Outbound对象
-	WriteOutbound(mp *MessagePacket)
-}
-
-////
-
-type _Session struct {
+type session struct {
 	timestamp time.Time
 	attrs     *AttrMap
 	topic     string
@@ -123,30 +99,30 @@ type _Session struct {
 	outbound  chan *MessagePacket
 }
 
-func (s *_Session) Attrs() Attributes {
+func (s *session) Attrs() Attributes {
 	return s.attrs
 }
 
-func (s *_Session) Timestamp() time.Time {
+func (s *session) Timestamp() time.Time {
 	return s.timestamp
 }
 
-func (s *_Session) Topic() string {
+func (s *session) Topic() string {
 	return s.topic
 }
 
-func (s *_Session) Uuid() string {
+func (s *session) Uuid() string {
 	return s.uuid
 }
 
-func (s *_Session) GetInbound() *MessagePacket {
+func (s *session) GetInbound() *MessagePacket {
 	return s.inbound
 }
 
-func (s *_Session) WriteOutbound(mp *MessagePacket) {
+func (s *session) WriteOutbound(mp *MessagePacket) {
 	s.outbound <- mp
 }
 
-func (s *_Session) Since() time.Duration {
+func (s *session) Since() time.Duration {
 	return time.Since(s.Timestamp())
 }

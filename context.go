@@ -72,27 +72,36 @@ type Context interface {
 
 	// 返回分布式ID生成器的WorkerId
 	workerId() int64
+
+	prepare()
 }
 
 ///
 
 type _GeckoContext struct {
-	cfgGeckos       map[string]interface{}
-	cfgGlobals      map[string]interface{}
-	cfgInterceptors map[string]interface{}
-	cfgDrivers      map[string]interface{}
-	cfgTriggers     map[string]interface{}
-	cfgOutputs      map[string]interface{}
-	cfgInputs       map[string]interface{}
-	cfgLogics       map[string]interface{}
-	cfgPlugins      map[string]interface{}
-	scopedKV        map[interface{}]interface{}
-	plugins         *list.List
-	interceptors    *list.List
-	drivers         *list.List
-	triggers        *list.List
-	outputs         *list.List
-	inputs          *list.List
+	cfgGeckos           map[string]interface{}
+	cfgGlobals          map[string]interface{}
+	cfgInterceptors     map[string]interface{}
+	cfgDrivers          map[string]interface{}
+	cfgTriggers         map[string]interface{}
+	cfgOutputs          map[string]interface{}
+	cfgInputs           map[string]interface{}
+	cfgLogics           map[string]interface{}
+	cfgPlugins          map[string]interface{}
+	scopedKV            map[interface{}]interface{}
+	plugins             *list.List
+	interceptors        *list.List
+	drivers             *list.List
+	triggers            *list.List
+	outputs             *list.List
+	inputs              *list.List
+	flagVerboseEnabled  bool
+	flagFailFastEnabled bool
+}
+
+func (c *_GeckoContext) prepare() {
+	c.flagVerboseEnabled = value.Of(c.cfgGeckos["loggingVerbose"]).MustBool()
+	c.flagFailFastEnabled = value.Of(c.cfgGeckos["failFastEnable"]).MustBool()
 }
 
 func (c *_GeckoContext) gecko() map[string]interface{} {
@@ -173,11 +182,11 @@ func (c *_GeckoContext) NodeId() string {
 }
 
 func (c *_GeckoContext) IsVerboseEnabled() bool {
-	return value.Of(c.cfgGeckos["loggingVerbose"]).MustBool()
+	return c.flagVerboseEnabled
 }
 
 func (c *_GeckoContext) IsFailFastEnabled() bool {
-	return value.Of(c.cfgGeckos["failFastEnable"]).MustBool()
+	return c.flagFailFastEnabled
 }
 
 func (c *_GeckoContext) OnIfLogV(fun func()) {

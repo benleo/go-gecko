@@ -35,19 +35,8 @@ func (du *NopDriver) OnStop(ctx gecko.Context) {
 	log.Debug("停止...")
 }
 
-func (du *NopDriver) Handle(attrs gecko.Attributes, topic string, uuid string, in *gecko.MessagePacket, deliverer gecko.OutputDeliverer, ctx gecko.Context) error {
-	//deliverer.Broadcast("127.0.0.1", gecko.JSONPacket{
-	//	"A": "b",
-	//})
-	//if pipeline, ok := selector("udp"); !ok {
-	//	return errors.New("无法查找到udp协议对应的Pipeline")
-	//} else {
-	//	// 通过Pipeline，向特定设备发送消息：
-	//	//groupAddress := "目标设备的GroupAddress"
-	//	//privateAddress := "目标设备的PrivateAddress"
-	//	//resp, err := pipeline.ExecuteDevice(groupAddress, privateAddress, gecko.NewFramePacket([]byte{0}))
-	//
-	//}
-
-	return nil
+func (du *NopDriver) Drive(attrs gecko.Attributes, topic string, uuid string, in *gecko.MessagePacket, deliverer gecko.OutputDeliverer, ctx gecko.Context) (out *gecko.MessagePacket, err error) {
+	return gecko.NewMessagePacketFields(map[string]interface{}{
+		"status": "success",
+	}), nil
 }

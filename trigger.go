@@ -10,7 +10,7 @@ type Trigger interface {
 	NeedName
 	// 处理外部请求，返回响应结果。
 	// 在Trigger内部，可以通过 OutputDeliverer 来控制其它设备。
-	Handle(attrs Attributes, topic string, inputUUid string, inbound *MessagePacket, deliverer OutputDeliverer, ctx Context) error
+	Touch(attrs Attributes, topic string, inputUUid string, inbound *MessagePacket, deliverer OutputDeliverer, ctx Context) error
 }
 
 //// Trigger抽象实现
