@@ -36,18 +36,29 @@
   bufferSize = 64
   readTimeout = "3s"
 
-# 串口网络输入类型设备
-[INPUTS.UARTInputDevice]
+# UDP客户端模式设备
+[OUTPUTS.UDPOutputDevice]
   disable = false
-  type = "UARTInputDevice"
-  name = "串口网络输入类型设备"
-  uuid = "com@(0755001001)"
-  topic = "/demo/serial/input"
+  type = "UDPOutputDevice"
+  name = "UDP客户端模式输出类型设备"
+  uuid = "udp@(0755002001)"
   encoder = "JSONDefaultEncoder"
   decoder = "JSONDefaultDecoder"
-[INPUTS.UARTInputDevice.InitArgs]
+[OUTPUTS.UDPOutputDevice.InitArgs]
+  networkAddress = "127.0.0.1:60000"
   bufferSize = 64
-  serialPort = "COM4"
-  baudRate = 115200
-  dataBit = 8
-  stopBits = 1
+  writeTimeout = "3s"
+
+# TCP客户端模式设备
+[OUTPUTS.TCPOutputDevice]
+  disable = false
+  type = "TCPOutputDevice"
+  name = "TCP客户端模式输出类型设备"
+  uuid = "tcp@(0755002001)"
+  encoder = "JSONDefaultEncoder"
+  decoder = "JSONDefaultDecoder"
+[OUTPUTS.TCPOutputDevice.InitArgs]
+  networkAddress = "127.0.0.1:50000"
+  bufferSize = 64
+  writeTimeout = "3s"
+

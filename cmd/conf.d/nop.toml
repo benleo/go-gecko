@@ -1,0 +1,34 @@
+# 测试Nop插件
+[PLUGINS.NopPlugin]
+  disable = false
+  type = "NopPlugin"
+[PLUGINS.NopPlugin.InitArgs]
+  a = "b"
+
+[INPUTS.NopInputDevice]
+  type = "NopInputDevice"
+  name = "定时产生输入数据#1"
+  uuid = "nop@(0755001001)#1"
+  encoder = "JSONDefaultEncoder"
+  decoder = "JSONDefaultDecoder"
+  topic = "/demo/nop/input/1"
+[INPUTS.NopInputDevice.InitArgs]
+  period = "2s"
+
+[INTERCEPTORS.NopInterceptor]
+ disable = false
+ type = "NopInterceptor"
+ topics = [
+   "/#"
+ ]
+[INTERCEPTORS.NopInterceptor.InitArgs]
+ a = "b"
+
+[DRIVERS.NopUdpDriver]
+  disable = false
+  type = "NopDriver"
+  topics = [
+    "/demo/#"
+  ]
+[DRIVERS.NopUdpDriver.InitArgs]
+  foo = "bar"

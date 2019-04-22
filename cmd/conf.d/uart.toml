@@ -1,0 +1,32 @@
+
+# 串口网络输入类型设备
+[INPUTS.UARTInputDevice]
+  disable = true
+  type = "UARTInputDevice"
+  name = "串口网络输入类型设备"
+  uuid = "com@(0755001001)"
+  topic = "/demo/serial/input"
+  encoder = "JSONDefaultEncoder"
+  decoder = "JSONDefaultDecoder"
+[INPUTS.UARTInputDevice.InitArgs]
+  bufferSize = 64
+  serialPort = "COM4"
+  baudRate = 115200
+  dataBit = 8
+  stopBits = 1
+
+# 串口输出设备
+[INPUTS.UARTOutputDevice]
+  disable = true
+  type = "UARTOutputDevice"
+  name = "串口输出类型设备"
+  uuid = "com@(0755001002)"
+  topic = "/demo/serial/output"
+  encoder = "JSONDefaultEncoder"
+  decoder = "JSONDefaultDecoder"
+[INPUTS.UARTOutputDevice.InitArgs]
+  bufferSize = 64
+  serialPort = "COM5"
+  baudRate = 115200
+  dataBit = 8
+  stopBits = 1

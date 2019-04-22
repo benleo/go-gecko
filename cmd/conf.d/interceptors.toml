@@ -1,8 +1,0 @@
-[INTERCEPTORS.NopInterceptor]
- disable = false
- type = "NopInterceptor"
- topics = [
-   "/#"
- ]
-[INTERCEPTORS.NopInterceptor.InitArgs]
- a = "b"

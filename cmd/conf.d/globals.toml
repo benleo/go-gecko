@@ -2,19 +2,9 @@
  domain = "net.nextabc"
  nodeId = "0755"
  workerId = 755
- interceptorChannelCapacity = 8
- driverChannelCapacity = 8
- outputChannelCapacity = 8
-
-# 全局配置
-[GLOBALS]
+ eventsCapacity = 32
  # 显示详细日志
  loggingVerbose = true
  # 开启FailFast机制：当执行系统主流程发生错误时，直接panic快速失败
  failFastEnable = true
 
-# 日志配置
-[GLOBALS.Logger]
- level = "debug" # 日志级别：debug, info, warn, error. 默认: debug
- format = "text" # 日志格式：text, json
- console = true # 是否输出到控制台
