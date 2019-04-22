@@ -249,10 +249,12 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 		if nil == output {
 			return nil, errors.New("Input设备发起Deliver请求必须返回结果数据")
 		}
-		// 输出调度数据
+		// 输出调度Attr数据
 		p.geckoContext.OnIfLogV(func() {
 			for k, v := range session.Attrs().Map() {
-				log.Debugf("||-> SessionAttr: %s = %v", k, v)
+				if '@' == k[0] {
+					log.Debugf("||-> SessionAttr: %s = %v", k, v)
+				}
 			}
 		})
 		if encodedFrame, err := masterInput.GetEncoder()(output); nil != err {
