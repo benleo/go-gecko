@@ -32,3 +32,12 @@
   ]
 [DRIVERS.NopUdpDriver.InitArgs]
   foo = "bar"
+
+[TRIGGERS.NopTrigger]
+  disable = false
+  type = "NopTrigger"
+  topics = [
+    "/demo/#"
+  ]
+[TRIGGERS.NopTrigger.InitArgs]
+  foo = "bar"

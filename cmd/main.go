@@ -22,6 +22,7 @@ func main() {
 		pipeline.AddFactory(serial.UARTInputDeviceFactory())
 		pipeline.AddFactory(serial.UARTOutputDeviceFactory())
 
+		pipeline.AddFactory(nop.NopTriggerFactory())
 		pipeline.AddFactory(nop.NopInputDeviceFactory())
 		pipeline.AddFactory(nop.NopDriverFactory())
 		pipeline.AddFactory(nop.NopInterceptorFactor())
