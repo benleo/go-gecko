@@ -36,14 +36,14 @@ func (d *ScriptDriver) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	d.args = args
 	d.scriptFile = value.Of(args["script"]).String()
 	if "" == d.scriptFile {
-		log.Panic("Arg[script] is required")
+		log.Panic("参数[script]是必须的")
 	}
 }
 
 func (d *ScriptDriver) OnStart(ctx gecko.Context) {
 	d.L = lua.NewState()
 	if err := d.L.DoFile(d.scriptFile); nil != err {
-		log.Panicf("Failed to load lua script: %s", d.scriptFile, err)
+		log.Panicf("加载LUA脚本出错: %s", d.scriptFile, err)
 	}
 }
 
@@ -65,19 +65,19 @@ func (d *ScriptDriver) Drive(attrs gecko.Attributes, topic string, uuid string, 
 	}
 
 	// 函数调用后，参数和函数全部出栈，此时栈中为函数返回值。
-	lResp := d.L.ToTable(1)
-	lErr := d.L.ToString(2)
+	retData := d.L.ToTable(1)
+	retErr := d.L.ToString(2)
 	d.L.Pop(2) // remove received
 
-	if "" != lErr {
+	if "" != retErr {
 		return gecko.NewMessagePacketFields(map[string]interface{}{
 			"status": "error",
-			"error":  "LuaScript返回非法的数据格式",
-		}), errors.New("LuaScript返回非法的数据格式")
+			"error":  retErr,
+		}), errors.New("LuaScript返回错误：" + retErr)
 	} else {
 		return gecko.NewMessagePacketFields(map[string]interface{}{
 			"status": "success",
-			"data":   lTableToMessage(lResp),
+			"data":   lTableToMessage(retData),
 		}), nil
 	}
 }

@@ -23,7 +23,7 @@ func NewScriptTrigger() *ScriptTrigger {
 	}
 }
 
-// Lua脚本驱动，
+// Lua脚本触发器，通过外置Lua脚本，执行其 trigger 函数。
 type ScriptTrigger struct {
 	*gecko.AbcTrigger
 	gecko.LifeCycle
@@ -36,14 +36,14 @@ func (d *ScriptTrigger) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	d.args = args
 	d.scriptFile = value.Of(args["script"]).String()
 	if "" == d.scriptFile {
-		log.Panic("Arg[script] is required")
+		log.Panic("参数[script]是必须的")
 	}
 }
 
 func (d *ScriptTrigger) OnStart(ctx gecko.Context) {
 	d.L = lua.NewState()
 	if err := d.L.DoFile(d.scriptFile); nil != err {
-		log.Panicf("Failed to load lua script: %s", d.scriptFile, err)
+		log.Panicf("加载Lua脚本出错: %s", d.scriptFile, err)
 	}
 }
 

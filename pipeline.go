@@ -26,14 +26,32 @@ type Pipeline struct {
 	interceptorChan chan *session
 	driverChan      chan *session
 	triggerChan     chan *session
-	//
-	dispatchCtx    context.Context
-	dispatchCancel context.CancelFunc
+	// 服务终止信号
+	termCtx    context.Context
+	termCancel context.CancelFunc
 }
 
 // 初始化Pipeline
 func (p *Pipeline) Init(config map[string]interface{}) {
-	p.context = p.newGeckoContext(config)
+	p.context = &_GeckoContext{
+		cfgGeckos:       utils.ToMap(config["GECKO"]),
+		cfgGlobals:      utils.ToMap(config["GLOBALS"]),
+		cfgInterceptors: utils.ToMap(config["INTERCEPTORS"]),
+		cfgDrivers:      utils.ToMap(config["DRIVERS"]),
+		cfgTriggers:     utils.ToMap(config["TRIGGERS"]),
+		cfgOutputs:      utils.ToMap(config["OUTPUTS"]),
+		cfgInputs:       utils.ToMap(config["INPUTS"]),
+		cfgPlugins:      utils.ToMap(config["PLUGINS"]),
+		cfgLogics:       utils.ToMap(config["LOGICS"]),
+		scopedKV:        make(map[interface{}]interface{}),
+		plugins:         p.plugins,
+		interceptors:    p.interceptors,
+		drivers:         p.drivers,
+		triggers:        p.triggers,
+		outputs:         p.outputs,
+		inputs:          p.inputs,
+	}
+
 	p.context.prepare()
 
 	capacity := value.Of(p.context.gecko()["eventsCapacity"]).Int64OrDefault(64)
@@ -46,7 +64,7 @@ func (p *Pipeline) Init(config map[string]interface{}) {
 	p.triggerChan = make(chan *session, capacity)
 
 	// 初始化组件：根据配置文件指定项目
-	initFn := func(it Initial, args map[string]interface{}) {
+	mappedInitFn := func(it Initial, args map[string]interface{}) {
 		it.OnInit(args, p.context)
 	}
 	// 使用结构化的参数来初始化
@@ -69,37 +87,37 @@ func (p *Pipeline) Init(config map[string]interface{}) {
 	if 0 == len(ctx.cfgPlugins) {
 		log.Warn("警告：未配置任何[Plugin]组件")
 	} else {
-		p.register(ctx.cfgPlugins, initFn, structInitFn)
+		p.register(ctx.cfgPlugins, mappedInitFn, structInitFn)
 	}
 	if 0 == len(ctx.cfgOutputs) {
 		log.Fatal("严重：未配置任何[OutputDevice]组件")
 	} else {
-		p.register(ctx.cfgOutputs, initFn, structInitFn)
+		p.register(ctx.cfgOutputs, mappedInitFn, structInitFn)
 	}
 	if 0 == len(ctx.cfgInterceptors) {
 		log.Warn("警告：未配置任何[Interceptor]组件")
 	} else {
-		p.register(ctx.cfgInterceptors, initFn, structInitFn)
+		p.register(ctx.cfgInterceptors, mappedInitFn, structInitFn)
 	}
 	if 0 == len(ctx.cfgDrivers) {
 		log.Warn("警告：未配置任何[Driver]组件")
 	} else {
-		p.register(ctx.cfgDrivers, initFn, structInitFn)
+		p.register(ctx.cfgDrivers, mappedInitFn, structInitFn)
 	}
 	if 0 == len(ctx.cfgTriggers) {
 		log.Warn("警告：未配置任何[Trigger]组件")
 	} else {
-		p.register(ctx.cfgTriggers, initFn, structInitFn)
+		p.register(ctx.cfgTriggers, mappedInitFn, structInitFn)
 	}
 	if 0 == len(ctx.cfgInputs) {
 		log.Fatal("严重：未配置任何[InputDevice]组件")
 	} else {
-		p.register(ctx.cfgInputs, initFn, structInitFn)
+		p.register(ctx.cfgInputs, mappedInitFn, structInitFn)
 	}
 	if 0 == len(ctx.cfgLogics) {
 		log.Warn("警告：未配置任何[LogicDevice]组件")
 	} else {
-		p.register(ctx.cfgLogics, initFn, structInitFn)
+		p.register(ctx.cfgLogics, mappedInitFn, structInitFn)
 	}
 	// show
 	p.showComponents()
@@ -109,7 +127,10 @@ func (p *Pipeline) Init(config map[string]interface{}) {
 func (p *Pipeline) Start() {
 	log.Info("Pipeline启动...")
 	// 检查运行时依赖关系:
-	// 每个Input产生的Topic,只允许单独一个driver处理, 不允许多个Driver处理同一个Topic
+	// 注意：
+	// Driver是直接接收Input，并驱动Output获取响应的重要节点。
+	// 每个Input产生的Topic,只允许单独一个driver处理, 不允许多个Driver处理同一个Topic。
+	// Trigger组件负责处理相同Topic的联动逻辑。
 	utils.ForEach(p.inputs, func(it interface{}) {
 		topic := it.(InputDevice).GetTopic()
 		hits := make([]Driver, 0)
@@ -131,7 +152,7 @@ func (p *Pipeline) Start() {
 	go func() {
 		for {
 			select {
-			case <-p.dispatchCtx.Done():
+			case <-p.termCtx.Done():
 				return
 
 			case s := <-p.interceptorChan:
@@ -199,7 +220,7 @@ func (p *Pipeline) Stop() {
 
 	log.Info("Pipeline停止...OK")
 	// 最终发起Dispatch停止信号
-	p.dispatchCancel()
+	p.termCancel()
 }
 
 // 等待系统停止信号
@@ -212,45 +233,46 @@ func (p *Pipeline) AwaitTermination() {
 
 // 准备运行环境，初始化相关组件
 func (p *Pipeline) prepareEnv() {
-	p.dispatchCtx, p.dispatchCancel = context.WithCancel(context.Background())
+	p.termCtx, p.termCancel = context.WithCancel(context.Background())
 }
 
 // 创建InputDeliverer函数
 // InputDeliverer函数对于InputDevice对象是一个系统内部数据传输流程的代理函数。
 // 每个Deliver请求，都会向系统发起请求，并获取系统处理结果响应数据。也意味着，InputDevice发起的每个请求
 // 都会执行 Decode -> Deliver(GeckoKernelFlow) -> Encode 流程。
-func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
+func (p *Pipeline) newInputDeliverer(master InputDevice) InputDeliverer {
 	return InputDeliverer(func(topic string, rawFrame FramePacket) (FramePacket, error) {
 		// 从Input设备中读取Decode数据
-		masterUuid := masterInput.GetUuid()
+		masterUuid := master.GetUuid()
 		if nil == rawFrame {
 			return nil, errors.New("Input设备发起Deliver请求必须携带参数数据")
 		}
-		inputMessage, err := masterInput.GetDecoder()(rawFrame)
+		input, err := master.GetDecoder()(rawFrame)
 		if nil != err {
 			return nil, errors.WithMessage(err, "Input设备Decode数据出错："+masterUuid)
 		}
 		attributes := make(map[string]interface{})
-		attributes["@InputDevice.Type"] = utils.GetClassName(masterInput)
-		attributes["@InputDevice.Name"] = masterInput.GetName()
+		attributes["@InputDevice.Type"] = utils.GetClassName(master)
+		attributes["@InputDevice.Name"] = master.GetName()
 
 		inputUuid := masterUuid
 		inputTopic := topic
 
 		var logic LogicDevice = nil
 		// 查找符合条件的逻辑设备，并转换数据
-		for _, item := range masterInput.GetLogicList() {
-			if item.CheckIfMatch(inputMessage) {
-				logic = item
+		for _, it := range master.GetLogicList() {
+			if it.CheckIfMatch(input) {
+				logic = it
 				attributes["@InputDevice.Logic.Type"] = utils.GetClassName(logic)
 				attributes["@InputDevice.Logic.Name"] = logic.GetName()
 				break
 			}
 		}
+		// 转换为Logic设备的Uuid和Topic
 		if logic != nil {
 			inputUuid = logic.GetUuid()
 			inputTopic = logic.GetTopic()
-			inputMessage = logic.Transform(inputMessage)
+			input = logic.Transform(input)
 		}
 		// 发送到Dispatcher调度处理
 		session := &session{
@@ -258,14 +280,18 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 			timestamp: time.Now(),
 			topic:     inputTopic,
 			uuid:      inputUuid,
-			inbound:   inputMessage,
+			inbound:   input,
 			outbound:  make(chan *MessagePacket, 1),
 		}
 
-		// 传递给interceptor通道来处理,并等待Session处理完成
+		// 传递给interceptor通道来处理
+		start := time.Now()
 		p.interceptorChan <- session
-		// 等待
+		// ,并等待Session处理完成
 		output := <-session.outbound
+		du := time.Since(start)
+		session.Attrs().Add("@Event.COST", du.String())
+
 		if nil == output {
 			return nil, errors.New("Input设备发起Deliver请求必须返回结果数据")
 		}
@@ -277,7 +303,7 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 				}
 			}
 		})
-		if encodedFrame, err := masterInput.GetEncoder()(output); nil != err {
+		if encodedFrame, err := master.GetEncoder()(output); nil != err {
 			return nil, errors.WithMessage(err, "Input设备Encode数据出错："+masterUuid)
 		} else {
 			return FramePacket(encodedFrame), nil
@@ -351,7 +377,7 @@ func (p *Pipeline) doInterceptor(session *session) {
 		}
 	}
 	// 后续处理
-	session.Attrs().Add("@Interceptor.Cost.TOTAL", session.Since())
+	session.Attrs().Add("@Interceptor.SINCE", session.Since())
 	// 1. Driver驱动处理
 	// 2. Trigger触发处理
 	p.driverChan <- session
@@ -379,6 +405,7 @@ func (p *Pipeline) doDriver(session *session) {
 		}
 	}
 
+	var outbound *MessagePacket
 	if nil != driver {
 		driName := driver.GetName()
 		// Driver 处理
@@ -387,21 +414,26 @@ func (p *Pipeline) doDriver(session *session) {
 			p.checkRecover(recover(), "Driver-Goroutine内部错误:"+driName)
 		}()
 		start := time.Now()
-		outbound, err := driver.Drive(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
+		ret, err := driver.Drive(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
 			OutputDeliverer(p.deliverToOutput), p.context)
 		session.Attrs().Add("@Driver.Cost."+driName, time.Since(start))
 
 		if nil != err {
+			outbound = NewMessagePacketFields(map[string]interface{}{
+				"error": err.Error(),
+			})
 			p.failFastLogger(err, "用户驱动发生错误:"+driName)
 		} else {
-			session.WriteOutbound(outbound)
+			outbound = ret
 		}
 	} else {
 		log.Debugf("未找到匹配的用户驱动, topic: %s", topic)
-		session.WriteOutbound(NewMessagePacketFields(map[string]interface{}{
+		outbound = NewMessagePacketFields(map[string]interface{}{
 			"error": "DRIVER_NOT_FOUND",
-		}))
+		})
 	}
+	// 返回处理结果
+	session.WriteOutbound(outbound)
 }
 
 // 处理驱动执行过程
@@ -446,7 +478,7 @@ func (p *Pipeline) checkRecover(r interface{}, msg string) {
 		return
 	}
 	if err, ok := r.(error); ok {
-		log.Errorw(msg, "error", err)
+		log.Error(msg, err)
 	}
 	p.context.OnIfFailFast(func() {
 		log.Fatal(r)
@@ -455,30 +487,9 @@ func (p *Pipeline) checkRecover(r interface{}, msg string) {
 
 func (p *Pipeline) failFastLogger(err error, msg string) {
 	if p.context.IsFailFastEnabled() {
-		log.Fatalw(msg, "error", err)
+		log.Fatal(msg, err)
 	} else {
-		log.Errorw(msg, "error", err)
-	}
-}
-
-func (p *Pipeline) newGeckoContext(config map[string]interface{}) *_GeckoContext {
-	return &_GeckoContext{
-		cfgGeckos:       utils.ToMap(config["GECKO"]),
-		cfgGlobals:      utils.ToMap(config["GLOBALS"]),
-		cfgInterceptors: utils.ToMap(config["INTERCEPTORS"]),
-		cfgDrivers:      utils.ToMap(config["DRIVERS"]),
-		cfgTriggers:     utils.ToMap(config["TRIGGERS"]),
-		cfgOutputs:      utils.ToMap(config["OUTPUTS"]),
-		cfgInputs:       utils.ToMap(config["INPUTS"]),
-		cfgPlugins:      utils.ToMap(config["PLUGINS"]),
-		cfgLogics:       utils.ToMap(config["LOGICS"]),
-		scopedKV:        make(map[interface{}]interface{}),
-		plugins:         p.plugins,
-		interceptors:    p.interceptors,
-		drivers:         p.drivers,
-		triggers:        p.triggers,
-		outputs:         p.outputs,
-		inputs:          p.inputs,
+		log.Error(msg, err)
 	}
 }
 

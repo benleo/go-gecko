@@ -55,7 +55,7 @@ func newRegister() *Register {
 // 添加Encoder
 func (re *Register) AddEncoder(name string, encoder Encoder) {
 	if _, ok := re.namedEncoders[name]; ok {
-		log.Panicw("Encoder类型重复", "type", name)
+		log.Panic("Encoder类型重复" + name)
 	} else {
 		re.namedEncoders[name] = encoder
 	}
@@ -64,7 +64,7 @@ func (re *Register) AddEncoder(name string, encoder Encoder) {
 // 添加Decoder
 func (re *Register) AddDecoder(name string, decoder Decoder) {
 	if _, ok := re.namedDecoders[name]; ok {
-		log.Panicw("Decoder类型重复", "type", name)
+		log.Panic("Decoder类型重复" + name)
 	} else {
 		re.namedDecoders[name] = decoder
 	}
