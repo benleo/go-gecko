@@ -17,8 +17,8 @@ type Interceptor interface {
 	// Interceptor可设置优先级
 	GetPriority() int
 	setPriority(p int)
-	// 拦截处理过程。抛出 {@link DropException} 来中断拦截。
-	Handle(session EventSession, ctx Context) error
+	// 拦截处理过程。抛出 {@link ErrInterceptorDropped} 来中断拦截。
+	Handle(attrs Attributes, topic string, uuid string, in *MessagePacket, ctx Context) error
 }
 
 // Interceptor抽象实现

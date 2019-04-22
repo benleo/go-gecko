@@ -20,6 +20,7 @@ type Register struct {
 	plugins       *list.List
 	interceptors  *list.List
 	drivers       *list.List
+	triggers      *list.List
 	outputs       *list.List
 	inputs        *list.List
 	// Hooks
@@ -40,6 +41,7 @@ func newRegister() *Register {
 	re.plugins = list.New()
 	re.interceptors = list.New()
 	re.drivers = list.New()
+	re.triggers = list.New()
 	re.inputs = list.New()
 	re.outputs = list.New()
 	re.startBeforeHooks = list.New()
@@ -95,6 +97,11 @@ func (re *Register) AddInterceptor(interceptor Interceptor) {
 // 添加Driver
 func (re *Register) AddDriver(driver Driver) {
 	re.drivers.PushBack(driver)
+}
+
+// 添加Trigger
+func (re *Register) AddTrigger(trigger Trigger) {
+	re.triggers.PushBack(trigger)
 }
 
 func (re *Register) AddStartBeforeHook(hook HookFunc) {
@@ -252,6 +259,15 @@ func (re *Register) register0(keyAsTypeName string, item interface{}) (interface
 			driver.setName(name)
 		} else {
 			driver.setName(keyAsTypeName)
+		}
+
+	case Trigger:
+		trigger := component.(Trigger)
+		re.AddTrigger(trigger)
+		if "" != name {
+			trigger.setName(name)
+		} else {
+			trigger.setName(keyAsTypeName)
 		}
 
 	case Interceptor:

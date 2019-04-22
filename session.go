@@ -2,7 +2,6 @@ package gecko
 
 import (
 	"github.com/yoojia/go-value"
-	"sync"
 	"time"
 )
 
@@ -12,91 +11,87 @@ import (
 
 type Attributes interface {
 	// 返回属性列表. 只读属性
-	Attrs() map[string]interface{}
+	Map() map[string]interface{}
 
 	// 添加属性
-	AddAttr(key string, value interface{})
+	Add(key string, value interface{})
 
 	// 获取属性
-	GetAttr(key string) (interface{}, bool)
+	Get(key string) (interface{}, bool)
 
 	// 获取属性值, 如果不存在,返回 nil
-	GetAttrOrNil(key string) interface{}
+	GetOrNil(key string) interface{}
 
 	// 获取String类型属性
-	GetAttrString(key string) (string, bool)
+	GetString(key string) (string, bool)
 
 	// 获取Int64类型的属性
-	GetAttrInt64(key string) (int64, bool)
+	GetInt64(key string) (int64, bool)
 
 	// 判断属性是否存在
 	HasAttr(key string) bool
 }
 
-type attributesMap struct {
+type AttrMap struct {
 	Attributes
-	values *sync.Map
+	data map[string]interface{}
 }
 
-func (a *attributesMap) Attrs() map[string]interface{} {
-	out := make(map[string]interface{})
-	a.values.Range(func(key, value interface{}) bool {
-		out[key.(string)] = value
-		return true
-	})
-	return out
+func (a *AttrMap) Map() map[string]interface{} {
+	return a.data
 }
 
-func (a *attributesMap) AddAttr(key string, value interface{}) {
-	a.values.Store(key, value)
+func (a *AttrMap) Add(key string, value interface{}) {
+	a.data[key] = value
 }
 
-func (a *attributesMap) GetAttr(key string) (interface{}, bool) {
-	return a.values.Load(key)
+func (a *AttrMap) Get(key string) (interface{}, bool) {
+	v, ok := a.data[key]
+	return v, ok
 }
 
-func (a *attributesMap) GetAttrOrNil(key string) interface{} {
-	if v, ok := a.values.Load(key); ok {
+func (a *AttrMap) GetOrNil(key string) interface{} {
+	if v, ok := a.data[key]; ok {
 		return v
 	} else {
 		return nil
 	}
 }
 
-func (a *attributesMap) GetAttrString(key string) (string, bool) {
-	if val, ok := a.values.Load(key); ok {
+func (a *AttrMap) GetString(key string) (string, bool) {
+	if val, ok := a.data[key]; ok {
 		return value.Of(val).String(), true
 	} else {
 		return "", false
 	}
 }
 
-func (a *attributesMap) GetAttrInt64(key string) (int64, bool) {
-	if val, ok := a.values.Load(key); ok {
+func (a *AttrMap) GetInt64(key string) (int64, bool) {
+	if val, ok := a.data[key]; ok {
 		return value.Of(val).ToInt64()
 	} else {
 		return 0, false
 	}
 }
 
-func (a *attributesMap) HasAttr(key string) bool {
-	_, ok := a.values.Load(key)
+func (a *AttrMap) HasAttr(key string) bool {
+	_, ok := a.data[key]
 	return ok
 }
 
-func newMapAttributesWith(attrs map[string]interface{}) *attributesMap {
-	am := &attributesMap{values: new(sync.Map)}
+func newMapAttributesWith(attrs map[string]interface{}) *AttrMap {
+	am := &AttrMap{data: make(map[string]interface{})}
 	for k, v := range attrs {
-		am.values.Store(k, v)
+		am.data[k] = v
 	}
 	return am
 }
 
 ////
 
-// EventSession 是每次请求生成的上下文对象，服务于事件请求的整个生命周期。
-type EventSession interface {
-	Attributes
+// session 是每次请求生成的上下文对象，服务于事件请求的整个生命周期。
+type session interface {
+	Attrs() Attributes
 
 	// 创建的时间戳
 	Timestamp() time.Time
@@ -111,44 +106,47 @@ type EventSession interface {
 	Uuid() string
 
 	// 返回输入端消息对象
-	Inbound() *MessagePacket
+	GetInbound() *MessagePacket
 
 	// 返回Outbound对象
-	Outbound() *MessagePacket
+	WriteOutbound(mp *MessagePacket)
 }
 
 ////
 
-type _EventSession struct {
+type _Session struct {
 	timestamp time.Time
-	*attributesMap
+	attrs     *AttrMap
 	topic     string
 	uuid      string
 	inbound   *MessagePacket
-	outbound  *MessagePacket
-	completed chan *MessagePacket
+	outbound  chan *MessagePacket
 }
 
-func (s *_EventSession) Timestamp() time.Time {
+func (s *_Session) Attrs() Attributes {
+	return s.attrs
+}
+
+func (s *_Session) Timestamp() time.Time {
 	return s.timestamp
 }
 
-func (s *_EventSession) Topic() string {
+func (s *_Session) Topic() string {
 	return s.topic
 }
 
-func (s *_EventSession) Uuid() string {
+func (s *_Session) Uuid() string {
 	return s.uuid
 }
 
-func (s *_EventSession) Inbound() *MessagePacket {
+func (s *_Session) GetInbound() *MessagePacket {
 	return s.inbound
 }
 
-func (s *_EventSession) Outbound() *MessagePacket {
-	return s.outbound
+func (s *_Session) WriteOutbound(mp *MessagePacket) {
+	s.outbound <- mp
 }
 
-func (s *_EventSession) Since() time.Duration {
+func (s *_Session) Since() time.Duration {
 	return time.Since(s.Timestamp())
 }

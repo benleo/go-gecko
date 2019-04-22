@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"sort"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -39,7 +38,7 @@ func (p *Pipeline) Init(config map[string]interface{}) {
 	log.Infof("事件通道容量： %d", capacity)
 	p.dispatcher = NewDispatcher(int(capacity))
 	p.dispatcher.SetStartHandler(p.handleInterceptor)
-	p.dispatcher.SetEndHandler(p.handleDriver)
+	p.dispatcher.SetEndHandler(p.handleSession)
 
 	// 初始化组件：根据配置文件指定项目
 	initFn := func(it Initial, args map[string]interface{}) {
@@ -82,6 +81,11 @@ func (p *Pipeline) Init(config map[string]interface{}) {
 	} else {
 		p.register(ctx.cfgDrivers, initFn, structInitFn)
 	}
+	if 0 == len(ctx.cfgTriggers) {
+		log.Warn("警告：未配置任何[Trigger]组件")
+	} else {
+		p.register(ctx.cfgTriggers, initFn, structInitFn)
+	}
 	if 0 == len(ctx.cfgInputs) {
 		log.Fatal("严重：未配置任何[InputDevice]组件")
 	} else {
@@ -110,6 +114,8 @@ func (p *Pipeline) Start() {
 	utils.ForEach(p.outputs, p.callStartFunc)
 	// Drivers
 	utils.ForEach(p.drivers, p.callStartFunc)
+	// Triggers
+	utils.ForEach(p.triggers, p.callStartFunc)
 	// Inputs
 	utils.ForEach(p.inputs, p.callStartFunc)
 	// Then, Serve inputs
@@ -140,6 +146,8 @@ func (p *Pipeline) Stop() {
 	utils.ForEach(p.inputs, p.callStopFunc)
 	// Drivers
 	utils.ForEach(p.drivers, p.callStopFunc)
+	// Triggers
+	utils.ForEach(p.triggers, p.callStopFunc)
 	// Outputs
 	utils.ForEach(p.outputs, p.callStopFunc)
 	// Plugins
@@ -203,21 +211,26 @@ func (p *Pipeline) newInputDeliverer(masterInput InputDevice) InputDeliverer {
 			inputMessage = logic.Transform(inputMessage)
 		}
 		// 发送到Dispatcher调度处理
-		session := &_EventSession{
-			attributesMap: newMapAttributesWith(attributes),
-			timestamp:     time.Now(),
-			topic:         inputTopic,
-			uuid:          inputUuid,
-			inbound:       inputMessage,
-			outbound:      NewMessagePacket(),
-			completed:     make(chan *MessagePacket, 1),
+		session := &_Session{
+			attrs:     newMapAttributesWith(attributes),
+			timestamp: time.Now(),
+			topic:     inputTopic,
+			uuid:      inputUuid,
+			inbound:   inputMessage,
+			outbound:  make(chan *MessagePacket, 1),
 		}
 		p.dispatcher.StartC() <- session
 		// 等待处理完成
-		outputMessage := <-session.completed
+		outputMessage := <-session.outbound
 		if nil == outputMessage {
 			return nil, errors.New("Input设备发起Deliver请求必须返回结果数据")
 		}
+		// 输出调度数据
+		p.geckoContext.OnIfLogV(func() {
+			for k, v := range session.Attrs().Map() {
+				log.Debugf("||-> SessionAttr: %s = %v", k, v)
+			}
+		})
 		if encodedFrame, err := masterInput.GetEncoder()(outputMessage); nil != err {
 			return nil, errors.WithMessage(err, "Input设备Encode数据出错："+masterUuid)
 		} else {
@@ -249,7 +262,7 @@ func (p *Pipeline) deliverToOutput(uuid string, rawJSON *MessagePacket) (*Messag
 }
 
 // 处理拦截器过程
-func (p *Pipeline) handleInterceptor(session EventSession) {
+func (p *Pipeline) handleInterceptor(session session) {
 	topic := session.Topic()
 	p.geckoContext.OnIfLogV(func() {
 		log.Debugf("正在Interceptor调度过程，Topic: %s", topic)
@@ -275,29 +288,34 @@ func (p *Pipeline) handleInterceptor(session EventSession) {
 	}()
 	for _, it := range matches {
 		itName := it.GetName()
-		err := it.Handle(session, p.geckoContext)
-		session.AddAttr("@Interceptor.Cost."+itName, session.Since())
+		start := time.Now()
+		err := it.Handle(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(), p.geckoContext)
+		session.Attrs().Add("@Interceptor.Cost."+itName, time.Since(start))
 		if err == nil {
 			continue
 		}
 		if err == ErrInterceptorDropped {
 			log.Debugf("拦截器[%s]中断事件： %s", itName, err.Error())
-			session.Outbound().AddField("error", "InterceptorDropped")
-			// 终止，输出处理
-			session.AddAttr("@Interceptor.Cost.TOTAL", session.Since())
-			p.output(session)
-			return // 终止后续处理过程
+			session.WriteOutbound(NewMessagePacketFields(map[string]interface{}{
+				"error": "INTERCEPTOR_DROPPED",
+			}))
+			return // 直接Return, 终止后续处理过程
 		} else {
 			p.failFastLogger(err, "拦截器发生错误:"+itName)
 		}
 	}
 	// 后续处理
-	session.AddAttr("@Interceptor.Cost.TOTAL", session.Since())
+	session.Attrs().Add("@Interceptor.Cost.TOTAL", session.Since())
 	p.dispatcher.EndC() <- session
 }
 
+func (p *Pipeline) handleSession(session session) {
+	p.doDriver(session)
+	go p.doTrigger(session)
+}
+
 // 处理驱动执行过程
-func (p *Pipeline) handleDriver(session EventSession) {
+func (p *Pipeline) doDriver(session session) {
 	topic := session.Topic()
 	p.geckoContext.OnIfLogV(func() {
 		log.Debugf("正在Driver调度过程，Topic: %s", topic)
@@ -306,52 +324,79 @@ func (p *Pipeline) handleDriver(session EventSession) {
 		p.checkRecover(recover(), "Driver-Goroutine内部错误")
 	}()
 
-	// 输出处理
-	defer func() {
-		session.AddAttr("Driver.Cost.TOTAL", session.Since())
-		p.output(session)
-	}()
-
 	// 查找匹配的用户驱动
-	// Driver通常执行一些硬件驱动、远程事件等耗时操作，它们可以并行处理；
-	// 使用WaitGroup归集后再输出；
-	wg := new(sync.WaitGroup)
+	var driver Driver
 	for el := p.drivers.Front(); el != nil; el = el.Next() {
-		driver := el.Value.(Driver)
-		driName := driver.GetName()
-		if anyTopicMatches(driver.GetTopicExpr(), topic) {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				log.Debugf("用户驱动正在处理, Driver: %s, topic: %s", driName, topic)
-				if err := driver.Handle(session, OutputDeliverer(p.deliverToOutput), p.geckoContext); nil != err {
-					p.failFastLogger(err, "用户驱动发生错误:"+driName)
-				}
-				session.AddAttr("Driver.Cost."+driName, session.Since())
-			}()
+		d := el.Value.(Driver)
+		if anyTopicMatches(d.GetTopicExpr(), topic) {
+			driver = d
+			// 只匹配一个Driver
+			break
 		} else {
 			p.geckoContext.OnIfLogV(func() {
-				log.Debugf("用户驱动[未匹配], Driver: %s, topic: %s", driName, topic)
+				log.Debugf("用户驱动[未匹配], Driver: %s, topic: %s", d.GetName(), topic)
 			})
 		}
 	}
-	wg.Wait()
-}
 
-func (p *Pipeline) output(event EventSession) {
-	p.geckoContext.OnIfLogV(func() {
-		log.Debugf("正在Output调度过程，Topic: %s", event.Topic())
-		for k, v := range event.Attrs() {
-			log.Debugf("||-> SessionAttr: %s = %v", k, v)
+	if nil != driver {
+		driName := driver.GetName()
+		// Driver 处理
+		log.Debugf("用户驱动正在处理, Driver: %s, topic: %s", driName, topic)
+
+		start := time.Now()
+		outbound, err := driver.Handle(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
+			OutputDeliverer(p.deliverToOutput), p.geckoContext)
+		session.Attrs().Add("@Driver.Cost."+driName, time.Since(start))
+
+		if nil != err {
+			p.failFastLogger(err, "用户驱动发生错误:"+driName)
+		} else {
+			session.WriteOutbound(outbound)
 		}
-	})
-	// 返回处理结果
-	event.(*_EventSession).completed <- event.Outbound()
+	} else {
+		log.Debugf("未找到匹配的用户驱动, topic: %s", topic)
+		session.WriteOutbound(NewMessagePacketFields(map[string]interface{}{
+			"error": "DRIVER_NOT_FOUND",
+		}))
+	}
 }
 
-func (p *Pipeline) checkDefTimeout(msg string, act func(Context)) {
+// 处理驱动执行过程
+func (p *Pipeline) doTrigger(session session) {
+	topic := session.Topic()
+	p.geckoContext.OnIfLogV(func() {
+		log.Debugf("正在Trigger调度过程，Topic: %s", topic)
+	})
+	defer func() {
+		p.checkRecover(recover(), "Trigger-Goroutine内部错误")
+	}()
+
+	// 查找匹配的用户触发器, 并发处理
+	for el := p.drivers.Front(); el != nil; el = el.Next() {
+		trigger := el.Value.(Trigger)
+		if anyTopicMatches(trigger.GetTopicExpr(), topic) {
+			go func() {
+				// Driver 处理
+				log.Debugf("用户触发器正在处理, Trigger: %s, topic: %s", trigger.GetName(), topic)
+				err := trigger.Handle(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
+					OutputDeliverer(p.deliverToOutput), p.geckoContext)
+				if nil != err {
+					p.failFastLogger(err, "用户触发器发生错误:"+trigger.GetName())
+				}
+			}()
+		} else {
+			p.geckoContext.OnIfLogV(func() {
+				log.Debugf("用户触发器[未匹配], Trigger: %s, topic: %s", trigger.GetName(), topic)
+			})
+		}
+	}
+
+}
+
+func (p *Pipeline) checkDefTimeout(msg string, fn func(Context)) {
 	p.geckoContext.CheckTimeout(msg, DefaultLifeCycleTimeout, func() {
-		act(p.geckoContext)
+		fn(p.geckoContext)
 	})
 }
 
@@ -381,6 +426,7 @@ func (p *Pipeline) newGeckoContext(config map[string]interface{}) *_GeckoContext
 		cfgGlobals:      utils.ToMap(config["GLOBALS"]),
 		cfgInterceptors: utils.ToMap(config["INTERCEPTORS"]),
 		cfgDrivers:      utils.ToMap(config["DRIVERS"]),
+		cfgTriggers:     utils.ToMap(config["TRIGGERS"]),
 		cfgOutputs:      utils.ToMap(config["OUTPUTS"]),
 		cfgInputs:       utils.ToMap(config["INPUTS"]),
 		cfgPlugins:      utils.ToMap(config["PLUGINS"]),
@@ -389,6 +435,7 @@ func (p *Pipeline) newGeckoContext(config map[string]interface{}) *_GeckoContext
 		plugins:         p.plugins,
 		interceptors:    p.interceptors,
 		drivers:         p.drivers,
+		triggers:        p.triggers,
 		outputs:         p.outputs,
 		inputs:          p.inputs,
 	}

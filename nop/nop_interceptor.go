@@ -17,10 +17,8 @@ func (ni *NopInterceptor) OnInit(config map[string]interface{}, ctx gecko.Contex
 
 }
 
-func (ni *NopInterceptor) Handle(session gecko.EventSession, ctx gecko.Context) error {
+func (ni *NopInterceptor) Handle(attrs gecko.Attributes, topic string, uuid string, in *gecko.MessagePacket, ctx gecko.Context) error {
 	//return ni.Drop()
-	msg := session.Outbound()
-	msg.AddField("HH", "OO")
 	return ni.Next()
 }
 

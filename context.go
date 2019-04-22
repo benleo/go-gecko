@@ -30,6 +30,9 @@ type Context interface {
 	// 获取Driver列表，返回一个复制列表
 	GetDrivers() *list.List
 
+	// 获取Driver列表，返回一个复制列表
+	GetTriggers() *list.List
+
 	// 获取插件列表，返回一个复制列表
 	GetPlugins() *list.List
 
@@ -78,6 +81,7 @@ type _GeckoContext struct {
 	cfgGlobals      map[string]interface{}
 	cfgInterceptors map[string]interface{}
 	cfgDrivers      map[string]interface{}
+	cfgTriggers     map[string]interface{}
 	cfgOutputs      map[string]interface{}
 	cfgInputs       map[string]interface{}
 	cfgLogics       map[string]interface{}
@@ -86,6 +90,7 @@ type _GeckoContext struct {
 	plugins         *list.List
 	interceptors    *list.List
 	drivers         *list.List
+	triggers        *list.List
 	outputs         *list.List
 	inputs          *list.List
 }
@@ -124,6 +129,11 @@ func (c *_GeckoContext) GetInterceptors() *list.List {
 // 获取Driver列表
 func (c *_GeckoContext) GetDrivers() *list.List {
 	return copyList(c.drivers)
+}
+
+// 获取Triggers列表
+func (c *_GeckoContext) GetTriggers() *list.List {
+	return copyList(c.triggers)
 }
 
 // 获取插件列表
