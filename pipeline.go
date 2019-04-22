@@ -108,7 +108,26 @@ func (p *Pipeline) Init(config map[string]interface{}) {
 // 启动Pipeline
 func (p *Pipeline) Start() {
 	log.Info("Pipeline启动...")
-	// Dispatcher运行
+	// 检查运行时依赖关系:
+	// 每个Input产生的Topic,只允许单独一个driver处理, 不允许多个Driver处理同一个Topic
+	utils.ForEach(p.inputs, func(it interface{}) {
+		topic := it.(InputDevice).GetTopic()
+		hits := make([]Driver, 0)
+		utils.ForEach(p.drivers, func(dr interface{}) {
+			driver := dr.(Driver)
+			if anyTopicMatches(driver.GetTopicExpr(), topic) {
+				hits = append(hits, driver)
+			}
+		})
+		if len(hits) > 1 {
+			for _, dr := range hits {
+				log.Error("Topic被多个Driver处理, Driver: %s, Topic: %s", dr.GetName(), topic)
+			}
+			log.Panicf("禁止多个Driver处理相同的Topic")
+		}
+	})
+
+	// Dispatch
 	go func() {
 		for {
 			select {
