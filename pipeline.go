@@ -3,8 +3,8 @@ package gecko
 import (
 	"context"
 	"github.com/pkg/errors"
-	"github.com/yoojia/go-gecko/structs"
-	"github.com/yoojia/go-gecko/utils"
+	"github.com/yoojia/go-gecko/v2/structs"
+	"github.com/yoojia/go-gecko/v2/utils"
 	"github.com/yoojia/go-value"
 	"os"
 	"os/signal"

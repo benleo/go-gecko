@@ -2,11 +2,11 @@ package main
 
 import (
 	"flag"
-	"github.com/yoojia/go-gecko"
-	"github.com/yoojia/go-gecko/lua"
-	"github.com/yoojia/go-gecko/network"
-	"github.com/yoojia/go-gecko/nop"
-	"github.com/yoojia/go-gecko/serial"
+	"github.com/yoojia/go-gecko/v2"
+	"github.com/yoojia/go-gecko/v2/lua"
+	"github.com/yoojia/go-gecko/v2/network"
+	"github.com/yoojia/go-gecko/v2/nop"
+	"github.com/yoojia/go-gecko/v2/serial"
 )
 
 // Main

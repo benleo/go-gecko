@@ -2,7 +2,7 @@ package serial
 
 import (
 	"github.com/tarm/serial"
-	"github.com/yoojia/go-gecko"
+	"github.com/yoojia/go-gecko/v2"
 	"github.com/yoojia/go-value"
 	"time"
 )

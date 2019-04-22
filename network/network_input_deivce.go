@@ -1,7 +1,7 @@
 package network
 
 import (
-	"github.com/yoojia/go-gecko"
+	"github.com/yoojia/go-gecko/v2"
 	"net"
 	"time"
 )

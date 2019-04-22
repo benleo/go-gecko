@@ -2,7 +2,7 @@ package gecko
 
 import (
 	"container/list"
-	"github.com/yoojia/go-gecko/utils"
+	"github.com/yoojia/go-gecko/v2/utils"
 	"github.com/yoojia/go-value"
 )
 

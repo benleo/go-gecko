@@ -1,7 +1,7 @@
 package gecko
 
 import (
-	"github.com/yoojia/go-gecko/utils"
+	"github.com/yoojia/go-gecko/v2/utils"
 )
 
 // Bootstrap提供一个启动入口

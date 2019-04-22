@@ -1,7 +1,7 @@
 package nop
 
 import (
-	"github.com/yoojia/go-gecko"
+	"github.com/yoojia/go-gecko/v2"
 )
 
 //

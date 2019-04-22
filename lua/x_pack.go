@@ -1,7 +1,7 @@
 package lua
 
 import (
-	"github.com/yoojia/go-gecko"
+	"github.com/yoojia/go-gecko/v2"
 	"github.com/yoojia/go-value"
 	"github.com/yuin/gopher-lua"
 )
