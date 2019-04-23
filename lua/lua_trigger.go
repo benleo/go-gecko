@@ -41,7 +41,7 @@ func (d *ScriptTrigger) OnInit(args map[string]interface{}, ctx gecko.Context) {
 }
 
 func (d *ScriptTrigger) OnStart(ctx gecko.Context) {
-	d.L = lua.NewState()
+	d.L = NewLuaEngine()
 	if err := d.L.DoFile(d.scriptFile); nil != err {
 		log.Panicf("加载Lua脚本出错: %s", d.scriptFile, err)
 	}

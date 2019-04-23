@@ -41,7 +41,7 @@ func (d *ScriptDriver) OnInit(args map[string]interface{}, ctx gecko.Context) {
 }
 
 func (d *ScriptDriver) OnStart(ctx gecko.Context) {
-	d.L = lua.NewState()
+	d.L = NewLuaEngine()
 	if err := d.L.DoFile(d.scriptFile); nil != err {
 		log.Panicf("加载LUA脚本出错: %s", d.scriptFile, err)
 	}
