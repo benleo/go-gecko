@@ -63,6 +63,9 @@ func (d *ScriptOutput) Process(frame gecko.FramePacket, ctx gecko.Context) (geck
 	if "" != err {
 		return nil, errors.New("LuaScript返回错误：" + err)
 	} else {
+		ctx.OnIfLogV(func() {
+			log.Debug("LuaScript返回结果: " + ret)
+		})
 		return []byte(ret), nil
 	}
 }
