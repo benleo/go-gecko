@@ -61,10 +61,10 @@ func (d *ScriptTrigger) Touch(attrs gecko.Attributes, topic string, uuid string,
 		return err
 	}
 	// 函数调用后，参数和函数全部出栈，此时栈中为函数返回值。
-	lErr := d.L.ToString(1)
+	retErr := d.L.ToString(1)
 	d.L.Pop(1) // remove received
-	if "" != lErr {
-		return errors.New("LuaScript返回非法的数据格式")
+	if "" != retErr {
+		return errors.New("LuaScript返回错误:" + retErr)
 	} else {
 		return nil
 	}
