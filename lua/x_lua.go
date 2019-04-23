@@ -49,13 +49,15 @@ func NewLuaEngine() *glua.LState {
 		CallStackSize: 8,
 		SkipOpenLibs:  true,
 	})
-	ls.PreloadModule("http", gluahttp.NewHttpModule(&http.Client{
-		Timeout: time.Second * 10,
-	}).Loader)
+	// base module
 	for _, lib := range luaLibs {
 		ls.Push(ls.NewFunction(lib.libFunc))
 		ls.Push(glua.LString(lib.libName))
 		ls.Call(1, 0)
 	}
+	// Other module
+	ls.PreloadModule("http", gluahttp.NewHttpModule(&http.Client{
+		Timeout: time.Second * 10,
+	}).Loader)
 	return ls
 }
