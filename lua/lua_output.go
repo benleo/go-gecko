@@ -7,7 +7,7 @@ import (
 	"github.com/yuin/gopher-lua"
 )
 
-func LuaOutputFactory() (string, gecko.Factory) {
+func ScriptOutputFactory() (string, gecko.Factory) {
 	return "ScriptOutput", func() interface{} {
 		return &ScriptOutput{
 			AbcOutputDevice: gecko.NewAbcOutputDevice(),
