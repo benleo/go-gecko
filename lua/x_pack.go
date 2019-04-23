@@ -14,6 +14,9 @@ func messageToLTable(pack *gecko.MessagePacket) *lua.LTable {
 }
 
 func lTableToMessage(table *lua.LTable) *gecko.MessagePacket {
+	if nil == table {
+		return gecko.NewMessagePacketFields(make(map[string]interface{}, 0))
+	}
 	data := make(map[string]interface{}, table.Len())
 	table.ForEach(func(key lua.LValue, val lua.LValue) {
 		k := key.String()
