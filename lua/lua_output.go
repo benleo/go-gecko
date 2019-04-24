@@ -52,7 +52,7 @@ func (d *ScriptOutput) Process(frame gecko.FramePacket, ctx gecko.Context) (geck
 
 	// 2 - Lua定义的入口main函数-返回值数量
 	if err := d.L.PCall(2, 2, nil); err != nil {
-		log.Error("调用 Lua.process 脚本发生错误: "+d.scriptFile, err)
+		log.Error("Lua.output 脚本发生错误("+d.scriptFile+"): ", err)
 		return nil, err
 	}
 
@@ -64,8 +64,8 @@ func (d *ScriptOutput) Process(frame gecko.FramePacket, ctx gecko.Context) (geck
 		return nil, errors.New("LuaScript返回错误：" + err)
 	} else {
 		ctx.OnIfLogV(func() {
-			log.Debug("LuaScript返回结果: " + ret)
+			log.Debug("LuaScript[Output]返回: " + ret)
 		})
-		return []byte(ret), nil
+		return gecko.FramePacket(ret), nil
 	}
 }

@@ -43,7 +43,7 @@ func (d *ScriptDriver) OnInit(args map[string]interface{}, ctx gecko.Context) {
 func (d *ScriptDriver) OnStart(ctx gecko.Context) {
 	d.L = NewLuaEngine()
 	if err := d.L.DoFile(d.scriptFile); nil != err {
-		log.Panicf("加载LUA脚本出错: %s", d.scriptFile, err)
+		log.Panicf("加载LUA脚本出错("+d.scriptFile+"): ", err)
 	}
 }
 
@@ -57,11 +57,8 @@ func (d *ScriptDriver) Drive(attrs gecko.Attributes, topic string, uuid string, 
 	nArgs := setupDeliLuaFn(d.L, d.args, "driverMain", attrs, topic, uuid, in, deliverer)
 	// 2 - Lua定义的入口main函数-返回值数量
 	if err := d.L.PCall(nArgs, 2, nil); err != nil {
-		log.Error("调用Lua.driver脚本发生错误: "+d.scriptFile, err)
-		return gecko.NewMessagePacketFields(map[string]interface{}{
-			"status": "error",
-			"error":  err.Error(),
-		}), err
+		log.Error("Lua.driver脚本发生错误("+d.scriptFile+"): ", err)
+		return nil, err
 	}
 
 	// 函数调用后，参数和函数全部出栈，此时栈中为函数返回值。
@@ -70,14 +67,8 @@ func (d *ScriptDriver) Drive(attrs gecko.Attributes, topic string, uuid string, 
 	d.L.Pop(2) // remove received
 
 	if "" != retErr {
-		return gecko.NewMessagePacketFields(map[string]interface{}{
-			"status": "error",
-			"error":  retErr,
-		}), errors.New("LuaScript返回错误：" + retErr)
+		return nil, errors.New("LuaScript返回错误：" + retErr)
 	} else {
-		return gecko.NewMessagePacketFields(map[string]interface{}{
-			"status": "success",
-			"data":   lTableToMessage(retData),
-		}), nil
+		return lTableToMessage(retData), nil
 	}
 }

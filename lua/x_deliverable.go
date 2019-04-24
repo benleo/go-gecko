@@ -35,7 +35,7 @@ func setupDeliLuaFn(
 		pack := l.ToTable(2)
 		// Go调用，并返回结果到Lua中：
 		if ret, err := deliverer.Deliver(uuid, lTableToMessage(pack)); nil != err {
-			log.Error("Go.deliver发生错误@"+entryFnName, err)
+			log.Error("Go.deliver发生错误@"+entryFnName+": ", err)
 			l.Push(lua.LNil)
 			l.Push(lua.LString(err.Error()))
 		} else {

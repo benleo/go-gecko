@@ -43,7 +43,7 @@ func (d *ScriptTrigger) OnInit(args map[string]interface{}, ctx gecko.Context) {
 func (d *ScriptTrigger) OnStart(ctx gecko.Context) {
 	d.L = NewLuaEngine()
 	if err := d.L.DoFile(d.scriptFile); nil != err {
-		log.Panicf("加载Lua脚本出错: %s", d.scriptFile, err)
+		log.Panicf("加载LUA脚本出错("+d.scriptFile+"): ", err)
 	}
 }
 
@@ -57,7 +57,7 @@ func (d *ScriptTrigger) Touch(attrs gecko.Attributes, topic string, uuid string,
 	nArgs := setupDeliLuaFn(d.L, d.args, "triggerMain", attrs, topic, uuid, in, deliverer)
 	// 2 - Lua定义的入口main函数-返回值数量
 	if err := d.L.PCall(nArgs, 1, nil); err != nil {
-		log.Error("调用Lua.trigger脚本发生错误: "+d.scriptFile, err)
+		log.Error("Lua.trigger 脚本发生错误("+d.scriptFile+"): ", err)
 		return err
 	}
 	// 函数调用后，参数和函数全部出栈，此时栈中为函数返回值。
