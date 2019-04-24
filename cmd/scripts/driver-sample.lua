@@ -8,7 +8,7 @@
         2. Error 错误；
 ]]--
 
-function drive(args, inbound, deliverFn)
+function driverMain(args, inbound, deliverFn)
     print(inbound["uuid"])
-    return { foo = "bar" }, nil
+    return { foo = "barxxxxx" }, nil
 end

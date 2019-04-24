@@ -53,8 +53,8 @@ func (d *ScriptDriver) OnStop(ctx gecko.Context) {
 
 func (d *ScriptDriver) Drive(attrs gecko.Attributes, topic string, uuid string, in *gecko.MessagePacket,
 	deliverer gecko.OutputDeliverer, ctx gecko.Context) (out *gecko.MessagePacket, err error) {
-	// Lua的函数原型： function driver(inbounds, deliverFn) (response, error)
-	nArgs := setupDeliLuaFn(d.L, d.args, "driver", attrs, topic, uuid, in, deliverer)
+	// Lua的函数原型： function driverMain(inbounds, deliverFn) (response, error)
+	nArgs := setupDeliLuaFn(d.L, d.args, "driverMain", attrs, topic, uuid, in, deliverer)
 	// 2 - Lua定义的入口main函数-返回值数量
 	if err := d.L.PCall(nArgs, 2, nil); err != nil {
 		log.Error("调用Lua.driver脚本发生错误: "+d.scriptFile, err)

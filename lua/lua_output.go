@@ -42,9 +42,9 @@ func (d *ScriptOutput) OnStop(ctx gecko.Context) {
 }
 
 func (d *ScriptOutput) Process(frame gecko.FramePacket, ctx gecko.Context) (gecko.FramePacket, error) {
-	// Lua的函数原型： function process(argsTable, frame) (string, error)
+	// Lua的函数原型： function processMain(argsTable, frame) (string, error)
 	// 先函数，后参数，正序入栈:
-	d.L.Push(d.L.GetGlobal("process"))
+	d.L.Push(d.L.GetGlobal("outputMain"))
 	// Arg 1
 	d.L.Push(mapToLTable(d.args))
 	// Arg 2

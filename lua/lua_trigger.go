@@ -53,8 +53,8 @@ func (d *ScriptTrigger) OnStop(ctx gecko.Context) {
 
 func (d *ScriptTrigger) Touch(attrs gecko.Attributes, topic string, uuid string, in *gecko.MessagePacket,
 	deliverer gecko.OutputDeliverer, ctx gecko.Context) error {
-	// Lua的函数原型： function trigger(args, inbounds, deliverFn) error
-	nArgs := setupDeliLuaFn(d.L, d.args, "trigger", attrs, topic, uuid, in, deliverer)
+	// Lua的函数原型： function triggerMain(args, inbounds, deliverFn) error
+	nArgs := setupDeliLuaFn(d.L, d.args, "triggerMain", attrs, topic, uuid, in, deliverer)
 	// 2 - Lua定义的入口main函数-返回值数量
 	if err := d.L.PCall(nArgs, 1, nil); err != nil {
 		log.Error("调用Lua.trigger脚本发生错误: "+d.scriptFile, err)
