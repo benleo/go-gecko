@@ -58,7 +58,7 @@ func (p *Pipeline) Init(config map[string]interface{}) {
 	if capacity <= 0 {
 		capacity = 1
 	}
-	log.Infof("事件通道容量： %d", capacity)
+	log.Infof("事件通道容量: %d", capacity)
 	p.interceptorChan = make(chan *session, capacity)
 	p.driverChan = make(chan *session, capacity)
 	p.triggerChan = make(chan *session, capacity)
@@ -249,7 +249,7 @@ func (p *Pipeline) newInputDeliverer(master InputDevice) InputDeliverer {
 		}
 		input, err := master.GetDecoder()(rawFrame)
 		if nil != err {
-			return nil, errors.WithMessage(err, "Input设备Decode数据出错："+masterUuid)
+			return nil, errors.WithMessage(err, "Input设备Decode数据出错: "+masterUuid)
 		}
 		attributes := make(map[string]interface{})
 		attributes["@InputDevice.Type"] = utils.GetClassName(master)
@@ -287,7 +287,7 @@ func (p *Pipeline) newInputDeliverer(master InputDevice) InputDeliverer {
 		// 传递给interceptor通道来处理
 		start := time.Now()
 		p.interceptorChan <- session
-		// ,并等待Session处理完成
+		// 等待Session处理完成
 		output := <-session.outbound
 		du := time.Since(start)
 		session.Attrs().Add("@Event.COST", du.String())
@@ -304,7 +304,7 @@ func (p *Pipeline) newInputDeliverer(master InputDevice) InputDeliverer {
 			}
 		})
 		if encodedFrame, err := master.GetEncoder()(output); nil != err {
-			return nil, errors.WithMessage(err, "Input设备Encode数据出错："+masterUuid)
+			return nil, errors.WithMessage(err, "Input设备Encode数据出错: "+masterUuid)
 		} else {
 			return FramePacket(encodedFrame), nil
 		}
@@ -329,7 +329,7 @@ func (p *Pipeline) deliverToOutput(uuid string, rawJSON *MessagePacket) (*Messag
 			return decodedMessage, nil
 		}
 	} else {
-		return nil, errors.New("指定地址的Output设备不存在:" + uuid)
+		return nil, errors.New("指定地址的Output设备不存在: " + uuid)
 	}
 }
 
@@ -367,13 +367,13 @@ func (p *Pipeline) doInterceptor(session *session) {
 			continue
 		}
 		if err == ErrInterceptorDropped {
-			log.Debugf("拦截器[%s]中断事件： %s", itName, err.Error())
+			log.Debugf("拦截器[%s]中断事件: %s", itName, err.Error())
 			session.WriteOutbound(NewMessagePacketFields(map[string]interface{}{
 				"error": "INTERCEPTOR_DROPPED",
 			}))
 			return // 直接Return, 终止后续处理过程
 		} else {
-			p.failFastLogger(err, "拦截器发生错误:"+itName)
+			p.failFastLogger("拦截器发生错误: "+itName, err)
 		}
 	}
 	// 后续处理
@@ -411,7 +411,7 @@ func (p *Pipeline) doDriver(session *session) {
 		// Driver 处理
 		log.Debugf("用户驱动正在处理, Driver: %s, topic: %s", driName, topic)
 		defer func() {
-			p.checkRecover(recover(), "Driver-Goroutine内部错误:"+driName)
+			p.checkRecover(recover(), "Driver-Goroutine内部错误: "+driName)
 		}()
 		start := time.Now()
 		ret, err := driver.Drive(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
@@ -422,7 +422,7 @@ func (p *Pipeline) doDriver(session *session) {
 			outbound = NewMessagePacketFields(map[string]interface{}{
 				"error": err.Error(),
 			})
-			p.failFastLogger(err, "用户驱动发生错误:"+driName)
+			p.failFastLogger("用户驱动发生错误:"+driName, err)
 		} else {
 			outbound = ret
 		}
@@ -448,14 +448,14 @@ func (p *Pipeline) doTrigger(session *session) {
 		if anyTopicMatches(trigger.GetTopicExpr(), topic) {
 			go func() {
 				defer func() {
-					p.checkRecover(recover(), "Trigger-Goroutine内部错误:"+trigger.GetName())
+					p.checkRecover(recover(), "Trigger-Goroutine内部错误: "+trigger.GetName())
 				}()
 				// Driver 处理
 				log.Debugf("用户触发器正在处理, Trigger: %s, topic: %s", trigger.GetName(), topic)
 				err := trigger.Touch(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
 					OutputDeliverer(p.deliverToOutput), p.context)
 				if nil != err {
-					p.failFastLogger(err, "用户触发器发生错误:"+trigger.GetName())
+					p.failFastLogger("用户触发器发生错误: "+trigger.GetName(), err)
 				}
 			}()
 		} else {
@@ -485,7 +485,7 @@ func (p *Pipeline) checkRecover(r interface{}, msg string) {
 	})
 }
 
-func (p *Pipeline) failFastLogger(err error, msg string) {
+func (p *Pipeline) failFastLogger(msg string, err error) {
 	if p.context.IsFailFastEnabled() {
 		log.Fatal(msg, err)
 	} else {
