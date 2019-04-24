@@ -376,7 +376,7 @@ func (p *Pipeline) doInterceptor(session *session) {
 			}))
 			return // 直接Return, 终止后续处理过程
 		} else {
-			p.failFastLogger("拦截器发生错误: "+itName, err)
+			p.failFastLogger("拦截器发生错误("+itName+"): ", err)
 		}
 	}
 	// 后续处理
@@ -426,7 +426,9 @@ func (p *Pipeline) doDriver(session *session) {
 			outbound = NewMessagePacketFields(map[string]interface{}{
 				"error": err.Error(),
 			})
-			p.failFastLogger("用户驱动发生错误:"+driName, err)
+			p.failFastLogger("用户驱动发生错误("+driName+"): ", err)
+		} else if nil == ret {
+			p.failFastLogger("用户驱动发生错误("+driName+"): ", errors.New("返回空数据"))
 		} else {
 			outbound = ret
 		}
@@ -459,7 +461,7 @@ func (p *Pipeline) doTrigger(session *session) {
 				err := trigger.Touch(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
 					OutputDeliverer(p.deliverToOutput), p.context)
 				if nil != err {
-					p.failFastLogger("用户触发器发生错误: "+trigger.GetName(), err)
+					p.failFastLogger("用户触发器发生错误("+trigger.GetName()+"): ", err)
 				}
 			}()
 		} else {
