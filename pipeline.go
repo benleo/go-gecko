@@ -315,16 +315,19 @@ func (p *Pipeline) newInputDeliverer(master InputDevice) InputDeliverer {
 // 根据Driver指定的目标输出设备地址，查找并处理数据包
 func (p *Pipeline) deliverToOutput(uuid string, rawJSON *MessagePacket) (*MessagePacket, error) {
 	if output, ok := p.uuidOutputs[uuid]; ok {
-		encodedFrame, encErr := output.GetEncoder().Encode(rawJSON)
-		if nil != encErr {
-			return nil, errors.WithMessage(encErr, "设备Encode数据出错: "+uuid)
+		// 编码
+		encodedFrame, err := output.GetEncoder().Encode(rawJSON)
+		if nil != err {
+			return nil, errors.WithMessage(err, "设备Encode数据出错: "+uuid)
 		}
+		// 处理
 		respFrame, err := output.Process(encodedFrame, p.context)
 		if nil != err {
 			return nil, errors.WithMessage(err, "Output设备处理出错: "+uuid)
 		}
-		if decodedMessage, decErr := output.GetDecoder().Decode(respFrame); nil != decErr {
-			return nil, errors.WithMessage(encErr, "设备Decode数据出错: "+uuid)
+		// 解码
+		if decodedMessage, err := output.GetDecoder().Decode(respFrame); nil != err {
+			return nil, errors.WithMessage(err, "设备Decode数据出错: "+uuid)
 		} else {
 			return decodedMessage, nil
 		}
@@ -414,7 +417,8 @@ func (p *Pipeline) doDriver(session *session) {
 			p.checkRecover(recover(), "Driver-Goroutine内部错误: "+driName)
 		}()
 		start := time.Now()
-		ret, err := driver.Drive(session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
+		ret, err := driver.Drive(
+			session.Attrs(), session.Topic(), session.Uuid(), session.GetInbound(),
 			OutputDeliverer(p.deliverToOutput), p.context)
 		session.Attrs().Add("@Driver.Cost."+driName, time.Since(start))
 
