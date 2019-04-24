@@ -9,6 +9,11 @@
 ]]--
 
 function driverMain(args, inbound, deliverFn)
-    print(inbound["uuid"])
-    return { foo = "barxxxxx" }, nil
+    uuid = args["targetUuid"]
+    print("Target UUID: " .. uuid)
+    print(type(deliverFn))
+    ret, err = deliverFn(uuid, { foo = "bar" })
+    print(ret)
+    print(err)
+    return ret, err
 end

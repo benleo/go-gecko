@@ -33,6 +33,16 @@
 [DRIVERS.NopUdpDriver.InitArgs]
   foo = "bar"
 
+[OUTPUTS.ScriptOutput]
+  disable = false
+  name = "测试脚本Output"
+  type = "ScriptOutput"
+  encoder = "JSONDefaultEncoder"
+  decoder = "JSONDefaultDecoder"
+  uuid = "TEST-SCRIPTING-OUTPUT"
+[OUTPUTS.ScriptOutput.InitArgs]
+  script = "scripts/output-capture.lua"
+
 [DRIVERS.ScriptDriver]
   disable = false
   type = "ScriptDriver"
@@ -41,7 +51,7 @@
   ]
 [DRIVERS.ScriptDriver.InitArgs]
   script = "./scripts/driver-sample.lua"
-  foo = "bar"
+  targetUuid = "TEST-SCRIPTING-OUTPUT"
 
 [TRIGGERS.NopTrigger]
   disable = false

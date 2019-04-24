@@ -19,6 +19,8 @@ func main() {
 		pipeline.AddCodecFactory(gecko.JSONDefaultDecoderFactory())
 
 		pipeline.AddFactory(lua.ScriptDriverFactory())
+		pipeline.AddFactory(lua.ScriptTriggerFactory())
+		pipeline.AddFactory(lua.ScriptOutputFactory())
 
 		pipeline.AddFactory(network.UDPInputDeviceFactory())
 		pipeline.AddFactory(network.UDPOutputDeviceFactory())

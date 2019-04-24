@@ -12,5 +12,5 @@ function outputMain(args, frameStr)
                  "/tmp/SNAPSHOT.png"
     }
     cmd = table.concat(commands, " ")
-    return [[ { "status", "success", "cmd": "]] .. cmd .. [[" } ]], nil
+    return [[ { "status": "success", "cmd": "]] .. cmd .. [[" } ]], nil
 end
