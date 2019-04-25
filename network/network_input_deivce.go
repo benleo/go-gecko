@@ -22,6 +22,7 @@ type AbcNetworkInputDevice struct {
 
 	networkType string
 	socket      *SocketServer
+	config      *NetConfig
 }
 
 func (d *AbcNetworkInputDevice) StructuredConfig() interface{} {
@@ -32,21 +33,21 @@ func (d *AbcNetworkInputDevice) StructuredConfig() interface{} {
 }
 
 func (d *AbcNetworkInputDevice) Init(structConfig interface{}, ctx gecko.Context) {
-	config := structConfig.(*NetConfig)
-	read, err := time.ParseDuration(config.ReadTimeout)
+	d.config = structConfig.(*NetConfig)
+	read, err := time.ParseDuration(d.config.ReadTimeout)
 	if nil != err {
 		log.Panic(err)
 	}
-	write, err := time.ParseDuration(config.WriteTimeout)
+	write, err := time.ParseDuration(d.config.WriteTimeout)
 	if nil != err {
 		log.Panic(err)
 	}
 	d.socket.Init(SocketConfig{
 		Type:         d.networkType,
-		Addr:         config.Address,
+		Addr:         d.config.Address,
 		ReadTimeout:  read,
 		WriteTimeout: write,
-		BufferSize:   config.BufferSize,
+		BufferSize:   d.config.BufferSize,
 	})
 }
 
@@ -64,7 +65,16 @@ func (d *AbcNetworkInputDevice) OnStop(ctx gecko.Context) {
 
 func (d *AbcNetworkInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDeliverer) error {
 	return d.Socket().Serve(func(addr net.Addr, input []byte) (output []byte, err error) {
-		return deliverer.Deliver(d.GetTopic(), gecko.FramePacket(input))
+		if d.config.Broadcast {
+			go func() {
+				if _, err := deliverer.Deliver(d.GetTopic(), gecko.FramePacket(input)); nil != err {
+					log.Error("Input("+d.GetName()+")广播投递发生错误: ", err)
+				}
+			}()
+			return []byte{}, err
+		} else {
+			return deliverer.Deliver(d.GetTopic(), gecko.FramePacket(input))
+		}
 	})
 }
 

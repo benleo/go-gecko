@@ -26,12 +26,14 @@ type UARTInputDevice struct {
 	config       *serial.Config
 	port         *serial.Port
 	bufferSize   int
+	broadcast    bool
 	closeContext context.Context
 	closeFunc    context.CancelFunc
 }
 
 func (d *UARTInputDevice) OnInit(config map[string]interface{}, ctx gecko.Context) {
 	d.bufferSize = int(value.Of(config["bufferSize"]).MustInt64())
+	d.broadcast = value.Of(config["broadcast"]).MustBool()
 	// 如果设置Read超时，port.Read方法会启用NonBlocking读模式。
 	// 此处设置为0，使用阻塞读模式。
 	d.config = getSerialConfig(config, 0)
@@ -70,14 +72,25 @@ func (d *UARTInputDevice) Serve(ctx gecko.Context, deliverer gecko.InputDelivere
 			// FIXME 需要处理Port被Close后的Error状态
 			return err
 		} else {
-			output, err := deliverer.Deliver(d.GetTopic(), buffer[:n])
-			if nil != err {
-				return err
-			}
-			if _, err := port.Write(output); nil != err {
-				return err
+			topic := d.GetTopic()
+			pack := buffer[:n]
+			if d.broadcast {
+				go func() {
+					if _, err := deliverer.Deliver(topic, pack); nil != err {
+						log.Error("Input("+d.GetName()+")广播投递发生错误: ", err)
+					}
+				}()
+			} else {
+				output, err := deliverer.Deliver(topic, pack)
+				if nil != err {
+					return err
+				}
+				if _, err := port.Write(output); nil != err {
+					return err
+				}
 			}
 		}
+
 	}
 }
 
