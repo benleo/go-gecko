@@ -26,10 +26,12 @@ type UARTOutputDevice struct {
 	config     *serial.Config
 	port       *serial.Port
 	bufferSize int
+	broadcast  bool
 }
 
 func (d *UARTOutputDevice) OnInit(config map[string]interface{}, ctx gecko.Context) {
 	d.bufferSize = int(value.Of(config["bufferSize"]).MustInt64())
+	d.broadcast = value.Of(config["broadcast"]).MustBool()
 	d.config = getSerialConfig(config, time.Millisecond*100)
 }
 
@@ -63,6 +65,9 @@ func (d *UARTOutputDevice) Process(frame gecko.FramePacket, ctx gecko.Context) (
 	buffer := make([]byte, d.BufferSize())
 	if _, err := port.Write(frame); nil != err {
 		return nil, err
+	}
+	if d.broadcast {
+		return []byte(`{"status": "success", "broadcast": "true"}`), nil
 	}
 	if n, err := port.Read(buffer); nil != err {
 		return nil, err

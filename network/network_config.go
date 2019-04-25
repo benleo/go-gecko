@@ -5,4 +5,5 @@ type NetConfig struct {
 	ReadTimeout  string `toml:"readTimeout"`
 	WriteTimeout string `toml:"writeTimeout"`
 	BufferSize   uint   `toml:"bufferSize"`
+	Broadcast    bool   `toml:"broadcast"`
 }

@@ -18,6 +18,7 @@ func ScriptOutputFactory() (string, gecko.Factory) {
 type ScriptOutput struct {
 	*gecko.AbcOutputDevice
 	scriptFile string
+	broadcast  bool
 	L          *lua.LState
 	args       map[string]interface{}
 }
@@ -25,6 +26,7 @@ type ScriptOutput struct {
 func (d *ScriptOutput) OnInit(args map[string]interface{}, ctx gecko.Context) {
 	d.args = args
 	d.scriptFile = value.Of(args["script"]).String()
+	d.broadcast = value.Of(args["broadcast"]).MustBool()
 	if "" == d.scriptFile {
 		log.Panic("参数[script]是必须的")
 	}
@@ -55,7 +57,9 @@ func (d *ScriptOutput) Process(frame gecko.FramePacket, ctx gecko.Context) (geck
 		log.Error("Lua.output 脚本发生错误("+d.scriptFile+"): ", err)
 		return nil, err
 	}
-
+	if d.broadcast {
+		return []byte(`{"status": "success", "broadcast": "true"}`), nil
+	}
 	// 函数调用后，参数和函数全部出栈，此时栈中为函数返回值。
 	ret := d.L.ToString(1)
 	err := d.L.ToString(2)

@@ -18,7 +18,7 @@ type AbcNetworkOutputDevice struct {
 	*gecko.AbcOutputDevice
 	gecko.StructuredInitial
 	gecko.LifeCycle
-
+	config      *NetConfig
 	networkType string
 	socket      *SocketClient
 }
@@ -31,22 +31,22 @@ func (d *AbcNetworkOutputDevice) StructuredConfig() interface{} {
 }
 
 func (d *AbcNetworkOutputDevice) Init(structConfig interface{}, ctx gecko.Context) {
-	config := structConfig.(*NetConfig)
+	d.config = structConfig.(*NetConfig)
 
-	read, err := time.ParseDuration(config.ReadTimeout)
+	read, err := time.ParseDuration(d.config.ReadTimeout)
 	if nil != err {
 		log.Panic(err)
 	}
-	write, err := time.ParseDuration(config.WriteTimeout)
+	write, err := time.ParseDuration(d.config.WriteTimeout)
 	if nil != err {
 		log.Panic(err)
 	}
 	d.socket.Init(SocketConfig{
 		Type:         d.networkType,
-		Addr:         config.Address,
+		Addr:         d.config.Address,
 		ReadTimeout:  read,
 		WriteTimeout: write,
-		BufferSize:   config.BufferSize,
+		BufferSize:   d.config.BufferSize,
 	})
 }
 
@@ -72,6 +72,9 @@ func (d *AbcNetworkOutputDevice) Process(frame gecko.FramePacket, ctx gecko.Cont
 	buffer := make([]byte, socket.BufferSize())
 	if _, err := socket.Send(frame); nil != err {
 		return nil, err
+	}
+	if d.config.Broadcast {
+		return []byte(`{"status": "success", "broadcast": "true"}`), nil
 	}
 	if n, err := socket.Receive(buffer); nil != err {
 		return nil, err
