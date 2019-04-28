@@ -52,6 +52,9 @@ func (d *AbcNetworkOutputDevice) Init(structConfig interface{}, ctx gecko.Contex
 
 func (d *AbcNetworkOutputDevice) OnStart(ctx gecko.Context) {
 	config := d.socket.Config()
+	if d.config.Broadcast {
+		log.Debug("Output(" +  d.GetName() +")运行在Broadcast模式")
+	}
 	if !config.IsValid() {
 		log.Panicw("未设置网络通讯地址和网络类型", "address", config.Addr, "type", config.Type)
 	}

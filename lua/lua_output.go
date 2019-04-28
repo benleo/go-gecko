@@ -37,6 +37,9 @@ func (d *ScriptOutput) OnStart(ctx gecko.Context) {
 	if err := d.L.DoFile(d.scriptFile); nil != err {
 		log.Panicf("加载LUA脚本出错: %s", d.scriptFile, err)
 	}
+	if d.broadcast {
+		log.Debug("Output(" +  d.GetName() +")运行在Broadcast模式")
+	}
 }
 
 func (d *ScriptOutput) OnStop(ctx gecko.Context) {

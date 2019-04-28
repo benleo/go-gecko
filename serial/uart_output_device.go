@@ -42,6 +42,9 @@ func (d *UARTOutputDevice) OnStart(ctx gecko.Context) {
 	} else {
 		d.port = port
 	}
+	if d.broadcast {
+		log.Debug("Output(" +  d.GetName() +")运行在Broadcast模式")
+	}
 }
 
 func (d *UARTOutputDevice) OnStop(ctx gecko.Context) {
